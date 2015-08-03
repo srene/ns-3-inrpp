@@ -422,8 +422,11 @@ InternetStackHelper::CreateAndAggregateObjectFromTypeId (Ptr<Node> node, const s
 void
 InternetStackHelper::Install (Ptr<Node> node) const
 {
+NS_LOG_INFO("Install");
   if (m_ipv4Enabled)
     {
+	  NS_LOG_INFO("Install ipv4");
+
       if (node->GetObject<Ipv4> () != 0)
         {
           NS_FATAL_ERROR ("InternetStackHelper::Install (): Aggregating " 
@@ -448,6 +451,8 @@ InternetStackHelper::Install (Ptr<Node> node) const
 
   if (m_ipv6Enabled)
     {
+	  NS_LOG_INFO("Install ipv6");
+
       /* IPv6 stack */
       if (node->GetObject<Ipv6> () != 0)
         {

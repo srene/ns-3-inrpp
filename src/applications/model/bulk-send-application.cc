@@ -151,6 +151,10 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
     }
 }
 
+void BulkSendApplication::SetCallback(Callback<void, Ptr<Socket> > cb)
+{
+	m_cb = cb;
+}
 void BulkSendApplication::StopApplication (void) // Called at time specified by Stop
 {
   NS_LOG_FUNCTION (this);
@@ -210,6 +214,7 @@ void BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   NS_LOG_LOGIC ("BulkSendApplication Connection succeeded");
   m_connected = true;
+  m_cb(m_socket);
   SendData ();
 }
 

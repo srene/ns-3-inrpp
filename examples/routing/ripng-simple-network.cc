@@ -72,7 +72,7 @@ void TearDownLink (Ptr<Node> nodeA, Ptr<Node> nodeB, uint32_t interfaceA, uint32
 int main (int argc, char **argv)
 {
   bool verbose = false;
-  bool printRoutingTables = false;
+  bool printRoutingTables = true;
   bool showPings = false;
   std::string SplitHorizon ("PoisonReverse");
 

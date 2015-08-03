@@ -532,6 +532,9 @@ Ipv4L3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t p
     }
 
   NS_ASSERT_MSG (m_routingProtocol != 0, "Need a routing protocol object to process packets");
+  NS_LOG_LOGIC ("Route input");
+
+
   if (!m_routingProtocol->RouteInput (packet, ipHeader, device,
                                       MakeCallback (&Ipv4L3Protocol::IpForward, this),
                                       MakeCallback (&Ipv4L3Protocol::IpMulticastForward, this),
@@ -822,6 +825,7 @@ Ipv4L3Protocol::SendRealOut (Ptr<Ipv4Route> route,
             }
           else
             {
+        	  NS_LOG_LOGIC("Trace object " << m_node);
               m_txTrace (packet, m_node->GetObject<Ipv4> (), interface);
               outInterface->Send (packet, route->GetGateway ());
             }
@@ -907,10 +911,12 @@ Ipv4L3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const Ip
 {
   NS_LOG_FUNCTION (this << rtentry << p << header);
   NS_LOG_LOGIC ("Forwarding logic for node: " << m_node->GetId ());
+  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource());
   // Forwarding
   Ipv4Header ipHeader = header;
   Ptr<Packet> packet = p->Copy ();
   int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
+  NS_LOG_FUNCTION (this << interface);
   ipHeader.SetTtl (ipHeader.GetTtl () - 1);
   if (ipHeader.GetTtl () == 0)
     {

@@ -49,6 +49,9 @@ TypeId DropTailQueue::GetTypeId (void)
                    UintegerValue (100 * 65535),
                    MakeUintegerAccessor (&DropTailQueue::m_maxBytes),
                    MakeUintegerChecker<uint32_t> ())
+   .AddTraceSource ("BytesQueue",
+				  "The number of bytes in the queue",
+				  MakeTraceSourceAccessor (&DropTailQueue::m_bytesInQueue))
   ;
 
   return tid;
@@ -112,8 +115,6 @@ DropTailQueue::DoEnqueue (Ptr<Packet> p)
 Ptr<Packet>
 DropTailQueue::DoDequeue (void)
 {
-  NS_LOG_FUNCTION (this);
-
   if (m_packets.empty ())
     {
       NS_LOG_LOGIC ("Queue empty");
@@ -122,6 +123,8 @@ DropTailQueue::DoDequeue (void)
 
   Ptr<Packet> p = m_packets.front ();
   m_packets.pop ();
+  NS_LOG_FUNCTION (this << m_bytesInQueue << p->GetSize ());
+
   m_bytesInQueue -= p->GetSize ();
 
   NS_LOG_LOGIC ("Popped " << p);

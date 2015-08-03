@@ -247,7 +247,7 @@ Ipv4GlobalRouting::LookupGlobal (Ipv4Address dest, Ptr<NetDevice> oif)
 uint32_t 
 Ipv4GlobalRouting::GetNRoutes (void) const
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << m_hostRoutes.size () << m_networkRoutes.size () << m_ASexternalRoutes.size ());
   uint32_t n = 0;
   n += m_hostRoutes.size ();
   n += m_networkRoutes.size ();
@@ -403,7 +403,7 @@ Ipv4GlobalRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream) const
   std::ostream* os = stream->GetStream ();
   if (GetNRoutes () > 0)
     {
-      *os << "Destination     Gateway         Genmask         Flags Metric Ref    Use Iface" << std::endl;
+      *os << "Destination     Gateway         Genmask         Flags Metric Ref    Use Iface" <<  GetNRoutes () << std::endl;
       for (uint32_t j = 0; j < GetNRoutes (); j++)
         {
           std::ostringstream dest, gw, mask, flags;
@@ -473,7 +473,7 @@ Ipv4GlobalRouting::RouteOutput (Ptr<Packet> p, const Ipv4Header &header, Ptr<Net
 }
 
 bool 
-Ipv4GlobalRouting::RouteInput  (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,                             UnicastForwardCallback ucb, MulticastForwardCallback mcb,
+Ipv4GlobalRouting::RouteInput  (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev,  UnicastForwardCallback ucb, MulticastForwardCallback mcb,
                                 LocalDeliverCallback lcb, ErrorCallback ecb)
 { 
   NS_LOG_FUNCTION (this << p << header << header.GetSource () << header.GetDestination () << idev << &lcb << &ecb);

@@ -167,6 +167,9 @@ PointToPointNetDevice::GetTypeId (void)
                      "attached to the device",
                      MakeTraceSourceAccessor (&PointToPointNetDevice::m_promiscSnifferTrace),
                      "ns3::Packet::TracedCallback")
+    .AddTraceSource("EstimatedBW", "The estimated bandwidth",
+	     			 MakeTraceSourceAccessor(&PointToPointNetDevice::m_currentBW),
+				     "ns3::TracedValue::DoubleCallback");
   ;
   return tid;
 }
@@ -177,7 +180,11 @@ PointToPointNetDevice::PointToPointNetDevice ()
     m_txMachineState (READY),
     m_channel (0),
     m_linkUp (false),
-    m_currentPkt (0)
+    m_currentPkt (0),
+	m_currentBW(0),
+	m_lastSampleBW(0),
+	m_lastBW(0),
+    data(0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -185,6 +192,7 @@ PointToPointNetDevice::PointToPointNetDevice ()
 PointToPointNetDevice::~PointToPointNetDevice ()
 {
   NS_LOG_FUNCTION (this);
+  t1 = Simulator::Now();
 }
 
 void
@@ -532,6 +540,20 @@ PointToPointNetDevice::Send (
 
   m_macTxTrace (packet);
 
+  data+= packet->GetSize() * 8;
+  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>1){
+	  NS_LOG_LOGIC("Data " << data << " "<< packet->GetSize()*8);
+	  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+	  data = 0;
+	  double alpha = 0.6;
+	  double   sample_bwe = m_currentBW;
+	  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+	  m_lastSampleBW = sample_bwe;
+	  m_lastBW = m_currentBW;
+	  t1 = Simulator::Now();
+
+  }
+
   //
   // We should enqueue and dequeue the packet to hit the tracing hooks.
   //
@@ -652,6 +674,7 @@ PointToPointNetDevice::PppToEther (uint16_t proto)
     {
     case 0x0021: return 0x0800;   //IPv4
     case 0x0057: return 0x86DD;   //IPv6
+    case 0x00FD: return 0x00FD;
     default: NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
     }
   return 0;
@@ -665,6 +688,7 @@ PointToPointNetDevice::EtherToPpp (uint16_t proto)
     {
     case 0x0800: return 0x0021;   //IPv4
     case 0x86DD: return 0x0057;   //IPv6
+    case 0x00FD: return 0x00FD;
     default: NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
     }
   return 0;

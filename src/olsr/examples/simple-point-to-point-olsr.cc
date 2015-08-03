@@ -162,6 +162,10 @@ main (int argc, char *argv[])
   p2p.EnableAsciiAll (ascii.CreateFileStream ("simple-point-to-point-olsr.tr"));
   p2p.EnablePcapAll ("simple-point-to-point-olsr");
 
+  Ipv4GlobalRoutingHelper g;
+  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("olsr.routes", std::ios::out);
+  g.PrintRoutingTableAllAt (Seconds (10.0), routingStream);
+
   Simulator::Stop (Seconds (30));
 
   NS_LOG_INFO ("Run Simulation.");

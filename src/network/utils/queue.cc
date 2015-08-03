@@ -71,6 +71,7 @@ Queue::Enqueue (Ptr<Packet> p)
   // If DoEnqueue fails, Queue::Drop is called by the subclass
   //
   bool retval = DoEnqueue (p);
+
   if (retval)
     {
       NS_LOG_LOGIC ("m_traceEnqueue (p)");
@@ -78,6 +79,7 @@ Queue::Enqueue (Ptr<Packet> p)
 
       uint32_t size = p->GetSize ();
       m_nBytes += size;
+      NS_LOG_LOGIC("bytes " << m_nBytes << " size "<< size);
       m_nTotalReceivedBytes += size;
 
       m_nPackets++;
@@ -89,9 +91,9 @@ Queue::Enqueue (Ptr<Packet> p)
 Ptr<Packet>
 Queue::Dequeue (void)
 {
-  NS_LOG_FUNCTION (this);
 
   Ptr<Packet> packet = DoDequeue ();
+
 
   if (packet != 0)
     {

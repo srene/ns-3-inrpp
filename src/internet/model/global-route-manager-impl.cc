@@ -1418,7 +1418,7 @@ GlobalRouteManagerImpl::SPFCalculate (Ipv4Address root)
 // list in the process).
 //
 // Recall that in the previous step, we created SPFVertex structures for each
-// of the routers found in the Global Router Link Records and added tehm to 
+// of the routers found in the Global Router Link Records and added them to
 // the candidate list.
 //
       NS_LOG_LOGIC (candidate);

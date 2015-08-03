@@ -67,8 +67,8 @@ main (int argc, char *argv[])
 // Explicitly create the point-to-point link required by the topology (shown above).
 //
   PointToPointHelper pointToPoint;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("500Kbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Mbps"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
   NetDeviceContainer devices;
   devices = pointToPoint.Install (nodes);
