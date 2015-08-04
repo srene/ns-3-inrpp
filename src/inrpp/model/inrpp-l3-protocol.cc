@@ -31,6 +31,8 @@
 
 #include "ns3/loopback-net-device.h"
 #include "ns3/ipv4-interface.h"
+#include "ns3/inrpp-interface.h"
+
 #include "ns3/inrpp-tail-queue.h"
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/icmpv4-l4-protocol.h"
@@ -44,8 +46,6 @@ NS_LOG_COMPONENT_DEFINE ("InrppL3Protocol");
 
 //const uint8_t InrppL3Protocol::PROT_NUMBER = 25;
 const uint16_t InrppL3Protocol::PROT_NUMBER = 0x00FD;
-
-const char* const InrppL3Protocol::InrppState[LAST_ST] = { "N0_DETOUR", "DETOUR", "BACKPRESSURE", "UP_BACKPRESSURE", "UP_AND_PROP_BACKPRESSURE" };
 
 NS_OBJECT_ENSURE_REGISTERED (InrppL3Protocol);
 
@@ -78,37 +78,7 @@ InrppL3Protocol::~InrppL3Protocol ()
 }
 
 
-void
-InrppL3Protocol::SetNetDevices(Ptr<NetDevice> dev)
-{
-    NS_LOG_FUNCTION (this);
 
-	NS_LOG_LOGIC("p2p node " << m_node << " " << dev);
-	Ptr<InrppTailQueue> q = dev->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
-	q->SetNetDevice(dev);
-	q->SetHighThCallback (MakeCallback (&InrppL3Protocol::HighTh,this));
-	q->SetLowThCallback (MakeCallback (&InrppL3Protocol::LowTh,this));
-
-
-
-
-
-    Simulator::Schedule (Seconds (1.0),&InrppL3Protocol::SendInrppInfo,this,dev);
-
-}
-
-void
-InrppL3Protocol::HighTh( uint32_t packets,Ptr<NetDevice> dev)
-{
-	NS_LOG_FUNCTION(this<<packets<<dev);
-}
-
-void
-InrppL3Protocol::LowTh(uint32_t packets,Ptr<NetDevice> dev)
-{
-	NS_LOG_FUNCTION(this<<packets<<dev);
-
-}
 
 /*void
 InrppL3Protocol::SetNode (Ptr<Node> node)
@@ -174,14 +144,11 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
   node->RegisterProtocolHandler (MakeCallback (&InrppL3Protocol::InrppReceive, this),
                                  InrppL3Protocol::PROT_NUMBER, device);
 
-  Ptr<Ipv4Interface> interface = CreateObject<Ipv4Interface> ();
+  Ptr<InrppInterface> interface = CreateObject<InrppInterface> ();
   interface->SetNode (m_node);
   interface->SetDevice (device);
   interface->SetForwarding (m_ipForward);
-  if(device->IsPointToPoint())
-  {
-	  SetNetDevices(device);
-  }
+
   return Ipv4L3Protocol::AddIpv4Interface (interface);
   //return Ipv4L3Protocol::AddInterface(device);
 }
@@ -252,24 +219,31 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
 	  // Forwarding
 
-	  std::map<Ipv4Address, Ptr<InrppRoute> >::iterator it;
-
+	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
+	  NS_ASSERT (interface >= 0);
+	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
+	  Ptr<InrppRoute> route = outInterface->GetDetour();
 	  //std::map<Ptr<NetDevice>, Ptr<InrppRoute> >::iterator it2 = m_routeList.begin();
 
 	  //NS_LOG_LOGIC("Device " << rtentry->GetOutputDevice() << " " << it2->first << " " << it2->second->GetDestination());
-	  it = m_routeList.find(rtentry->GetGateway());
-
+	  if(route)
+	  {
+		  NS_LOG_LOGIC("DETOUR PATH");
+		  rtentry->SetGateway(route->GetDetour());
+		  rtentry->SetOutputDevice(route->GetOutputDevice());
+	  }
+	 /* Ptr<InrppRoute> route =
 	  if (it != m_routeList.end())
 	  {
 		  NS_LOG_LOGIC("DETOUR PATH");
 		  rtentry->SetGateway(it->second->GetDetour());
 		  rtentry->SetOutputDevice(it->second->GetOutputDevice());
 
-	  }
+	  }*/
 
 	  Ipv4Header ipHeader = header;
 	  Ptr<Packet> packet = p->Copy ();
-	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
+	 // int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
 	  NS_LOG_FUNCTION (this << interface);
 	  ipHeader.SetTtl (ipHeader.GetTtl () - 1);
 	  if (ipHeader.GetTtl () == 0)
@@ -370,9 +344,12 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 }
 
 void
-InrppL3Protocol::SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route)
+InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 {
-	m_routeList.insert(std::pair<Ipv4Address, Ptr<InrppRoute> >(address,route));
+
+	  Ptr<InrppInterface> iface = GetInterface(GetInterfaceForDevice (netdevice))->GetObject<InrppInterface>();
+	  iface->SetDetour(route);
+
 }
 
 

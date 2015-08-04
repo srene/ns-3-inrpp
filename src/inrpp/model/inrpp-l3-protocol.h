@@ -40,17 +40,6 @@ class Node;
 class Packet;
 class Ipv4Interface;
 
-/**
- * \brief Names of the INRPP states
- */
-typedef enum {
-	N0_DETOUR,       // 0
-	DETOUR,       // 1
-	BACKPRESSURE,     // 2
-	UP_BACKPRESSURE,     // 3
-	UP_AND_PROP_BACKPRESSURE,  // 4
-	LAST_ST
-} InrppStates_t;
 
 /**
  * \ingroup internet
@@ -107,9 +96,8 @@ public:
   void InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from, const Address &to,
                 NetDevice::PacketType packetType);
 
-  static const char* const InrppState[LAST_ST];
-
-  void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
+  void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
+  //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
 protected:
   virtual void DoDispose (void);
   /*
@@ -139,24 +127,8 @@ private:
   /**
    * \brief Configure the callbacks for the NetDevice
    */
-  void SetNetDevices (Ptr<NetDevice> device);
+  //void SetNetDevices (Ptr<NetDevice> device);
 
-  /**
-   * \brief High queue occupancy threshold callback
-   *
-   * \param IpV4 Interface
-   * \returns
-   */
-//   void HighTh(Ptr<Ipv4Interface> iface, uint32_t packets);
-   void HighTh(uint32_t packets,Ptr<NetDevice> dev);
-
-  /**
-   * \brief Low queue occupancy threshold callback
-   *
-   * \param IpV4 Interface
-   * \returns
-   */
-  void LowTh(uint32_t packets,Ptr<NetDevice> dev);
 
   /**
    * \brief Send an ARP request to an host
@@ -174,9 +146,6 @@ private:
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
   std::map <Ptr<Ipv4Interface>, uint32_t> m_intList;
-
-  std::map <Ipv4Address, Ptr<InrppRoute> > m_routeList;
-
 
 
 };

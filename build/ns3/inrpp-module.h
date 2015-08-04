@@ -9,6 +9,7 @@
 // Module headers:
 #include "inrpp-cache.h"
 #include "inrpp-header.h"
+#include "inrpp-interface.h"
 #include "inrpp-l3-protocol.h"
 #include "inrpp-route.h"
 #include "inrpp-stack-helper.h"

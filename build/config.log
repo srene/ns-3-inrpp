@@ -1,4 +1,4 @@
-# project ns (3.23) configured on Mon Aug  3 19:19:56 2015 by
+# project ns (3.23) configured on Mon Aug  3 20:23:59 2015 by
 # waf 1.7.16 (abi 98, python 2070af0 on linux2)
 # using ./waf configure
 #
@@ -391,7 +391,7 @@ from /home/sergi/workspace/source/ns-3.23/src/core: Test does not build: Traceba
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140195426228560: cxx test.cpp -> test.cpp.1.o}
+	{task 139979825743888: cxx test.cpp -> test.cpp.1.o}
 ['/usr/bin/g++', '-O0', '-ggdb', '-g3', '-Wall', '-Werror', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found
@@ -479,7 +479,7 @@ from /home/sergi/workspace/source/ns-3.23/src/core: Test does not build: Traceba
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140195426680528: cxx test.cpp -> test.cpp.1.o}
+	{task 139979825712656: cxx test.cpp -> test.cpp.1.o}
 ['/usr/bin/g++', '-O0', '-ggdb', '-g3', '-Wall', '-Werror', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '-DHAVE___UINT128_T=1', '-DINT64X64_USE_128=1', '-DHAVE_STDINT_H=1', '-DHAVE_INTTYPES_H=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found
@@ -654,7 +654,7 @@ from /home/sergi/workspace/source/ns-3.23/src/core: Test does not build: Traceba
     raise Errors.BuildError(self.producer.error)
 BuildError: Build failed
  -> task in 'testprog' failed (exit status 1): 
-	{task 140195426679248: cxx test.cpp -> test.cpp.1.o}
+	{task 139979825710416: cxx test.cpp -> test.cpp.1.o}
 ['/usr/bin/g++', '-O0', '-ggdb', '-g3', '-Wall', '-Werror', '-DNS3_ASSERT_ENABLE', '-DNS3_LOG_ENABLE', '-DHAVE___UINT128_T=1', '-DINT64X64_USE_128=1', '-DHAVE_SYS_TYPES_H=1', '-DHAVE_SYS_STAT_H=1', '-DHAVE_DIRENT_H=1', '-DHAVE_STDLIB_H=1', '-DHAVE_GETENV=1', '-DHAVE_SIGNAL_H=1', '-DHAVE_PTHREAD_H=1', '-DHAVE_STDINT_H=1', '-DHAVE_INTTYPES_H=1', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 
 not found

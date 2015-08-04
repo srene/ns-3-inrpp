@@ -12,7 +12,8 @@ def build(bld):
         'model/inrpp-route.cc',        
         'model/inrpp-cache.cc',
         'model/inrpp-l3-protocol.cc',    
-        'model/inrpp-header.cc',      
+        'model/inrpp-header.cc',  
+        'model/inrpp-interface.cc',                  
         'helper/inrpp-stack-helper.cc',
         ]
 
@@ -29,6 +30,7 @@ def build(bld):
         'model/inrpp-cache.h',        
         'model/inrpp-l3-protocol.h',    
         'model/inrpp-header.h',
+        'model/inrpp-interface.h',                          
         'helper/inrpp-stack-helper.h',
         ]
 

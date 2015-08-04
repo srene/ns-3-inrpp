@@ -201,7 +201,7 @@ main (int argc, char *argv[])
   /// \todo handle multi-address case
   rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
   rtentry->SetOutputDevice (devices0.Get(0));
-  ip->SetDetourRoute(Ipv4Address ("10.0.0.2"),rtentry);
+  ip->SetDetourRoute(devices2.Get(0),rtentry);
 
   PointerValue ptr;
   devices4.Get(1)->GetAttribute ("TxQueue", ptr);
