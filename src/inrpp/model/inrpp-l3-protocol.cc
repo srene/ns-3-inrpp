@@ -352,5 +352,14 @@ InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 
 }
 
+void
+InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> netdevice, Ptr<NetDevice> netdevice2)
+{
+	  int32_t interface = GetInterfaceForDevice (netdevice);
+	  NS_ASSERT (interface >= 0);
+	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
+
+}
+
 
 } // namespace ns3

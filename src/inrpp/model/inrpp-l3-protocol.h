@@ -97,6 +97,7 @@ public:
                 NetDevice::PacketType packetType);
 
   void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
+  void SendDetourInfo(Ptr<NetDevice> netdevice, Ptr<NetDevice> netdevice2);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
 protected:
   virtual void DoDispose (void);

@@ -71,12 +71,12 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 }
 
-static void
+/*static void
 BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
 
-}
+}*/
 static void
 CwndChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -203,6 +203,9 @@ main (int argc, char *argv[])
   rtentry->SetOutputDevice (devices0.Get(0));
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
+  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
+  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1));
+
   PointerValue ptr;
   devices4.Get(1)->GetAttribute ("TxQueue", ptr);
   Ptr<Queue> txQueue = ptr.Get<Queue> ();
@@ -230,12 +233,10 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
   txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr4));
 
-
-  std::ostringstream osstr5;
+  /*std::ostringstream osstr5;
   osstr5 << "netdevice_1.bw";
   Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());
-  devices2.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));
-
+  devices0.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));*/
 
   NS_LOG_INFO ("Create Applications.");
 

@@ -28,7 +28,7 @@
 #include "ns3/node.h"
 #include "ns3/pointer.h"
 #include "ns3/point-to-point-net-device.h"
-
+#include "ns3/channel.h"
 
 namespace ns3 {
 
@@ -43,8 +43,10 @@ InrppInterface::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::InrppInterface")
     .SetParent<Ipv4Interface> ()
+    .AddTraceSource("EstimatedBW", "The estimated bandwidth",
+	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW),
+				     "ns3::TracedValue::DoubleCallback");
 
-  ;
   ;
   return tid;
 }
@@ -55,8 +57,13 @@ InrppInterface::GetTypeId (void)
  * invoke SetUp on them once an Ipv4 address and mask have been set.
  */
 InrppInterface::InrppInterface ()
+:	m_currentBW(0),
+	m_lastSampleBW(0),
+	m_lastBW(0),
+    data(0)
 {
   NS_LOG_FUNCTION (this);
+  t1 = Simulator::Now();
 }
 
 InrppInterface::~InrppInterface ()
@@ -100,6 +107,27 @@ InrppInterface::GetState(void)
 {
 	return m_state;
 }
+
+void
+InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv)
+{
+	NS_LOG_LOGIC(this);
+
+	  data+= p->GetSize() * 8;
+	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0){
+		  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
+		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		  data = 0;
+		  double alpha = 0.6;
+		  double   sample_bwe = m_currentBW;
+		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+		  m_lastSampleBW = sample_bwe;
+		  m_lastBW = m_currentBW;
+		  t1 = Simulator::Now();
+
+	  }
+
+}
 void
 InrppInterface::SetDevice (Ptr<NetDevice> device)
 {
@@ -108,6 +136,9 @@ InrppInterface::SetDevice (Ptr<NetDevice> device)
   q->SetNetDevice(device);
   q->SetHighThCallback (MakeCallback (&InrppInterface::HighTh,this));
   q->SetLowThCallback (MakeCallback (&InrppInterface::LowTh,this));
+
+  Ptr<PointToPointChannel> ch = device->GetChannel()->GetObject<PointToPointChannel>();
+  ch->TraceConnectWithoutContext ("TxRxPointToPoint", MakeCallback (&InrppInterface::TxRx,this));
   Ipv4Interface::SetDevice(device);
 }
 

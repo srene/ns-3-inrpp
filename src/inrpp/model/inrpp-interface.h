@@ -29,6 +29,8 @@
 #include "ns3/ptr.h"
 #include "ns3/object.h"
 #include "inrpp-route.h"
+#include "ns3/simulator.h"
+#include "ns3/traced-value.h"
 
 namespace ns3 {
 
@@ -104,11 +106,17 @@ public:
 
 private:
 
-
+  void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
 
   //std::map <Ipv4Address, Ptr<InrppRoute> > m_routeList;
   Ptr<InrppRoute> m_detourRoute;
   InrppState m_state;
+
+  TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW;           //!< Last bandwidth sample
+  double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
+  Time t1;
+  uint32_t data;
 
 };
 
