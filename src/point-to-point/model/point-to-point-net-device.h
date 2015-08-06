@@ -31,6 +31,7 @@
 #include "ns3/ptr.h"
 #include "ns3/mac48-address.h"
 #include "ns3/traced-value.h"
+#include "point-to-point-channel.h"
 
 namespace ns3 {
 
@@ -477,12 +478,6 @@ private:
    */
   static uint16_t EtherToPpp (uint16_t protocol);
 
-
-  TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
-  double                 m_lastSampleBW;           //!< Last bandwidth sample
-  double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
-  Time t1;
-  uint32_t data;
 
 };
 
