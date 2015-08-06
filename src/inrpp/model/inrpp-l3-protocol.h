@@ -31,6 +31,7 @@
 #include "ns3/traced-callback.h"
 #include "ns3/random-variable-stream.h"
 #include "ns3/ipv4-l3-protocol.h"
+#include "inrpp-interface.h"
 
 namespace ns3 {
 
@@ -97,7 +98,7 @@ public:
                 NetDevice::PacketType packetType);
 
   void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
-  void SendDetourInfo(Ptr<NetDevice> netdevice, Ptr<NetDevice> netdevice2);
+  void SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address infoAddress);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
 protected:
   virtual void DoDispose (void);
@@ -136,7 +137,7 @@ private:
    * \param cache the ARP cache to use
    * \param to the destination IP
    */
-  void SendInrppInfo (Ptr<NetDevice> device);
+  void SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address address);
 
 
   uint32_t AddInterface (Ptr<NetDevice> device);

@@ -179,7 +179,7 @@ InrppL3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t p
 
 
 void
-InrppL3Protocol::SendInrppInfo (Ptr<NetDevice> device)
+InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address infoAddress)
 {
   NS_LOG_FUNCTION (this<<device);
 
@@ -200,7 +200,7 @@ InrppL3Protocol::SendInrppInfo (Ptr<NetDevice> device)
   packet->AddHeader(inrpp);
   device->Send (packet, device->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
 
-  Simulator::Schedule (Seconds (1.0),&InrppL3Protocol::SendInrppInfo,this,device);
+  Simulator::Schedule (Seconds (1.0),&InrppL3Protocol::SendInrppInfo,this,iface,device,infoAddress);
 
 }
 
@@ -353,11 +353,14 @@ InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 }
 
 void
-InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> netdevice, Ptr<NetDevice> netdevice2)
+InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address address)
 {
-	  int32_t interface = GetInterfaceForDevice (netdevice);
+	  int32_t interface = GetInterfaceForDevice (devSource);
 	  NS_ASSERT (interface >= 0);
-	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
+	  Ptr<InrppInterface> inrppInface = GetInterface (interface)->GetObject<InrppInterface>();
+
+	  Simulator::Schedule (Seconds (1.0),&InrppL3Protocol::SendInrppInfo,this,inrppInface,devDestination,address);
+
 
 }
 

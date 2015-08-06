@@ -204,7 +204,7 @@ main (int argc, char *argv[])
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1));
+  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
   devices4.Get(1)->GetAttribute ("TxQueue", ptr);
