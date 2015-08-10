@@ -104,6 +104,8 @@ public:
 
  InrppState GetState(void);
 
+ uint32_t GetResidual();
+
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -117,6 +119,7 @@ private:
   double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
   Time t1;
   uint32_t data;
+  uint32_t m_residual;
 
 };
 

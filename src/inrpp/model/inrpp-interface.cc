@@ -29,6 +29,8 @@
 #include "ns3/pointer.h"
 #include "ns3/point-to-point-net-device.h"
 #include "ns3/channel.h"
+#include "inrpp-l3-protocol.h"
+#include "inrpp-tag.h"
 
 namespace ns3 {
 
@@ -113,6 +115,10 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 {
 	NS_LOG_LOGIC(this);
 
+  // read the tag from the packet copy
+  InrppTag tag;
+  if(!p->PeekPacketTag (tag))
+  {
 	  data+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0){
 		  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
@@ -126,7 +132,22 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  t1 = Simulator::Now();
 
 	  }
+  }
 
+}
+
+uint32_t
+InrppInterface::GetResidual()
+{
+	uint32_t residual;
+	DataRate bps = GetDevice()->GetObject<PointToPointNetDevice>()->GetDataRate();
+	NS_LOG_LOGIC("Bitrate " << (uint32_t)bps.GetBitRate() << " bw " << m_currentBW.Get());
+	if((uint32_t)bps.GetBitRate()<m_currentBW.Get())
+		residual = 0;
+	else
+		residual = (uint32_t)bps.GetBitRate()-m_currentBW.Get();
+
+	return residual;
 }
 void
 InrppInterface::SetDevice (Ptr<NetDevice> device)

@@ -39,6 +39,7 @@
 #include "ns3/arp-l3-protocol.h"
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
+#include "inrpp-tag.h"
 
 namespace ns3 {
 
@@ -48,6 +49,8 @@ NS_LOG_COMPONENT_DEFINE ("InrppL3Protocol");
 const uint16_t InrppL3Protocol::PROT_NUMBER = 0x00FD;
 
 NS_OBJECT_ENSURE_REGISTERED (InrppL3Protocol);
+
+
 
 TypeId 
 InrppL3Protocol::GetTypeId (void)
@@ -181,7 +184,7 @@ InrppL3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t p
 void
 InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address infoAddress)
 {
-  NS_LOG_FUNCTION (this<<device);
+  NS_LOG_FUNCTION (this<<device<<iface->GetResidual());
 
   Ptr<Packet> packet = Create<Packet> ();
  // InrppHeader inrpp;
@@ -196,7 +199,7 @@ InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device
 //  ArpHeader arp;
 //  arp.SetReply (device->GetAddress (), address.GetLocal(), device->GetBroadcast(), address.GetBroadcast());
   InrppHeader inrpp;
-  inrpp.SetReply (device->GetAddress (), address.GetLocal(), device->GetBroadcast(), address.GetBroadcast());
+  inrpp.SetInrpp (device->GetAddress (), address.GetLocal(), device->GetBroadcast(), address.GetBroadcast(),infoAddress,iface->GetResidual());
   packet->AddHeader(inrpp);
   device->Send (packet, device->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
 
@@ -208,7 +211,14 @@ void
 InrppL3Protocol::InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
                         const Address &to, NetDevice::PacketType packetType)
 {
-	NS_LOG_FUNCTION(this);
+	NS_LOG_FUNCTION(this<<device<<p<<protocol<<from<<to<<packetType);
+	Ptr<Packet> packet = p->Copy ();
+	InrppHeader inrpp;
+	packet->RemoveHeader (inrpp);
+
+	NS_LOG_LOGIC("Inrpp header detour " << inrpp.GetAddress() << " " << inrpp.GetResidual());
+
+	m_residualList.insert(std::pair<Ipv4Address, uint32_t>(inrpp.GetAddress(),inrpp.GetResidual()));
 }
 
 void
@@ -223,23 +233,46 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	  NS_ASSERT (interface >= 0);
 	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
 	  Ptr<InrppRoute> route = outInterface->GetDetour();
-	  //std::map<Ptr<NetDevice>, Ptr<InrppRoute> >::iterator it2 = m_routeList.begin();
 
-	  //NS_LOG_LOGIC("Device " << rtentry->GetOutputDevice() << " " << it2->first << " " << it2->second->GetDestination());
-	  if(route)
+	  switch(outInterface->GetState())
 	  {
-		  NS_LOG_LOGIC("DETOUR PATH");
-		  rtentry->SetGateway(route->GetDetour());
-		  rtentry->SetOutputDevice(route->GetOutputDevice());
+	  case DETOUR:
+		  if(route)
+		  {
+			  NS_LOG_LOGIC("DETOUR PATH");
+			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
+			  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
+			  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
+
+			  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
+			  if(it != m_residualList.end())
+			  {
+				  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
+				  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
+				  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
+				  NS_LOG_LOGIC("Residual capacity " << residual);
+				  if(residual>0)
+				  {
+					  InrppTag tag;
+					  tag.SetAddress (rtentry->GetGateway());
+					  p->AddPacketTag (tag);
+					  rtentry->SetGateway(route->GetDetour());
+					  rtentry->SetOutputDevice(route->GetOutputDevice());
+				  }
+
+			  }
+
+		  }
+		  break;
+	  case N0_DETOUR:
+	  case BACKPRESSURE:
+	  case UP_BACKPRESSURE:
+	  case UP_AND_PROP_BACKPRESSURE:
+	  default:
+
+		  break;
+
 	  }
-	 /* Ptr<InrppRoute> route =
-	  if (it != m_routeList.end())
-	  {
-		  NS_LOG_LOGIC("DETOUR PATH");
-		  rtentry->SetGateway(it->second->GetDetour());
-		  rtentry->SetOutputDevice(it->second->GetOutputDevice());
-
-	  }*/
 
 	  Ipv4Header ipHeader = header;
 	  Ptr<Packet> packet = p->Copy ();
@@ -275,6 +308,27 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 
   uint32_t interface = 0;
   Ptr<Packet> packet = p->Copy ();
+
+  // read the tag from the packet copy
+  InrppTag tagCopy;
+  if(p->PeekPacketTag (tagCopy))
+  {
+	  NS_LOG_LOGIC("Remove tag " << tagCopy.GetAddress());
+	  Ptr<Ipv4Interface> ipv4Interface;
+	  for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+	  {
+		  Ptr<Ipv4Interface> iface = *i;
+		  for(uint32_t add = 0;add<iface->GetNAddresses();add++)
+		  {
+			  if(iface->GetAddress(add).GetLocal()==tagCopy.GetAddress())
+			  {
+				  packet->RemovePacketTag(tagCopy);
+			  	  break;
+			  }
+		  }
+	  }
+  }
+
 
   Ptr<Ipv4Interface> ipv4Interface;
   for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();

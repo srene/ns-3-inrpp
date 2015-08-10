@@ -147,7 +147,7 @@ private:
                             const Address &to, NetDevice::PacketType packetType);
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
-  std::map <Ptr<Ipv4Interface>, uint32_t> m_intList;
+  std::map <Ipv4Address, uint32_t> m_residualList;
 
 
 };

@@ -19,7 +19,6 @@
  */
 
 #include "inrpp-header.h"
-
 #include "ns3/assert.h"
 #include "ns3/address-utils.h"
 #include "ns3/log.h"
@@ -31,43 +30,22 @@ NS_LOG_COMPONENT_DEFINE ("InrppHeader");
 NS_OBJECT_ENSURE_REGISTERED (InrppHeader);
 
 void 
-InrppHeader::SetRequest (Address sourceHardwareAddress,
-                       Ipv4Address sourceProtocolAddress,
-                       Address destinationHardwareAddress,
-                       Ipv4Address destinationProtocolAddress)
-{
-  NS_LOG_FUNCTION (this << sourceHardwareAddress << sourceProtocolAddress << destinationHardwareAddress << destinationProtocolAddress);
-  m_type = ARP_TYPE_REQUEST;
-  m_macSource = sourceHardwareAddress;
-  m_macDest = destinationHardwareAddress;
-  m_ipv4Source = sourceProtocolAddress;
-  m_ipv4Dest = destinationProtocolAddress;
-}
-void 
-InrppHeader::SetReply (Address sourceHardwareAddress,
+InrppHeader::SetInrpp (Address sourceHardwareAddress,
                      Ipv4Address sourceProtocolAddress,
                      Address destinationHardwareAddress,
-                     Ipv4Address destinationProtocolAddress)
+                     Ipv4Address destinationProtocolAddress,
+					 Ipv4Address detourPathAddress,
+					 uint32_t residual)
 {
   NS_LOG_FUNCTION (this << sourceHardwareAddress << sourceProtocolAddress << destinationHardwareAddress << destinationProtocolAddress);
-  m_type = ARP_TYPE_REPLY;
   m_macSource = sourceHardwareAddress;
   m_macDest = destinationHardwareAddress;
   m_ipv4Source = sourceProtocolAddress;
   m_ipv4Dest = destinationProtocolAddress;
+  m_detourAddress = detourPathAddress;
+  m_residual = residual;
 }
-bool 
-InrppHeader::IsRequest (void) const
-{
-  NS_LOG_FUNCTION (this);
-  return (m_type == ARP_TYPE_REQUEST) ? true : false;
-}
-bool 
-InrppHeader::IsReply (void) const
-{
-  NS_LOG_FUNCTION (this);
-  return (m_type == ARP_TYPE_REPLY) ? true : false;
-}
+
 Address 
 InrppHeader::GetSourceHardwareAddress (void)
 {
@@ -114,25 +92,15 @@ void
 InrppHeader::Print (std::ostream &os) const
 {
   NS_LOG_FUNCTION (this << &os);
-  if (IsRequest ()) 
-    {
-      os << "request "
-         << "source mac: " << m_macSource << " "
-         << "source ipv4: " << m_ipv4Source << " "
-         << "dest ipv4: " << m_ipv4Dest
-      ;
-    } 
-  else 
-    {
-      NS_ASSERT (IsReply ());
-      os << "reply " 
-         << "source mac: " << m_macSource << " "
+
+      os << "source mac: " << m_macSource << " "
          << "source ipv4: " << m_ipv4Source << " "
          << "dest mac: " << m_macDest << " "
          << "dest ipv4: " <<m_ipv4Dest
       ;
-    }
+
 }
+
 uint32_t 
 InrppHeader::GetSerializedSize (void) const
 {
@@ -140,7 +108,7 @@ InrppHeader::GetSerializedSize (void) const
   NS_ASSERT((m_macSource.GetLength () == 6) || (m_macSource.GetLength () == 8));
   NS_ASSERT (m_macSource.GetLength () == m_macDest.GetLength ());
 
-  uint32_t length = 16;   // Length minus two hardware addresses
+  uint32_t length = 22;   // Length minus two hardware addresses
   length += m_macSource.GetLength () * 2;
 
   return length;
@@ -159,13 +127,26 @@ InrppHeader::Serialize (Buffer::Iterator start) const
   i.WriteHtonU16 (0x0800);
   i.WriteU8 (m_macSource.GetLength ());
   i.WriteU8 (4);
-  i.WriteHtonU16 (m_type);
   WriteTo (i, m_macSource);
   WriteTo (i, m_ipv4Source);
   WriteTo (i, m_macDest);
   WriteTo (i, m_ipv4Dest);
+  WriteTo (i, m_detourAddress);
+  i.WriteHtonU32(m_residual);
 }
 
+
+Ipv4Address
+InrppHeader::GetAddress(void)
+{
+	return m_detourAddress;
+}
+
+uint32_t
+InrppHeader::GetResidual(void)
+{
+	return m_residual;
+}
 uint32_t
 InrppHeader::Deserialize (Buffer::Iterator start)
 {
@@ -187,11 +168,12 @@ InrppHeader::Deserialize (Buffer::Iterator start)
       return 0;
     }
 
-  m_type = i.ReadNtohU16 ();                     // Read OP
   ReadFrom (i, m_macSource, hardwareAddressLen); // Read SHA (size HLN)
   ReadFrom (i, m_ipv4Source);                    // Read SPA (size PLN == 4)
   ReadFrom (i, m_macDest, hardwareAddressLen);   // Read THA (size HLN)
   ReadFrom (i, m_ipv4Dest);                      // Read TPA (size PLN == 4)
+  ReadFrom (i, m_detourAddress);
+  m_residual = i.ReadNtohU32();
   return GetSerializedSize ();
 }
 

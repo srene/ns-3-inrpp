@@ -34,17 +34,7 @@ namespace ns3 {
 class InrppHeader : public Header
 {
 public:
-  /**
-   * \brief Set the ARP request parameters
-   * \param sourceHardwareAddress the source hardware address
-   * \param sourceProtocolAddress the source IP address
-   * \param destinationHardwareAddress the destination hardware address (usually the broadcast address)
-   * \param destinationProtocolAddress the destination IP address
-   */
-  void SetRequest (Address sourceHardwareAddress,
-                   Ipv4Address sourceProtocolAddress,
-                   Address destinationHardwareAddress,
-                   Ipv4Address destinationProtocolAddress);
+
   /**
    * \brief Set the ARP reply parameters
    * \param sourceHardwareAddress the source hardware address
@@ -52,22 +42,13 @@ public:
    * \param destinationHardwareAddress the destination hardware address (usually the broadcast address)
    * \param destinationProtocolAddress the destination IP address
    */
-  void SetReply (Address sourceHardwareAddress,
+  void SetInrpp (Address sourceHardwareAddress,
                  Ipv4Address sourceProtocolAddress,
                  Address destinationHardwareAddress,
-                 Ipv4Address destinationProtocolAddress);
+                 Ipv4Address destinationProtocolAddress,
+				 Ipv4Address detourPathAddress,
+				 uint32_t residual);
 
-  /**
-   * \brief Check if the ARP is a request
-   * \returns true if it is a request
-   */
-  bool IsRequest (void) const;
-
-  /**
-   * \brief Check if the ARP is a reply
-   * \returns true if it is a reply
-   */
-  bool IsReply (void) const;
 
   /**
    * \brief Returns the source hardware address
@@ -93,6 +74,10 @@ public:
    */
   Ipv4Address GetDestinationIpv4Address (void);
 
+
+  Ipv4Address GetAddress (void);
+
+  uint32_t GetResidual(void);
   /**
    * \brief Get the type ID.
    * \return the object TypeId
@@ -104,20 +89,16 @@ public:
   virtual void Serialize (Buffer::Iterator start) const;
   virtual uint32_t Deserialize (Buffer::Iterator start);
 
-  /**
-   * \brief Enumeration listing the possible ARP types
-   */
-  enum ArpType_e {
-    ARP_TYPE_REQUEST = 1,
-    ARP_TYPE_REPLY   = 2
-  };
-  uint16_t m_type;           //!< type of the ICMP (ARP_TYPE_REQUEST)
+private:
+
   Address m_macSource;       //!< hardware source address
   Address m_macDest;         //!< hardware destination address
   Ipv4Address m_ipv4Source;  //!< IP source address
   Ipv4Address m_ipv4Dest;    //!< IP destination address
+  Ipv4Address m_detourAddress;    //!< IP destination detour path
+  uint32_t m_residual;
 };
 
 } // namespace ns3
 
-#endif /* ARP_HEADER_H */
+#endif /* INRPP_HEADER_H */
