@@ -47,8 +47,13 @@ InrppInterface::GetTypeId (void)
     .SetParent<Ipv4Interface> ()
     .AddTraceSource("EstimatedBW", "The estimated bandwidth",
 	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW),
+				     "ns3::TracedValue::DoubleCallback")
+    .AddTraceSource("EstimatedFlow", "The estimated bandwidth",
+	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW2),
+				     "ns3::TracedValue::DoubleCallback")
+  .AddTraceSource("DetouredFlow", "The estimated bandwidth",
+	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW3),
 				     "ns3::TracedValue::DoubleCallback");
-
   ;
   return tid;
 }
@@ -62,10 +67,20 @@ InrppInterface::InrppInterface ()
 :	m_currentBW(0),
 	m_lastSampleBW(0),
 	m_lastBW(0),
-    data(0)
+    data(0),
+	m_currentBW2(0),
+	m_lastSampleBW2(0),
+	m_lastBW2(0),
+    data2(0),
+	m_currentBW3(0),
+	m_lastSampleBW3(0),
+	m_lastBW3(0),
+    data3(0)
 {
   NS_LOG_FUNCTION (this);
   t1 = Simulator::Now();
+  t2 = Simulator::Now();
+  t3 = Simulator::Now();
 }
 
 InrppInterface::~InrppInterface ()
@@ -111,6 +126,11 @@ InrppInterface::GetState(void)
 }
 
 void
+InrppInterface::SetState(InrppState state)
+{
+	m_state = state;
+}
+void
 InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv)
 {
 	NS_LOG_LOGIC(this);
@@ -132,8 +152,62 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  t1 = Simulator::Now();
 
 	  }
+  } else {
+
+	  data3+= p->GetSize() * 8;
+	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>0){
+		  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
+		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
+		  data3 = 0;
+		  double alpha = 0.6;
+		  double   sample_bwe = m_currentBW3;
+		  m_currentBW3 = (alpha * m_lastBW3) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW3) / 2));
+		  m_lastSampleBW3 = sample_bwe;
+		  m_lastBW3 = m_currentBW3;
+		  t3 = Simulator::Now();
+	  }
+
   }
 
+}
+
+void
+InrppInterface::CalculateFlow(Ptr<const Packet> p)
+{
+  NS_LOG_LOGIC(this);
+
+  data2+= p->GetSize() * 8;
+  if(Simulator::Now().GetSeconds()-t2.GetSeconds()>0){
+	  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8);
+	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
+	  data2 = 0;
+	  double alpha = 0.6;
+	  double   sample_bwe = m_currentBW2;
+	  m_currentBW2 = (alpha * m_lastBW2) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW2) / 2));
+	  m_lastSampleBW2 = sample_bwe;
+	  m_lastBW2 = m_currentBW2;
+	  t2 = Simulator::Now();
+
+  }
+
+}
+
+uint32_t
+InrppInterface::GetFlow()
+{
+	return m_currentBW2;
+}
+
+uint32_t
+InrppInterface::GetBW()
+{
+	return m_currentBW;
+}
+
+uint32_t
+InrppInterface::GetDetoured()
+{
+	return m_currentBW3;
 }
 
 uint32_t

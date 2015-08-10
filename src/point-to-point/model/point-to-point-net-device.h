@@ -151,6 +151,7 @@ public:
    */
   void Receive (Ptr<Packet> p);
 
+  DataRate GetDataRate();
   // The remaining methods are documented in ns3::NetDevice*
 
   virtual void SetIfIndex (const uint32_t index);

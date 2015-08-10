@@ -71,12 +71,12 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 }
 
-/*static void
+static void
 BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
 
-}*/
+}
 static void
 CwndChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -98,6 +98,7 @@ main (int argc, char *argv[])
   uint32_t      minTh = 25;
   uint32_t      maxTh = 40;
 
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
@@ -207,11 +208,11 @@ main (int argc, char *argv[])
   ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
-  devices4.Get(1)->GetAttribute ("TxQueue", ptr);
+  devices0.Get(0)->GetAttribute ("TxQueue", ptr);
   Ptr<Queue> txQueue = ptr.Get<Queue> ();
   AsciiTraceHelper asciiTraceHelper;
   std::ostringstream osstr1;
-  osstr1 << "netdevice_0.bf";
+  osstr1 << "netdevice_1.bf";
   Ptr<OutputStreamWrapper> streamtr1 = asciiTraceHelper.CreateFileStream (osstr1.str());
   txQueue->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr1));
 
@@ -219,20 +220,31 @@ main (int argc, char *argv[])
   devices2.Get(0)->GetAttribute ("TxQueue", ptr2);
   Ptr<Queue> txQueue2 = ptr2.Get<Queue> ();
   std::ostringstream osstr2;
-  osstr2 << "netdevice_1.bf";
+  osstr2 << "netdevice_2.bf";
   Ptr<OutputStreamWrapper> streamtr2 = asciiTraceHelper.CreateFileStream (osstr2.str());
   txQueue2->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr2));
 
   txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
-  PointerValue ptr4;
+  /*PointerValue ptr4;
   devices3.Get(0)->GetAttribute ("TxQueue", ptr4);
   Ptr<Queue> txQueue4 = ptr4.Get<Queue> ();
   std::ostringstream osstr4;
   osstr4 << "netdevice_2.bf";
   Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
-  txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr4));
+  txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr4));*/
 
+  std::ostringstream osstr5;
+  osstr5 << "netdevice_1.bw";
+  Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());
+  uint32_t iface = ip->GetInterfaceForDevice(devices2.Get(0));
+  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));
+
+  std::ostringstream osstr6;
+  osstr6 << "netdevice_2.bw";
+  Ptr<OutputStreamWrapper> streamtr6 = asciiTraceHelper.CreateFileStream (osstr6.str());
+  uint32_t iface2 = ip->GetInterfaceForDevice(devices0.Get(0));
+  ip->GetInterface(iface2)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("DetouredFlow", MakeBoundCallback (&BwChange, streamtr6));
   /*std::ostringstream osstr5;
   osstr5 << "netdevice_1.bw";
   Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());

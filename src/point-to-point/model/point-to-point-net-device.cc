@@ -188,6 +188,11 @@ PointToPointNetDevice::~PointToPointNetDevice ()
   NS_LOG_FUNCTION (this);
 }
 
+DataRate
+PointToPointNetDevice::GetDataRate()
+{
+	return m_bps;
+}
 void
 PointToPointNetDevice::AddHeader (Ptr<Packet> p, uint16_t protocolNumber)
 {

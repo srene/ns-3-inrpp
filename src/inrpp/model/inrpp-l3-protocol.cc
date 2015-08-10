@@ -224,46 +224,63 @@ InrppL3Protocol::InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint1
 void
 InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const Ipv4Header &header)
 {
-	 NS_LOG_FUNCTION (this << rtentry << p << header);
+	  NS_LOG_FUNCTION (this << rtentry << p << header);
 	  NS_LOG_LOGIC ("Forwarding logic for node: " << m_node->GetId ());
 	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
 	  // Forwarding
 
 	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
+	  DataRate bps = rtentry->GetOutputDevice ()->GetObject<PointToPointNetDevice>()->GetDataRate();
 	  NS_ASSERT (interface >= 0);
 	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
 	  Ptr<InrppRoute> route = outInterface->GetDetour();
+	  outInterface->CalculateFlow(p);
 
-	  switch(outInterface->GetState())
+	  int deltaRate = outInterface->GetFlow() - bps.GetBitRate();
+
+	  NS_LOG_LOGIC("Flow " << outInterface << " " << outInterface->GetFlow() << " BW " << outInterface->GetBW() << " DeltaRate " << deltaRate);
+	//  switch(outInterface->GetState())
+	//  {
+//	  case DETOUR:
+	  if(route&&outInterface->GetState()!=N0_DETOUR)
 	  {
-	  case DETOUR:
-		  if(route)
+		  NS_LOG_LOGIC("DETOUR PATH");
+		  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
+		  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
+		  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
+
+		  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
+
+
+		  if(it != m_residualList.end())
 		  {
-			  NS_LOG_LOGIC("DETOUR PATH");
-			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
-			  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
-			  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
-
-			  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
-			  if(it != m_residualList.end())
+			  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
+			  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
+			  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
+			  NS_LOG_LOGIC("Residual capacity " << residual << " deltaRate " << deltaRate);
+			  deltaRate=deltaRate-residual;
+			  if(residual>0&&outInterface->GetBW()>bps.GetBitRate())
 			  {
-				  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
-				  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
-				  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
-				  NS_LOG_LOGIC("Residual capacity " << residual);
-				  if(residual>0)
-				  {
-					  InrppTag tag;
-					  tag.SetAddress (rtentry->GetGateway());
-					  p->AddPacketTag (tag);
-					  rtentry->SetGateway(route->GetDetour());
-					  rtentry->SetOutputDevice(route->GetOutputDevice());
-				  }
-
+				  InrppTag tag;
+				  tag.SetAddress (rtentry->GetGateway());
+				  p->AddPacketTag (tag);
+				  rtentry->SetGateway(route->GetDetour());
+				  rtentry->SetOutputDevice(route->GetOutputDevice());
 			  }
 
 		  }
-		  break;
+		  NS_LOG_LOGIC("DeltaRate " << deltaRate);
+
+	  }
+
+	  if(deltaRate>0)outInterface->SetState(BACKPRESSURE);
+
+
+	  if(outInterface->GetState()==BACKPRESSURE)
+	  {
+
+	  }
+	/*	  break;
 	  case N0_DETOUR:
 	  case BACKPRESSURE:
 	  case UP_BACKPRESSURE:
@@ -272,7 +289,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 		  break;
 
-	  }
+	  }*/
 
 	  Ipv4Header ipHeader = header;
 	  Ptr<Packet> packet = p->Copy ();

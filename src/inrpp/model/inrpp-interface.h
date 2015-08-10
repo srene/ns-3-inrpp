@@ -104,7 +104,15 @@ public:
 
  InrppState GetState(void);
 
+ void SetState(InrppState state);
+
  uint32_t GetResidual();
+ uint32_t GetBW();
+
+ uint32_t GetFlow();
+ uint32_t GetDetoured();
+
+ void CalculateFlow(Ptr<const Packet> p);
 
 private:
 
@@ -119,6 +127,20 @@ private:
   double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
   Time t1;
   uint32_t data;
+
+  TracedValue<double>    m_currentBW2;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW2;           //!< Last bandwidth sample
+  double                 m_lastBW2;                 //!< Last bandwidth sample after being filtered
+  Time t2;
+  uint32_t data2;
+
+  TracedValue<double>    m_currentBW3;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW3;           //!< Last bandwidth sample
+  double                 m_lastBW3;                 //!< Last bandwidth sample after being filtered
+  Time t3;
+  uint32_t data3;
+
+
   uint32_t m_residual;
 
 };
