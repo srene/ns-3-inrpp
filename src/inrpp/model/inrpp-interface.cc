@@ -75,7 +75,8 @@ InrppInterface::InrppInterface ()
 	m_currentBW3(0),
 	m_lastSampleBW3(0),
 	m_lastBW3(0),
-    data3(0)
+    data3(0),
+	m_nonce(rand())
 {
   NS_LOG_FUNCTION (this);
   t1 = Simulator::Now();
@@ -236,6 +237,25 @@ InrppInterface::SetDevice (Ptr<NetDevice> device)
   ch->TraceConnectWithoutContext ("TxRxPointToPoint", MakeCallback (&InrppInterface::TxRx,this));
   Ipv4Interface::SetDevice(device);
 }
+
+void
+InrppInterface::SetDeltaRate(uint32_t deltaRate)
+{
+	m_deltaRate = deltaRate;
+}
+
+uint32_t
+InrppInterface::GetDeltaRate(void)
+{
+	return m_deltaRate;
+}
+
+uint32_t
+InrppInterface::GetNonce(void)
+{
+	return m_nonce;
+}
+
 
 } // namespace ns3
 

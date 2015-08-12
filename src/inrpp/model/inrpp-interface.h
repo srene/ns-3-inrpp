@@ -114,6 +114,10 @@ public:
 
  void CalculateFlow(Ptr<const Packet> p);
 
+ void SetDeltaRate(uint32_t deltaRate);
+ uint32_t GetDeltaRate(void);
+ uint32_t GetNonce(void);
+
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -142,6 +146,10 @@ private:
 
 
   uint32_t m_residual;
+
+  uint32_t m_nonce;
+
+  uint32_t m_deltaRate;
 
 };
 

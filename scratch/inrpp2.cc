@@ -202,10 +202,10 @@ main (int argc, char *argv[])
   /// \todo handle multi-address case
   rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
   rtentry->SetOutputDevice (devices0.Get(0));
-  ip->SetDetourRoute(devices2.Get(0),rtentry);
+//  ip->SetDetourRoute(devices2.Get(0),rtentry);
 
-  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+//  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
+//  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);
@@ -275,7 +275,7 @@ main (int argc, char *argv[])
                          InetSocketAddress (Ipv4Address::GetAny (), port));
   ApplicationContainer sinkApps = sink.Install (nodes.Get (3));
   sinkApps.Start (Seconds (0.0));
-  sinkApps.Stop (Seconds (10.0));
+  sinkApps.Stop (Seconds (100.0));
 
 //
 // Set up tracing if enabled

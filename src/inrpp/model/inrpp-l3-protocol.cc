@@ -40,6 +40,7 @@
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
+#include "inrpp-backp-tag.h"
 
 namespace ns3 {
 
@@ -238,48 +239,53 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	  int deltaRate = outInterface->GetFlow() - bps.GetBitRate();
 
-	  NS_LOG_LOGIC("Flow " << outInterface << " " << outInterface->GetFlow() << " BW " << outInterface->GetBW() << " DeltaRate " << deltaRate);
+	  NS_LOG_LOGIC("Flow " << outInterface << " " << outInterface->GetFlow() << " BW " << outInterface->GetBW() << " DeltaRate " << deltaRate << " " << outInterface->GetState());
 	//  switch(outInterface->GetState())
 	//  {
 //	  case DETOUR:
-	  if(route&&outInterface->GetState()!=N0_DETOUR)
+	  if(outInterface->GetState()!=N0_DETOUR)
 	  {
-		  NS_LOG_LOGIC("DETOUR PATH");
-		  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
-		  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
-		  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
+		  if(route){
+			  NS_LOG_LOGIC("DETOUR PATH");
+			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
+			  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
+			  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
 
-		  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
+			  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
 
 
-		  if(it != m_residualList.end())
-		  {
-			  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
-			  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
-			  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
-			  NS_LOG_LOGIC("Residual capacity " << residual << " deltaRate " << deltaRate);
-			  deltaRate=deltaRate-residual;
-			  if(residual>0&&outInterface->GetBW()>bps.GetBitRate())
+			  if(it != m_residualList.end())
 			  {
-				  InrppTag tag;
-				  tag.SetAddress (rtentry->GetGateway());
-				  p->AddPacketTag (tag);
-				  rtentry->SetGateway(route->GetDetour());
-				  rtentry->SetOutputDevice(route->GetOutputDevice());
-			  }
+				  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
+				  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
+				  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
+				  NS_LOG_LOGIC("Residual capacity " << residual << " deltaRate " << deltaRate);
+				  deltaRate=deltaRate-residual;
+				  if(residual>0&&outInterface->GetBW()>bps.GetBitRate())
+				  {
+					  InrppTag tag;
+					  tag.SetAddress (rtentry->GetGateway());
+					  p->AddPacketTag (tag);
+					  rtentry->SetGateway(route->GetDetour());
+					  rtentry->SetOutputDevice(route->GetOutputDevice());
+				  }
 
+			  }
 		  }
+
 		  NS_LOG_LOGIC("DeltaRate " << deltaRate);
 
+
+		  if(deltaRate>1000)
+		  {
+			  outInterface->SetState(BACKPRESSURE);
+			  outInterface->SetDeltaRate(deltaRate);
+		  }
+
 	  }
 
-	  if(deltaRate>0)outInterface->SetState(BACKPRESSURE);
 
 
-	  if(outInterface->GetState()==BACKPRESSURE)
-	  {
-
-	  }
 	/*	  break;
 	  case N0_DETOUR:
 	  case BACKPRESSURE:
@@ -326,6 +332,12 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
   uint32_t interface = 0;
   Ptr<Packet> packet = p->Copy ();
 
+  InrppBackpressureTag backpTagCopy;
+     if(p->PeekPacketTag (backpTagCopy))
+     {
+   	  NS_LOG_LOGIC("Backpressure tag " << (uint32_t)backpTagCopy.GetFlag() << " " << backpTagCopy.GetNonce() << " " << backpTagCopy.GetDeltaRate());
+
+     }
   // read the tag from the packet copy
   InrppTag tagCopy;
   if(p->PeekPacketTag (tagCopy))
@@ -346,6 +358,21 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 	  }
   }
 
+
+  int32_t ifaceNumber = GetInterfaceForDevice (device);
+  Ptr<InrppInterface> iface = GetInterface (ifaceNumber)->GetObject<InrppInterface>();
+
+
+  if(iface->GetState()==BACKPRESSURE)
+  {
+	  NS_LOG_LOGIC("Start backpressure");
+	  InrppBackpressureTag tag;
+	  tag.SetNonce(iface->GetNonce());
+	  tag.SetDeltaRate(iface->GetDeltaRate());
+	  tag.SetFlag(1);
+	  packet->AddPacketTag (tag);
+
+  }
 
   Ptr<Ipv4Interface> ipv4Interface;
   for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();
