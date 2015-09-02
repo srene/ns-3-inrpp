@@ -85,6 +85,14 @@ CwndChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 
 }
 
+static void
+RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
+{
+
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newval.GetSeconds () << std::endl;
+}
+
+
 void StartLog(Ptr<Socket> socket);
 
 
@@ -102,6 +110,10 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+
+
 //
 // Allow the user to override any of the defaults at
 // run-time, via command-line arguments
@@ -266,6 +278,8 @@ main (int argc, char *argv[])
   oss1 << "node0.cwnd";
   Ptr<OutputStreamWrapper> stream1 = asciiTraceHelper.CreateFileStream (oss1.str());
   Config::ConnectWithoutContext ("/NodeList/4/$ns3::TcpL4Protocol/SocketList/*/CongestionWindow", MakeBoundCallback (&CwndChange, stream1));
+
+
   Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
   bulk->SetCallback(MakeCallback(&StartLog));
 
@@ -325,4 +339,9 @@ void StartLog(Ptr<Socket> socket)
 	  Ptr<OutputStreamWrapper> stream1 = asciiTraceHelper.CreateFileStream (oss1.str());
 	  NS_LOG_LOGIC("Bulk " << socket);
 	  socket->TraceConnectWithoutContext("CongestionWindow",MakeBoundCallback (&CwndChange, stream1));
+
+	  std::ostringstream oss2;
+	  oss2 << "node0.rtt";
+	  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (oss2.str());
+	  socket->TraceConnectWithoutContext("RTT", MakeBoundCallback (&RttTracer, stream2));
 }

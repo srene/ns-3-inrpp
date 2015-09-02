@@ -214,7 +214,7 @@ void BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   NS_LOG_LOGIC ("BulkSendApplication Connection succeeded");
   m_connected = true;
-  m_cb(m_socket);
+  if(!m_cb.IsNull())m_cb(m_socket);
   SendData ();
 }
 
