@@ -266,8 +266,8 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 	  NS_LOG_LOGIC("Cwnd halve by " <<m_cWnd << " " << (backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
 	  if(m_cWnd>((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds()))
 		  m_cWnd = m_cWnd - ((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
-	  else
-		  m_cWnd = m_initialCWnd * m_segmentSize;
+	//  else
+		//  m_cWnd = m_initialCWnd * m_segmentSize;
 	 }
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }

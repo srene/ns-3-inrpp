@@ -256,6 +256,11 @@ InrppInterface::GetNonce(void)
 	return m_nonce;
 }
 
+void
+InrppInterface::SetCache(Ptr<InrppCache> cache)
+{
+	m_cache = cache;
+}
 
 } // namespace ns3
 

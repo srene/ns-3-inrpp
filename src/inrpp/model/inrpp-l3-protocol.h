@@ -35,7 +35,6 @@
 
 namespace ns3 {
 
-class ArpCache;
 class NetDevice;
 class Node;
 class Packet;
@@ -66,32 +65,6 @@ public:
   virtual ~InrppL3Protocol ();
 
   void SetL3Protocol (Ptr<Ipv4L3Protocol> ipv4);
-
-  /**
-   * \brief Set the node the ARP L3 protocol is associated with
-   * \param node the node
-   */
-//  void SetNode (Ptr<Node> node);
-
-  /**
-   * \brief Create an ARP cache for the device/interface
-   * \param device the NetDevice
-   * \param interface the Ipv4Interface
-   * \returns a smart pointer to the ARP cache
-   */
-  Ptr<InrppCache> CreateCache (Ptr<NetDevice> device, Ptr<Ipv4Interface> interface);
-
-  /**
-   * \brief Receive a packet
-   * \param device the source NetDevice
-   * \param p the packet
-   * \param protocol the protocol
-   * \param from the source address
-   * \param to the destination address
-   * \param packetType type of packet (i.e., unicast, multicast, etc.)
-   */
-//  void Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from, const Address &to,
-//                NetDevice::PacketType packetType);
 
 
   void InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from, const Address &to,

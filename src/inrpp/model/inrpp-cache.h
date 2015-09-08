@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <list>
+#include <map>
 #include "ns3/simulator.h"
 #include "ns3/callback.h"
 #include "ns3/packet.h"
@@ -32,14 +33,14 @@
 #include "ns3/ptr.h"
 #include "ns3/object.h"
 #include "ns3/traced-callback.h"
-#include "ns3/sgi-hashmap.h"
 #include "ns3/output-stream-wrapper.h"
+#include "inrpp-interface.h"
 
 namespace ns3 {
 
 class NetDevice;
 class Ipv4Interface;
-
+class InrppInterface;
 /**
  * \ingroup arp
  * \brief An ARP cache
@@ -49,20 +50,6 @@ class Ipv4Interface;
  */
 class InrppCache : public Object
 {
-private:
-  /**
-   * \brief Copy constructor
-   *
-   * Defined and unimplemented to avoid misuse
-   */
-  InrppCache (InrppCache const &);
-  /**
-   * \brief Copy constructor
-   *
-   * Defined and unimplemented to avoid misuse
-   * \returns
-   */
-  InrppCache& operator= (InrppCache const &);
 
 public:
   /**
@@ -70,237 +57,21 @@ public:
    * \return the object TypeId
    */
   static TypeId GetTypeId (void);
-  class Entry;
   InrppCache ();
   ~InrppCache ();
 
-  /**
-   * \brief Set the NetDevice and Ipv4Interface associated with the InrppCache
-   *
-   * \param device The hardware NetDevice associated with this ARP cache
-   * \param interface the Ipv4Interface associated with this ARP cache
-   */
-  void SetDevice (Ptr<NetDevice> device, Ptr<Ipv4Interface> interface);
-  /**
-   * \brief Returns the NetDevice that this ARP cache is associated with
-   * \return The NetDevice that this ARP cache is associated with
-   */
-  Ptr<NetDevice> GetDevice (void) const;
-  /**
-   * \brief Returns the Ipv4Interface that this ARP cache is associated with
-   * \return the Ipv4Interface that this ARP cache is associated with
-   */
-  Ptr<Ipv4Interface> GetInterface (void) const;
+  void Flush ();
 
-  /**
-   * \brief Set the time the entry will be in ALIVE state (unless refreshed)
-   * \param aliveTimeout the Alive state timeout
-   */
-  void SetAliveTimeout (Time aliveTimeout);
-  /**
-   * \brief Set the time the entry will be in DEAD state before being removed
-   * \param deadTimeout the Dead state timeout
-   */
-  void SetDeadTimeout (Time deadTimeout);
-  /**
-   * \brief Set the time the entry will be in WAIT_REPLY state
-   * \param waitReplyTimeout the WAIT_REPLY state timeout
-   */
-  void SetWaitReplyTimeout (Time waitReplyTimeout);
+  void Insert(Ptr<InrppInterface> iface,Ptr<const Packet> packet);
 
-  /**
-   * \brief Get the time the entry will be in ALIVE state (unless refreshed)
-   * \returns the Alive state timeout
-   */
-  Time GetAliveTimeout (void) const;
-  /**
-   * \brief Get the time the entry will be in DEAD state before being removed
-   * \returns the Dead state timeout
-   */
-  Time GetDeadTimeout (void) const;
-  /**
-   * \brief Get the time the entry will be in WAIT_REPLY state
-   * \returns the WAIT_REPLY state timeout
-   */
-  Time GetWaitReplyTimeout (void) const;
-
-  /**
-   * This callback is set when the InrppCache is set up and allows
-   * the cache to generate an Arp request when the WaitReply
-   * time expires and a retransmission must be sent
-   *
-   * \param arpRequestCallback Callback for transmitting an Arp request.
-   */
-  void SetArpRequestCallback (Callback<void, Ptr<const InrppCache>,
-                                       Ipv4Address> arpRequestCallback);
-  /**
-   * This method will schedule a timeout at WaitReplyTimeout interval
-   * in the future, unless a timer is already running for the cache,
-   * in which case this method does nothing.
-   */
-  void StartWaitReplyTimer (void);
-  /**
-   * \brief Do lookup in the ARP cache against an IP address
-   * \param destination The destination IPv4 address to lookup the MAC address
-   * of
-   * \return An InrppCache::Entry with info about layer 2
-   */
-  InrppCache::Entry *Lookup (Ipv4Address destination);
-  /**
-   * \brief Add an Ipv4Address to this ARP cache
-   */
-  InrppCache::Entry *Add (Ipv4Address to);
-  /**
-   * \brief Clear the InrppCache of all entries
-   */
-  void Flush (void);
-
-  /**
-   * \brief Print the ARP cache entries
-   *
-   * \param stream the ostream the ARP cache entries is printed to
-   */
-  void PrintInrppCache (Ptr<OutputStreamWrapper> stream);
-
-  /**
-   * \brief A record that that holds information about an InrppCache entry
-   */
-  class Entry {
-public:
-    /**
-     * \brief Constructor
-     * \param arp The InrppCache this entry belongs to
-     */
-    Entry (InrppCache *arp);
-
-    /**
-     * \brief Changes the state of this entry to dead
-     */
-    void MarkDead (void);
-    /**
-     * \param macAddress
-     */
-    void MarkAlive (Address macAddress);
-    /**
-     * \param waiting
-     */
-    void MarkWaitReply (Ptr<Packet> waiting);
-    /**
-     * \param waiting
-     * \return 
-     */
-    bool UpdateWaitReply (Ptr<Packet> waiting);
-    /**
-     * \return True if the state of this entry is dead; false otherwise.
-     */
-    bool IsDead (void);
-    /**
-     * \return True if the state of this entry is alive; false otherwise.
-     */
-    bool IsAlive (void);
-    /**
-     * \return True if the state of this entry is wait_reply; false otherwise.
-     */
-    bool IsWaitReply (void);
-
-    /**
-     * \return The MacAddress of this entry
-     */
-    Address GetMacAddress (void) const;
-    /**
-     * \return The Ipv4Address for this entry
-     */
-    Ipv4Address GetIpv4Address (void) const;
-    /**
-     * \param destination The Ipv4Address for this entry
-     */
-    void SetIpv4Address (Ipv4Address destination);
-    /**
-     * \return True if this entry has timed out; false otherwise.
-     *
-     * This function returns true if the time elapsed strictly exceeds
-     * the timeout value (i.e., is not less than or equal to the timeout).
-     */
-    bool IsExpired (void) const;
-    /**
-     * \returns 0 is no packet is pending, the next packet to send if 
-     *            packets are pending.
-     */
-    Ptr<Packet> DequeuePending (void);
-    /**
-     * \returns number of retries that have been sent for an ArpRequest
-     *  in WaitReply state.
-     */
-    uint32_t GetRetries (void) const;
-    /**
-     * \brief Increment the counter of number of retries for an entry
-     */
-    void IncrementRetries (void);
-    /**
-     * \brief Zero the counter of number of retries for an entry
-     */
-    void ClearRetries (void);
-
+  Ptr<const Packet> GetPacket(Ptr<InrppInterface> iface);
 private:
-    /**
-     * \brief ARP cache entry states
-     */
-    enum InrppCacheEntryState_e {
-      ALIVE,
-      WAIT_REPLY,
-      DEAD
-    };
 
-    /**
-     * \brief Update the entry when seeing a packet
-     */
-    void UpdateSeen (void);
+  typedef std::pair<Ptr<InrppInterface>,Ptr<const Packet> > PairCache;
+  typedef std::multimap<Ptr<InrppInterface>,Ptr<const Packet> > Cache;
+  typedef std::multimap<Ptr<InrppInterface>,Ptr<const Packet> >::iterator CacheIter;
 
-    /**
-     * \brief Returns the entry timeout
-     * \returns the entry timeout
-     */
-    Time GetTimeout (void) const;
-
-    InrppCache *m_arp; //!< pointer to the ARP cache owning the entry
-    InrppCacheEntryState_e m_state; //!< state of the entry
-    Time m_lastSeen; //!< last moment a packet from that address has been seen
-    Address m_macAddress; //!< entry's MAC address
-    Ipv4Address m_ipv4Address; //!< entry's IP address
-    std::list<Ptr<Packet> > m_pending; //!< list of pending packets for the entry's IP
-    uint32_t m_retries; //!< rerty counter
-  };
-
-private:
-  /**
-   * \brief ARP Cache container
-   */
-  typedef sgi::hash_map<Ipv4Address, InrppCache::Entry *, Ipv4AddressHash> Cache;
-  /**
-   * \brief ARP Cache container iterator
-   */
-  typedef sgi::hash_map<Ipv4Address, InrppCache::Entry *, Ipv4AddressHash>::iterator CacheI;
-
-  virtual void DoDispose (void);
-
-  Ptr<NetDevice> m_device; //!< NetDevice associated with the cache
-  Ptr<Ipv4Interface> m_interface; //!< Ipv4Interface associated with the cache
-  Time m_aliveTimeout; //!< cache alive state timeout
-  Time m_deadTimeout; //!< cache dead state timeout
-  Time m_waitReplyTimeout; //!< cache reply state timeout
-  EventId m_waitReplyTimer;  //!< cache alive state timer
-  Callback<void, Ptr<const InrppCache>, Ipv4Address> m_arpRequestCallback;  //!< reply timeout callback
-  uint32_t m_maxRetries; //!< max retries for a resolution
-
-  /**
-   * This function is an event handler for the event that the
-   * InrppCache wants to check whether it must retry any Arp requests.
-   * If there are no Arp requests pending, this event is not scheduled.
-   */
-  void HandleWaitReplyTimeout (void);
-  uint32_t m_pendingQueueSize; //!< number of packets waiting for a resolution
   Cache m_InrppCache; //!< the ARP cache
-  TracedCallback<Ptr<const Packet> > m_dropTrace; //!< trace for packets dropped by the ARP cache queue
 };
 
 

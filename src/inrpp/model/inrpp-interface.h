@@ -31,13 +31,14 @@
 #include "inrpp-route.h"
 #include "ns3/simulator.h"
 #include "ns3/traced-value.h"
+#include "inrpp-cache.h"
 
 namespace ns3 {
 
 class NetDevice;
 class Packet;
 class Node;
-class ArpCache;
+class InrppCache;
 
 /**
  * \brief Names of the INRPP states
@@ -118,6 +119,8 @@ public:
  uint32_t GetDeltaRate(void);
  uint32_t GetNonce(void);
 
+ void SetCache(Ptr<InrppCache> cache);
+
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -150,6 +153,8 @@ private:
   uint32_t m_nonce;
 
   uint32_t m_deltaRate;
+
+  Ptr<InrppCache> m_cache;
 
 };
 

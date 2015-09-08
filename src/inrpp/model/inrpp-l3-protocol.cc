@@ -73,12 +73,14 @@ InrppL3Protocol::InrppL3Protocol ()
 {
   NS_LOG_FUNCTION (this);
 
+  Ptr<InrppCache> m_cache = CreateObject<InrppCache> ();
 
 }
 
 InrppL3Protocol::~InrppL3Protocol ()
 {
   NS_LOG_FUNCTION (this);
+
 }
 
 
@@ -121,18 +123,6 @@ InrppL3Protocol::DoDispose (void)
   Object::DoDispose ();
 }
 
-Ptr<InrppCache>
-InrppL3Protocol::CreateCache (Ptr<NetDevice> device, Ptr<Ipv4Interface> interface)
-{
-  NS_LOG_FUNCTION (this << device << interface);
-  Ptr<Ipv4L3Protocol> ipv4 = m_node->GetObject<Ipv4L3Protocol> ();
-  Ptr<InrppCache> cache = CreateObject<InrppCache> ();
-  cache->SetDevice (device, interface);
-  NS_ASSERT (device->IsBroadcast ());
-//  device->AddLinkChangeCallback (MakeCallback (&ArpCache::Flush, cache));
-//  cache->SetArpRequestCallback (MakeCallback (&InrppL3Protocol::SendArpRequest, this));
-  return cache;
-}
 
 uint32_t
 InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
@@ -152,6 +142,7 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
   interface->SetNode (m_node);
   interface->SetDevice (device);
   interface->SetForwarding (m_ipForward);
+  interface->SetCache(m_cache);
 
   return Ipv4L3Protocol::AddIpv4Interface (interface);
   //return Ipv4L3Protocol::AddInterface(device);
@@ -245,6 +236,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 //	  case DETOUR:
 	  if(outInterface->GetState()!=N0_DETOUR)
 	  {
+		  m_cache->Insert(outInterface,p);
 		  if(route){
 			  NS_LOG_LOGIC("DETOUR PATH");
 			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
