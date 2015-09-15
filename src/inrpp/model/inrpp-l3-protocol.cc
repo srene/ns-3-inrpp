@@ -73,7 +73,7 @@ InrppL3Protocol::InrppL3Protocol ()
 {
   NS_LOG_FUNCTION (this);
 
-  Ptr<InrppCache> m_cache = CreateObject<InrppCache> ();
+  m_cache = CreateObject<InrppCache> ();
 
 }
 
@@ -134,7 +134,6 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
                                  Ipv4L3Protocol::PROT_NUMBER, device);
   node->RegisterProtocolHandler (MakeCallback (&ArpL3Protocol::Receive, PeekPointer (GetObject<ArpL3Protocol> ())),
                                  ArpL3Protocol::PROT_NUMBER, device);
-
   node->RegisterProtocolHandler (MakeCallback (&InrppL3Protocol::InrppReceive, this),
                                  InrppL3Protocol::PROT_NUMBER, device);
 
@@ -143,7 +142,8 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
   interface->SetDevice (device);
   interface->SetForwarding (m_ipForward);
   interface->SetCache(m_cache);
-
+  interface->SetRate(device->GetObject<PointToPointNetDevice>()->GetDataRate());
+  interface->SetInrppL3Protocol(this);
   return Ipv4L3Protocol::AddIpv4Interface (interface);
   //return Ipv4L3Protocol::AddInterface(device);
 }
@@ -210,7 +210,10 @@ InrppL3Protocol::InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint1
 
 	NS_LOG_LOGIC("Inrpp header detour " << inrpp.GetAddress() << " " << inrpp.GetResidual());
 
-	m_residualList.insert(std::pair<Ipv4Address, uint32_t>(inrpp.GetAddress(),inrpp.GetResidual()));
+	Ptr<InrppInterface> inrppInface = GetInterface (GetInterfaceForDevice (device))->GetObject<InrppInterface>();
+
+	inrppInface->UpdateResidual(inrpp.GetAddress(),inrpp.GetResidual());
+	//m_residualList.insert(std::pair<Ipv4Address, uint32_t>(inrpp.GetAddress(),inrpp.GetResidual()));
 }
 
 void
@@ -234,10 +237,21 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	//  switch(outInterface->GetState())
 	//  {
 //	  case DETOUR:
-	  if(outInterface->GetState()!=N0_DETOUR)
+		 Ptr<Packet> packet = p->Copy();
+		 packet->AddHeader(header);
+
+	  if(outInterface->GetState()!=NO_DETOUR)
 	  {
-		  m_cache->Insert(outInterface,p);
-		  if(route){
+
+		 NS_LOG_LOGIC("DETOUR STATE");
+
+		 if(!m_cache->Insert(outInterface,rtentry,packet,0)){
+			 NS_LOG_LOGIC("CACHE FULL");
+		 } else {
+			 outInterface->SendPacket();
+		 }
+
+	/*	 if(route){
 			  NS_LOG_LOGIC("DETOUR PATH");
 			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
 			  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
@@ -272,8 +286,11 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 		  {
 			  outInterface->SetState(BACKPRESSURE);
 			  outInterface->SetDeltaRate(deltaRate);
-		  }
+		  }*/
 
+	  }else {
+		  NS_LOG_LOGIC("Send packet");
+		  Send(rtentry,packet);
 	  }
 
 
@@ -289,9 +306,21 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	  }*/
 
-	  Ipv4Header ipHeader = header;
+
+}
+
+void
+InrppL3Protocol::Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
+{
+	  //Ipv4Header ipHeader = header;
+	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
+
 	  Ptr<Packet> packet = p->Copy ();
-	 // int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
+	  Ipv4Header ipHeader;
+	  packet->RemoveHeader(ipHeader);
+	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
+
+	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
 	  NS_LOG_FUNCTION (this << interface);
 	  ipHeader.SetTtl (ipHeader.GetTtl () - 1);
 	  if (ipHeader.GetTtl () == 0)
@@ -305,7 +334,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	            icmp->SendTimeExceededTtl (ipHeader, packet);
 	          }
 	        NS_LOG_WARN ("TTL exceeded.  Drop.");
-	        m_dropTrace (header, packet, DROP_TTL_EXPIRED, m_node->GetObject<Ipv4> (), interface);
+	        m_dropTrace (ipHeader, packet, DROP_TTL_EXPIRED, m_node->GetObject<Ipv4> (), interface);
 	        return;
 	      }
 	    m_unicastForwardTrace (ipHeader, packet, interface);
@@ -438,7 +467,9 @@ InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 {
 
 	  Ptr<InrppInterface> iface = GetInterface(GetInterfaceForDevice (netdevice))->GetObject<InrppInterface>();
-	  iface->SetDetour(route);
+	  Ptr<InrppInterface> iface2 = GetInterface(GetInterfaceForDevice (route->GetOutputDevice()))->GetObject<InrppInterface>();
+	  iface2->SetDetouredIface(iface,route->GetDestination());
+	  iface2->SetDetour(route);
 
 }
 
@@ -453,6 +484,9 @@ InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDest
 
 
 }
+
+
+
 
 
 } // namespace ns3

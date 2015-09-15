@@ -51,14 +51,14 @@ TcpInrpp::GetTypeId (void)
                    BooleanValue (false),
                    MakeBooleanAccessor (&TcpInrpp::m_limitedTx),
                    MakeBooleanChecker ())
-    .AddTraceSource ("CongestionWindow",
+    /*.AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
                      "ns3::TracedValue::Uint32Callback")
     .AddTraceSource ("SlowStartThreshold",
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpInrpp::m_ssThresh),
-                     "ns3::TracedValue::Uint32Callback")
+                     "ns3::TracedValue::Uint32Callback")*/
  ;
   return tid;
 }
@@ -73,8 +73,8 @@ TcpInrpp::TcpInrpp (void)
 
 TcpInrpp::TcpInrpp (const TcpInrpp& sock)
   : TcpSocketBase (sock),
-    m_cWnd (sock.m_cWnd),
-    m_ssThresh (sock.m_ssThresh),
+   // m_cWnd (sock.m_cWnd),
+   // m_ssThresh (sock.m_ssThresh),
     m_initialCWnd (sock.m_initialCWnd),
     m_initialSsThresh (sock.m_initialSsThresh),
     m_retxThresh (sock.m_retxThresh),
@@ -112,7 +112,8 @@ uint32_t
 TcpInrpp::Window (void)
 {
   NS_LOG_FUNCTION (this);
-  return std::min (m_rWnd.Get (), m_cWnd.Get ());
+  //return std::min (m_rWnd.Get (), m_cWnd.Get ());
+  return std::min (m_rWnd.Get (), m_segmentSize);
 }
 
 Ptr<TcpSocketBase>
@@ -126,15 +127,15 @@ void
 TcpInrpp::NewAck (const SequenceNumber32& seq)
 {
   NS_LOG_FUNCTION (this << seq);
-  NS_LOG_LOGIC ("TcpInrpp received ACK for seq " << seq <<
-                " cwnd " << m_cWnd <<
-                " ssthresh " << m_ssThresh);
+ // NS_LOG_LOGIC ("TcpInrpp received ACK for seq " << seq <<
+  //    /          " cwnd " << m_cWnd <<
+    //            " ssthresh " << m_ssThresh);
 
   // Check for exit condition of fast recovery
   if (m_inFastRec && seq < m_recover)
     { // Partial ACK, partial window deflation (RFC2582 sec.3 bullet #5 paragraph 3)
-      m_cWnd += m_segmentSize - (seq - m_txBuffer->HeadSequence ());
-      NS_LOG_INFO ("Partial ACK for seq " << seq << " in fast recovery: cwnd set to " << m_cWnd);
+    //  m_cWnd += m_segmentSize - (seq - m_txBuffer->HeadSequence ());
+    //  NS_LOG_INFO ("Partial ACK for seq " << seq << " in fast recovery: cwnd set to " << m_cWnd);
       m_txBuffer->DiscardUpTo(seq);  //Bug 1850:  retransmit before newack
       DoRetransmit (); // Assume the next seq is lost. Retransmit lost packet
       TcpSocketBase::NewAck (seq); // update m_nextTxSequence and send new data if allowed by window
@@ -142,27 +143,32 @@ TcpInrpp::NewAck (const SequenceNumber32& seq)
     }
   else if (m_inFastRec && seq >= m_recover)
     { // Full ACK (RFC2582 sec.3 bullet #5 paragraph 2, option 1)
-      m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
+    //  m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
       m_inFastRec = false;
-      NS_LOG_INFO ("Received full ACK for seq " << seq <<". Leaving fast recovery with cwnd set to " << m_cWnd);
+  //    NS_LOG_INFO ("Received full ACK for seq " << seq <<". Leaving fast recovery with cwnd set to " << m_cWnd);
     }
 
   // Increase of cwnd based on current phase (slow start or congestion avoidance)
-  if (m_cWnd < m_ssThresh)
-    { // Slow start mode, add one segSize to cWnd. Default m_ssThresh is 65535. (RFC2001, sec.1)
-      m_cWnd += m_segmentSize;
-      NS_LOG_INFO ("In SlowStart, ACK of seq " << seq << "; update cwnd to " << m_cWnd << "; ssthresh " << m_ssThresh);
-    }
-  else
-    { // Congestion avoidance mode, increase by (segSize*segSize)/cwnd. (RFC2581, sec.3.1)
+//  if (m_cWnd < m_ssThresh)
+ //   { // Slow start mode, add one segSize to cWnd. Default m_ssThresh is 65535. (RFC2001, sec.1)
+   //   m_cWnd += m_segmentSize;
+ //     NS_LOG_INFO ("In SlowStart, ACK of seq " << seq << "; update cwnd to " << m_cWnd << "; ssthresh " << m_ssThresh);
+//    }
+ // else
+ //   { // Congestion avoidance mode, increase by (segSize*segSize)/cwnd. (RFC2581, sec.3.1)
       // To increase cwnd for one segSize per RTT, it should be (ackBytes*segSize)/cwnd
-      double adder = static_cast<double> (m_segmentSize * m_segmentSize) / m_cWnd.Get ();
-      adder = std::max (1.0, adder);
-      m_cWnd += static_cast<uint32_t> (adder);
-      NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
-    }
+ //     double adder = static_cast<double> (m_segmentSize * m_segmentSize) / m_cWnd.Get ();
+  //    adder = std::max (1.0, adder);
+    //  m_cWnd += static_cast<uint32_t> (adder);
+ //     NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
+ //   }
 
   // Complete newAck processing
+  // Try to send more data
+  if (!m_sendPendingDataEvent.IsRunning ())
+    {
+      m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpInrpp::SendPendingData, this, m_connected);
+    }
   TcpSocketBase::NewAck (seq);
 }
 
@@ -193,8 +199,8 @@ TcpInrpp::Retransmit (void)
   //m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
   //m_cWnd = m_segmentSize;
   m_nextTxSequence = m_txBuffer->HeadSequence (); // Restart from highest Ack
-  NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
-               ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
+ // NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
+  //             ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
   DoRetransmit ();                          // Retransmit the packet
 }
 
@@ -239,37 +245,76 @@ TcpInrpp::InitializeCwnd (void)
    * not be larger than 2 MSS (RFC2581, sec.3.1). Both m_initiaCWnd and
    * m_segmentSize are set by the attribute system in ns3::TcpSocket.
    */
-  m_cWnd = m_initialCWnd * m_segmentSize;
-  m_ssThresh = m_initialSsThresh;
+ // m_cWnd = m_initialCWnd * m_segmentSize;
+  //m_cWnd = 100000;
+  //m_ssThresh = m_initialSsThresh;
 }
 
 void
 TcpInrpp::ScaleSsThresh (uint8_t scaleFactor)
 {
-  m_ssThresh <<= scaleFactor;
+  //m_ssThresh <<= scaleFactor;
 }
 
 void
 TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 {
 	NS_LOG_FUNCTION(this);
-	if(m_lastRtt.Get().GetSeconds()>0)
+/*	if(m_lastRtt.Get().GetSeconds()>0)
 	{
 		double rate = std::min (m_rWnd.Get (), m_cWnd.Get ())/m_lastRtt.Get().GetSeconds();
 		NS_LOG_LOGIC("Tcp inrpp rate " << rate);
 
-	}
+	}*/
 	 InrppBackpressureTag backpTagCopy;
 	 if(packet->PeekPacketTag (backpTagCopy))
 	 {
 	  NS_LOG_LOGIC("Backpressure tag " << (uint32_t)backpTagCopy.GetFlag() << " " << backpTagCopy.GetNonce() << " " << backpTagCopy.GetDeltaRate());
-	  NS_LOG_LOGIC("Cwnd halve by " <<m_cWnd << " " << (backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
-	  if(m_cWnd>((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds()))
-		  m_cWnd = m_cWnd - ((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
+	 // NS_LOG_LOGIC("Cwnd halve by " <<m_cWnd << " " << (backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
+	 // if(m_cWnd>((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds()))
+	//	  m_cWnd = m_cWnd - ((backpTagCopy.GetDeltaRate()/8)*m_lastRtt.Get().GetSeconds());
 	//  else
 		//  m_cWnd = m_initialCWnd * m_segmentSize;
 	 }
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
+}
+
+bool
+TcpInrpp::SendPendingData (bool withAck)
+{
+	  NS_LOG_FUNCTION (this << withAck);
+	  if (m_txBuffer->Size () == 0)
+	    {
+	      return false;                           // Nothing to send
+	    }
+	  if (m_endPoint == 0 && m_endPoint6 == 0)
+	    {
+	      NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
+	      return false; // Is this the right way to handle this condition?
+	    }
+	  uint32_t nPacketsSent = 0;
+
+	  if(!m_txBuffer->SizeFromSequence (m_nextTxSequence) < m_segmentSize)
+	  {
+		  uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, withAck);
+		  nPacketsSent++;                             // Count sent this loop
+		  m_nextTxSequence += sz;                     // Advance next tx sequence
+	  }
+
+	  // Try to send more data
+	  if (!m_sendPendingDataEvent.IsRunning ())
+	    {
+		 Time t = Seconds(((double)m_segmentSize*8)/1000000);
+	      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
+	    }
+
+	  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets");
+	  return (nPacketsSent > 0);
+
+
+
+
+
 }
 
 

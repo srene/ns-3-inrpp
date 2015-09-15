@@ -35,19 +35,39 @@
 #include "ns3/traced-callback.h"
 #include "ns3/output-stream-wrapper.h"
 #include "inrpp-interface.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/ipv4-route.h"
 
 namespace ns3 {
 
 class NetDevice;
 class Ipv4Interface;
 class InrppInterface;
-/**
- * \ingroup arp
- * \brief An ARP cache
- *
- * A cached lookup table for translating layer 3 addresses to layer 2.
- * This implementation does lookups from IPv4 to a MAC address
- */
+
+class CachedPacket : public Object
+{
+
+public:
+
+   CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route, uint32_t iface);
+   ~CachedPacket ();
+
+   Ptr<const Packet> GetPacket();
+   Ptr<Ipv4Route> GetRoute();
+   uint32_t GetIface();
+
+private:
+
+	Ptr<const Packet> m_packet;
+	Ptr<Ipv4Route> m_route;
+	uint32_t m_iface;
+};
+
+
+typedef std::pair<Ptr<InrppInterface>,Ptr<CachedPacket> > PairCache;
+typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> > Cache;
+typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> >::iterator CacheIter;
+
 class InrppCache : public Object
 {
 
@@ -62,16 +82,21 @@ public:
 
   void Flush ();
 
-  void Insert(Ptr<InrppInterface> iface,Ptr<const Packet> packet);
+  bool Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t interface);
 
-  Ptr<const Packet> GetPacket(Ptr<InrppInterface> iface);
+  Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface);
+
+  void SetMaxSize (uint32_t size);
+
+  uint32_t GetMaxSize (void) const;
+
+  uint32_t GetSize (Ptr<InrppInterface> iface);
 private:
 
-  typedef std::pair<Ptr<InrppInterface>,Ptr<const Packet> > PairCache;
-  typedef std::multimap<Ptr<InrppInterface>,Ptr<const Packet> > Cache;
-  typedef std::multimap<Ptr<InrppInterface>,Ptr<const Packet> >::iterator CacheIter;
-
-  Cache m_InrppCache; //!< the ARP cache
+  Cache m_InrppCache;
+  TracedValue<uint32_t> m_size;
+  uint32_t m_maxCacheSize;
+  std::map<Ptr<InrppInterface>,uint32_t> m_ifaceSize;
 };
 
 

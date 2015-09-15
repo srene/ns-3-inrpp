@@ -32,6 +32,8 @@
 #include "ns3/simulator.h"
 #include "ns3/traced-value.h"
 #include "inrpp-cache.h"
+#include "ns3/data-rate.h"
+#include "inrpp-l3-protocol.h"
 
 namespace ns3 {
 
@@ -39,12 +41,13 @@ class NetDevice;
 class Packet;
 class Node;
 class InrppCache;
+class InrppL3Protocol;
 
 /**
  * \brief Names of the INRPP states
  */
 enum InrppState{
-	N0_DETOUR,       // 0
+	NO_DETOUR,       // 0
 	DETOUR,       // 1
 	BACKPRESSURE,     // 2
 	UP_BACKPRESSURE,     // 3
@@ -121,10 +124,19 @@ public:
 
  void SetCache(Ptr<InrppCache> cache);
 
+ void SetRate(DataRate bps);
+
+ void SendPacket();
+
+ void SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp);
+
+ void SetDetouredIface(Ptr<InrppInterface> interface,Ipv4Address address);
+
+ void UpdateResidual(Ipv4Address address, uint32_t residual);
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
-
+  void SendResidual();
   //std::map <Ipv4Address, Ptr<InrppRoute> > m_routeList;
   Ptr<InrppRoute> m_detourRoute;
   InrppState m_state;
@@ -145,8 +157,8 @@ private:
   double                 m_lastSampleBW3;           //!< Last bandwidth sample
   double                 m_lastBW3;                 //!< Last bandwidth sample after being filtered
   Time t3;
-  uint32_t data3;
 
+  uint32_t data3;
 
   uint32_t m_residual;
 
@@ -155,6 +167,17 @@ private:
   uint32_t m_deltaRate;
 
   Ptr<InrppCache> m_cache;
+
+  DataRate m_bps;
+
+  EventId m_txEvent;       //!< Transmit cached packet event
+  EventId m_txResidualEvent;
+  Ptr<InrppL3Protocol> m_inrpp;
+
+  std::map <Ptr<InrppInterface>, Ipv4Address> m_detouredIfaces;
+  std::map <Ipv4Address, uint32_t> m_residualList;
+  Ptr<InrppInterface> m_detouredIface;
+  uint32_t m_residualMin;
 
 };
 

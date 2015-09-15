@@ -110,8 +110,8 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+ // Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
+ // Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
 
 
 //
@@ -153,28 +153,23 @@ main (int argc, char *argv[])
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
   devices3 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
-  devices4 = pointToPoint.Install (nodes.Get(0),nodes.Get(4));
+  devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
 
 
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("500Kbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
 
-
-  // NixHelper to install nix-vector routing
-  // on all nodes
-  /*Ipv4NixVectorHelper nixRouting;
-  Ipv4StaticRoutingHelper staticRouting;
-
-  Ipv4ListRoutingHelper list;
-  list.Add (staticRouting, 0);
-  list.Add (nixRouting, 10);*/
 //
-// Install the internet stack on the nodes
+// Install the internet stack on the nodes with INRPP
 //
-  InrppStackHelper internet;
-  //InternetStackHelper internet;
+  InrppStackHelper inrpp;
+  InternetStackHelper internet;
   //internet.SetRoutingHelper (list); // has effect on the next Install ()
-  internet.Install (nodes);
+  inrpp.Install (nodes.Get(0));
+  inrpp.Install (nodes.Get(1));
+  inrpp.Install (nodes.Get(2));
+  internet.Install (nodes.Get(3));
+  internet.Install (nodes.Get(4));
 
 //
 // We've got the "hardware" in place.  Now we need to add IP addresses.
@@ -195,36 +190,24 @@ main (int argc, char *argv[])
 //
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
-//Configure each node to support INRPP protocol
- for(uint32_t i=0; i<nodes.GetN(); ++i)
-  {
-
-	  NS_LOG_INFO("Ip object " << nodes.Get(i));
-
-	 /*  Ptr<InrppL3Protocol> inrpp = CreateObject<InrppL3Protocol> ();
- 	  inrpp->SetL3Protocol(ip->GetObject<Ipv4L3Protocol>());
-	  nodes.Get(i)->AggregateObject (inrpp);*/
-
-
-  }
-
+//Configure detour path at n0
   Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
   Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
   rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
   /// \todo handle multi-address case
   rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
   rtentry->SetOutputDevice (devices0.Get(0));
-//  ip->SetDetourRoute(devices2.Get(0),rtentry);
+  ip->SetDetourRoute(devices2.Get(0),rtentry);
 
-//  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-//  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
+  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);
   Ptr<Queue> txQueue = ptr.Get<Queue> ();
   AsciiTraceHelper asciiTraceHelper;
   std::ostringstream osstr1;
-  osstr1 << "netdevice_1.bf";
+  osstr1 << "netdevice_2.bf";
   Ptr<OutputStreamWrapper> streamtr1 = asciiTraceHelper.CreateFileStream (osstr1.str());
   txQueue->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr1));
 
@@ -232,9 +215,25 @@ main (int argc, char *argv[])
   devices2.Get(0)->GetAttribute ("TxQueue", ptr2);
   Ptr<Queue> txQueue2 = ptr2.Get<Queue> ();
   std::ostringstream osstr2;
-  osstr2 << "netdevice_2.bf";
+  osstr2 << "netdevice_1.bf";
   Ptr<OutputStreamWrapper> streamtr2 = asciiTraceHelper.CreateFileStream (osstr2.str());
   txQueue2->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr2));
+
+  PointerValue ptr3;
+  devices4.Get(0)->GetAttribute ("TxQueue", ptr3);
+  Ptr<Queue> txQueue3 = ptr3.Get<Queue> ();
+  std::ostringstream osstr3;
+  osstr3 << "netdevice_3.bf";
+  Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
+  txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
+
+  PointerValue ptr4;
+  devices3.Get(0)->GetAttribute ("TxQueue", ptr4);
+  Ptr<Queue> txQueue4 = ptr4.Get<Queue> ();
+  std::ostringstream osstr4;
+  osstr4 << "netdevice_4.bf";
+  Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
+  txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr4));
 
   txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
@@ -262,6 +261,11 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());
   devices0.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));*/
 
+  std::ostringstream osstr7;
+  osstr7 << "netdevice_3.bw";
+  Ptr<OutputStreamWrapper> streamtr7 = asciiTraceHelper.CreateFileStream (osstr7.str());
+  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr7));
+
   NS_LOG_INFO ("Create Applications.");
 
   uint16_t port = 9000;  // well-known echo port number
@@ -272,7 +276,7 @@ main (int argc, char *argv[])
   source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
   ApplicationContainer sourceApps = source.Install (nodes.Get (4));
   sourceApps.Start (Seconds (1.0));
-  sourceApps.Stop (Seconds (10.0));
+  sourceApps.Stop (Seconds (100.0));
 
   std::ostringstream oss1;
   oss1 << "node0.cwnd";
@@ -309,8 +313,8 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("inrpp2.routes", std::ios::out);
   g.PrintRoutingTableAllAt (Seconds (100.0), routingStream);
 
-  Ptr<Node> n2 = nodes.Get (2);
-  Ptr<Ipv4> ipv02 = n2->GetObject<Ipv4> ();
+ // Ptr<Node> n2 = nodes.Get (2);
+ // Ptr<Ipv4> ipv02 = n2->GetObject<Ipv4> ();
   // The first ifIndex is 0 for loopback, then the first p2p is numbered 1,
   // then the next p2p is numbered 2
 //  uint32_t ipv4ifIndex1 = 1;

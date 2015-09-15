@@ -39,7 +39,8 @@ class NetDevice;
 class Node;
 class Packet;
 class Ipv4Interface;
-
+class InrppInterface;
+class InrppCache;
 
 /**
  * \ingroup internet
@@ -72,7 +73,9 @@ public:
 
   void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
   void SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address infoAddress);
+  void Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
+
 protected:
   virtual void DoDispose (void);
   /*
@@ -116,11 +119,12 @@ private:
   uint32_t AddInterface (Ptr<NetDevice> device);
 
   void IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const Ipv4Header &header);
+
   void Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
                             const Address &to, NetDevice::PacketType packetType);
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
-  std::map <Ipv4Address, uint32_t> m_residualList;
+  //std::map <Ipv4Address, uint32_t> m_residualList;
 
 
 };

@@ -26,24 +26,68 @@
 #include "ns3/node.h"
 #include "ns3/trace-source-accessor.h"
 #include "ns3/names.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/ipv4-route.h"
 
 
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("InrppCache");
 
+
+
 NS_OBJECT_ENSURE_REGISTERED (InrppCache);
 
+CachedPacket::CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route, uint32_t iface)
+{
+	NS_LOG_FUNCTION (this);
+	m_packet = p;
+	m_route = route;
+	m_iface = iface;
+}
+CachedPacket::~CachedPacket ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<const Packet>
+CachedPacket::GetPacket()
+{
+	return m_packet;
+}
+
+Ptr<Ipv4Route>
+CachedPacket::GetRoute()
+{
+	return m_route;
+}
+
+uint32_t
+CachedPacket::GetIface()
+{
+	return m_iface;
+}
 TypeId 
 InrppCache::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::InrppCache")
     .SetParent<Object> ()
+    .AddAttribute ("MaxCacheSize",
+                   "The size of the queue for packets pending an arp reply.",
+                   UintegerValue (1000000),
+                   MakeUintegerAccessor (&InrppCache::GetMaxSize,
+                           	   	   	   	 &InrppCache::SetMaxSize),
+                   MakeUintegerChecker<uint32_t> ())
+	.AddTraceSource ("Size",
+					 "Remote side's flow control window",
+					 MakeTraceSourceAccessor (&InrppCache::m_size),
+					 "ns3::TracedValue::Uint32Callback")
   ;
   return tid;
 }
 
-InrppCache::InrppCache ()
+InrppCache::InrppCache ():
+m_size(0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -59,22 +103,88 @@ InrppCache::Flush (void)
 
 }
 
-void
-InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<const Packet> packet)
+bool
+InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t interface)
 {
+	NS_LOG_FUNCTION(this<<m_size);
+	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
+	{
+		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry,interface);
 
-	m_InrppCache.insert(PairCache(iface,packet));
+		m_InrppCache.insert(PairCache(iface,p));
+
+		m_size+=packet->GetSize();
+		uint32_t size = 0;
+		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		if(it!=m_ifaceSize.end())
+		{
+		  size = it->second;
+		}
+		size+=packet->GetSize();
+		m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,size));
+		return true;
+	} else {
+		return false;
+	}
+
 }
 
-Ptr<const Packet>
+Ptr<CachedPacket>
 InrppCache::GetPacket(Ptr<InrppInterface> iface)
 {
+	Ptr<CachedPacket> p;
 	CacheIter it = m_InrppCache.find(iface);
-	m_InrppCache.erase (it);
+	if(it!=m_InrppCache.end())
+	{
+		p = it->second;
+		m_InrppCache.erase (it);
+		m_size-=p->GetPacket()->GetSize();
 
-	return it->second;
+		uint32_t size = 0;
+		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		if(it!=m_ifaceSize.end())
+		{
+		  size = it->second;
+		}
+		size-=p->GetPacket()->GetSize();
+		m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,size));
+
+		return p;
+	}
+
+	return NULL;
 
 }
+
+void
+InrppCache::SetMaxSize (uint32_t size)
+{
+  NS_LOG_FUNCTION(this <<size);
+  m_maxCacheSize = size;
+  NS_LOG_LOGIC("Cache " <<m_maxCacheSize);
+
+}
+
+uint32_t
+InrppCache::GetMaxSize (void) const
+{
+  NS_LOG_INFO(this);
+  return m_maxCacheSize;
+}
+
+uint32_t
+InrppCache::GetSize (Ptr<InrppInterface> iface)
+{
+  NS_LOG_INFO(this);
+  uint32_t m_size = 0;
+  std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+  if(it!=m_ifaceSize.end())
+  {
+	  m_size = it->second;
+  }
+  return m_size;
+}
+
 
 } // namespace ns3
 
