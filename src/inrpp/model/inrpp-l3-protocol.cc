@@ -18,7 +18,8 @@
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
 #include "inrpp-l3-protocol.h"
-
+#include <vector>
+#include <algorithm>
 #include "inrpp-header.h"
 #include "ns3/packet.h"
 #include "ns3/log.h"
@@ -41,6 +42,7 @@
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
 #include "inrpp-backp-tag.h"
+#include "tcp-option-inrpp-back.h"
 
 namespace ns3 {
 
@@ -69,11 +71,16 @@ InrppL3Protocol::GetTypeId (void)
   return tid;
 }
 
-InrppL3Protocol::InrppL3Protocol ()
+InrppL3Protocol::InrppL3Protocol ():
+m_cacheFull(false),
+m_mustCache(false)
 {
   NS_LOG_FUNCTION (this);
 
   m_cache = CreateObject<InrppCache> ();
+  m_cache->SetHighThCallback (MakeCallback (&InrppL3Protocol::HighTh,this));
+  m_cache->SetLowThCallback (MakeCallback (&InrppL3Protocol::LowTh,this));
+
 
 }
 
@@ -83,37 +90,6 @@ InrppL3Protocol::~InrppL3Protocol ()
 
 }
 
-
-
-
-/*void
-InrppL3Protocol::SetNode (Ptr<Node> node)
-{
-  NS_LOG_FUNCTION (this << node);
-  m_node = node;
-  SetNetDevices();
-}*/
-
-/*
- * This method is called by AddAgregate and completes the aggregation
- * by setting the node in the ipv4 stack
- */
-/*void
-InrppL3Protocol::NotifyNewAggregate ()
-{
-  NS_LOG_FUNCTION (this);
-  if (m_node == 0)
-    {
-      Ptr<Node>node = this->GetObject<Node> ();
-      //verify that it's a valid node and that
-      //the node was not set before
-      if (node != 0)
-        {
-          this->SetNode (node);
-        }
-    }
-  Object::NotifyNewAggregate ();
-}*/
 
 void 
 InrppL3Protocol::DoDispose (void)
@@ -138,6 +114,8 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
                                  InrppL3Protocol::PROT_NUMBER, device);
 
   Ptr<InrppInterface> interface = CreateObject<InrppInterface> ();
+  NS_LOG_LOGIC ("Add interface " << interface);
+
   interface->SetNode (m_node);
   interface->SetDevice (device);
   interface->SetForwarding (m_ipForward);
@@ -145,32 +123,7 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
   interface->SetRate(device->GetObject<PointToPointNetDevice>()->GetDataRate());
   interface->SetInrppL3Protocol(this);
   return Ipv4L3Protocol::AddIpv4Interface (interface);
-  //return Ipv4L3Protocol::AddInterface(device);
 }
-
-/*void
-InrppL3Protocol::Receive (Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
-                        const Address &to, NetDevice::PacketType packetType)
-{
-  NS_LOG_FUNCTION (this << device << p->GetSize () << protocol << from << to << packetType);
-
-  Ptr<Ipv4Interface> ipv4Interface;
-  uint32_t interface = 0;
-
-   for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();
-        i != m_interfaces.end ();
-        i++, interface++)
-     {
-       ipv4Interface = *i;
-
-       NS_LOG_LOGIC("Interface " << interface << " " <<*i);
-     }
-
-  Ipv4L3Protocol::Receive(device,p,protocol,from,to,packetType);
-
-
-
-}*/
 
 
 void
@@ -222,90 +175,47 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	  NS_LOG_FUNCTION (this << rtentry << p << header);
 	  NS_LOG_LOGIC ("Forwarding logic for node: " << m_node->GetId ());
 	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
-	  // Forwarding
 
+	  // Forwarding
 	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
 	  DataRate bps = rtentry->GetOutputDevice ()->GetObject<PointToPointNetDevice>()->GetDataRate();
 	  NS_ASSERT (interface >= 0);
 	  Ptr<InrppInterface> outInterface = GetInterface (interface)->GetObject<InrppInterface>();
-	  Ptr<InrppRoute> route = outInterface->GetDetour();
+	  //Ptr<InrppRoute> route = outInterface->GetDetour();
 	  outInterface->CalculateFlow(p);
 
 	  int deltaRate = outInterface->GetFlow() - bps.GetBitRate();
 
 	  NS_LOG_LOGIC("Flow " << outInterface << " " << outInterface->GetFlow() << " BW " << outInterface->GetBW() << " DeltaRate " << deltaRate << " " << outInterface->GetState());
-	//  switch(outInterface->GetState())
-	//  {
-//	  case DETOUR:
-		 Ptr<Packet> packet = p->Copy();
-		 packet->AddHeader(header);
 
-	  if(outInterface->GetState()!=NO_DETOUR)
+	  Ptr<Packet> packet = p->Copy();
+	  packet->AddHeader(header);
+
+	  if(outInterface->GetState()==DETOUR||outInterface->GetState()==BACKPRESSURE)
 	  {
-
 		 NS_LOG_LOGIC("DETOUR STATE");
-
 		 if(!m_cache->Insert(outInterface,rtentry,packet,0)){
 			 NS_LOG_LOGIC("CACHE FULL");
 		 } else {
-			 outInterface->SendPacket();
+			 outInterface->SendPacket(outInterface->GetRate());
 		 }
+	  } else if(outInterface->GetState()==UP_BACKPRESSURE){
 
-	/*	 if(route){
-			  NS_LOG_LOGIC("DETOUR PATH");
-			  int32_t iface2 = GetInterfaceForDevice (route->GetOutputDevice ());
-			  Ptr<InrppInterface> detourIface2 = GetInterface (iface2)->GetObject<InrppInterface>();
-			  NS_LOG_LOGIC("Iface 1 " << outInterface->GetResidual() << " " << detourIface2->GetResidual());
+	     NS_LOG_LOGIC("UPSTREAM BACKPRESSURE STATE");
+	     if(m_mustCache)
+	     {
+			 if(!m_cache->Insert(outInterface,rtentry,packet,0)){
+				 NS_LOG_LOGIC("CACHE FULL");
+			 } else {
+				 NS_LOG_LOGIC("Cache size "<< m_cache->GetSize(outInterface));
+				 outInterface->SendPacket(m_rate);
+			 }
+	     }
 
-			  std::map<Ipv4Address,uint32_t>::iterator it = m_residualList.find(rtentry->GetGateway());
-
-
-			  if(it != m_residualList.end())
-			  {
-				  int32_t iface = GetInterfaceForDevice (route->GetOutputDevice ());
-				  Ptr<InrppInterface> detourIface = GetInterface (iface)->GetObject<InrppInterface>();
-				  uint32_t residual = std::min(detourIface->GetResidual(),it->second);
-				  NS_LOG_LOGIC("Residual capacity " << residual << " deltaRate " << deltaRate);
-				  deltaRate=deltaRate-residual;
-				  if(residual>0&&outInterface->GetBW()>bps.GetBitRate())
-				  {
-					  InrppTag tag;
-					  tag.SetAddress (rtentry->GetGateway());
-					  p->AddPacketTag (tag);
-					  rtentry->SetGateway(route->GetDetour());
-					  rtentry->SetOutputDevice(route->GetOutputDevice());
-				  }
-
-			  }
-		  }
-
-		  NS_LOG_LOGIC("DeltaRate " << deltaRate);
-
-
-		  if(deltaRate>1000)
-		  {
-			  outInterface->SetState(BACKPRESSURE);
-			  outInterface->SetDeltaRate(deltaRate);
-		  }*/
-
-	  }else {
+	  } else {
 		  NS_LOG_LOGIC("Send packet");
 		  Send(rtentry,packet);
 	  }
-
-
-
-	/*	  break;
-	  case N0_DETOUR:
-	  case BACKPRESSURE:
-	  case UP_BACKPRESSURE:
-	  case UP_AND_PROP_BACKPRESSURE:
-	  default:
-
-		  break;
-
-	  }*/
-
 
 }
 
@@ -318,27 +228,35 @@ InrppL3Protocol::Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 	  Ptr<Packet> packet = p->Copy ();
 	  Ipv4Header ipHeader;
 	  packet->RemoveHeader(ipHeader);
-	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
 
+      NS_LOG_LOGIC("Bytes "<< packet->GetSize());
+
+	  TcpHeader tcpHeader;
+	  packet->RemoveHeader(tcpHeader);
+
+	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice() << " " << tcpHeader);
+
+	  packet->AddHeader(tcpHeader);
 	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
 	  NS_LOG_FUNCTION (this << interface);
 	  ipHeader.SetTtl (ipHeader.GetTtl () - 1);
 	  if (ipHeader.GetTtl () == 0)
-	      {
-	        // Do not reply to ICMP or to multicast/broadcast IP address
-	        if (ipHeader.GetProtocol () != Icmpv4L4Protocol::PROT_NUMBER &&
-	            ipHeader.GetDestination ().IsBroadcast () == false &&
-	            ipHeader.GetDestination ().IsMulticast () == false)
-	          {
-	            Ptr<Icmpv4L4Protocol> icmp = GetIcmp ();
-	            icmp->SendTimeExceededTtl (ipHeader, packet);
-	          }
-	        NS_LOG_WARN ("TTL exceeded.  Drop.");
-	        m_dropTrace (ipHeader, packet, DROP_TTL_EXPIRED, m_node->GetObject<Ipv4> (), interface);
-	        return;
-	      }
-	    m_unicastForwardTrace (ipHeader, packet, interface);
-	    SendRealOut (rtentry, packet, ipHeader);
+	  {
+		// Do not reply to ICMP or to multicast/broadcast IP address
+		if (ipHeader.GetProtocol () != Icmpv4L4Protocol::PROT_NUMBER &&
+			ipHeader.GetDestination ().IsBroadcast () == false &&
+			ipHeader.GetDestination ().IsMulticast () == false)
+		  {
+			Ptr<Icmpv4L4Protocol> icmp = GetIcmp ();
+			icmp->SendTimeExceededTtl (ipHeader, packet);
+		  }
+		NS_LOG_WARN ("TTL exceeded.  Drop.");
+		m_dropTrace (ipHeader, packet, DROP_TTL_EXPIRED, m_node->GetObject<Ipv4> (), interface);
+		return;
+	  }
+
+	  m_unicastForwardTrace (ipHeader, packet, interface);
+	  SendRealOut (rtentry, packet, ipHeader);
 }
 
 void
@@ -353,12 +271,9 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
   uint32_t interface = 0;
   Ptr<Packet> packet = p->Copy ();
 
-  InrppBackpressureTag backpTagCopy;
-     if(p->PeekPacketTag (backpTagCopy))
-     {
-   	  NS_LOG_LOGIC("Backpressure tag " << (uint32_t)backpTagCopy.GetFlag() << " " << backpTagCopy.GetNonce() << " " << backpTagCopy.GetDeltaRate());
+  int32_t ifaceNumber = GetInterfaceForDevice (device);
+  Ptr<InrppInterface> iface = GetInterface (ifaceNumber)->GetObject<InrppInterface>();
 
-     }
   // read the tag from the packet copy
   InrppTag tagCopy;
   if(p->PeekPacketTag (tagCopy))
@@ -379,21 +294,6 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 	  }
   }
 
-
-  int32_t ifaceNumber = GetInterfaceForDevice (device);
-  Ptr<InrppInterface> iface = GetInterface (ifaceNumber)->GetObject<InrppInterface>();
-
-
-  if(iface->GetState()==BACKPRESSURE)
-  {
-	  NS_LOG_LOGIC("Start backpressure");
-	  InrppBackpressureTag tag;
-	  tag.SetNonce(iface->GetNonce());
-	  tag.SetDeltaRate(iface->GetDeltaRate());
-	  tag.SetFlag(1);
-	  packet->AddPacketTag (tag);
-
-  }
 
   Ptr<Ipv4Interface> ipv4Interface;
   for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();
@@ -420,6 +320,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
     }
 
   Ipv4Header ipHeader;
+
   if (Node::ChecksumEnabled ())
     {
       ipHeader.EnableChecksum ();
@@ -448,6 +349,33 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 
   NS_ASSERT_MSG (m_routingProtocol != 0, "Need a routing protocol object to process packets");
   NS_LOG_LOGIC ("Route input");
+
+	 TcpHeader tcpHeader;
+	 if(packet->RemoveHeader(tcpHeader))
+	 {
+
+		 NS_LOG_LOGIC ("InrppL3Protocol " << this
+		                                 << " receiving seq " << tcpHeader.GetSequenceNumber ()
+		                                 << " ack " << tcpHeader.GetAckNumber ()
+		                                 << " flags "<< std::hex << (int)tcpHeader.GetFlags () << std::dec
+		                                 << " data size " << packet->GetSize ());
+
+		ProcessInrppOption(tcpHeader,iface);
+
+		if(iface->GetState()==BACKPRESSURE)
+		{
+		   Ptr<InrppInterface> iface2 = FindDetourIface(iface);
+		   uint32_t rate = iface->GetRate();
+		   if(iface2)rate+=iface2->GetResidual();
+		   AddOptionInrpp(tcpHeader,1,iface->GetNonce(),rate);
+		   uint32_t size = ipHeader.GetPayloadSize();
+		   ipHeader.SetPayloadSize(size+12);
+		}
+
+		packet->AddHeader(tcpHeader);
+
+
+	 }
 
 
   if (!m_routingProtocol->RouteInput (packet, ipHeader, device,
@@ -485,8 +413,120 @@ InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDest
 
 }
 
+void
+InrppL3Protocol::HighTh( uint32_t packets)
+{
+	NS_LOG_FUNCTION(this<<packets);
+	m_cacheFull = true;
+	  for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+	  {
+		  Ptr<Ipv4Interface> iface = *i;
+		  Ptr<LoopbackNetDevice> loop = iface->GetDevice()->GetObject<LoopbackNetDevice>();
+		  if(!loop)
+		  {
+			  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
+			  if(iface2->GetState()==DETOUR)
+				  iface2->SetState(BACKPRESSURE);
+
+		  }
+
+	  }
+}
+
+void
+InrppL3Protocol::LowTh(uint32_t packets)
+{
+	NS_LOG_FUNCTION(this<<packets);
+	m_cacheFull = false;
+	  for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+	  {
+		  Ptr<Ipv4Interface> iface = *i;
+		  Ptr<LoopbackNetDevice> loop = iface->GetDevice()->GetObject<LoopbackNetDevice>();
+		  if(!loop)
+		  {
+			  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
+			  if(iface2->GetState()==BACKPRESSURE)
+				  iface2->SetState(DETOUR);
+
+		  }
+
+	  }
+
+}
+
+void
+InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce, uint32_t rate)
+{
+  NS_LOG_FUNCTION (this << header);
+
+  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
+  option->SetFlag(flag);
+  option->SetNonce (nonce);
+  option->SetDeltaRate (rate);
+
+  header.AppendOption (option);
+
+}
+
+void
+InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> iface)
+{
+	NS_LOG_FUNCTION (this << tcpHeader);
 
 
+	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
+	{
 
+	  Ptr<TcpOptionInrppBack> ts = DynamicCast<TcpOptionInrppBack> (tcpHeader.GetOption (TcpOption::INRPP_BACK));
+
+	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
+				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce () << " and rate=" << ts->GetDeltaRate());
+
+	  if(ts->GetFlag()==1){
+		  if(iface->GetState()==NO_DETOUR)
+		  {
+			  iface->SetState(UP_BACKPRESSURE);
+			  ts->SetFlag(0);
+			  m_noncesList.push_back(ts->GetNonce());
+		  }
+		  if(m_cacheFull){
+			  iface->SetState(PROP_BACKPRESSURE);
+		  }
+	  }
+
+	  if(ts->GetFlag()==3)
+	  {
+
+		  if(std::find(m_noncesList.begin(), m_noncesList.end(), ts->GetNonce())!=m_noncesList.end()){
+			  m_mustCache = true;
+			  m_rate = ts->GetDeltaRate();
+		  } else {
+			  m_mustCache = false;
+		  }
+		  if(ts->GetNonce());
+		  NS_LOG_LOGIC("Tcp sender inrpp flag");
+	  }
+	}
+}
+
+Ptr<InrppInterface>
+InrppL3Protocol::FindDetourIface(Ptr<InrppInterface> interface)
+{
+	NS_LOG_FUNCTION(this<< interface);
+	Ptr<InrppInterface> detouredIface;
+	  for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+		  {
+			  Ptr<Ipv4Interface> iface = *i;
+			  Ptr<LoopbackNetDevice> loop = iface->GetDevice()->GetObject<LoopbackNetDevice>();
+			  if(!loop)
+			  {
+				  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
+				  if(iface2->GetDetouredIface() == interface)
+					  detouredIface = iface2;
+			  }
+
+		  }
+	  return detouredIface;
+}
 
 } // namespace ns3

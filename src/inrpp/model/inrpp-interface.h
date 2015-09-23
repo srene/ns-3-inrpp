@@ -51,7 +51,7 @@ enum InrppState{
 	DETOUR,       // 1
 	BACKPRESSURE,     // 2
 	UP_BACKPRESSURE,     // 3
-	UP_AND_PROP_BACKPRESSURE  // 4
+	PROP_BACKPRESSURE  // 4
 	 } ;
 
 /**
@@ -126,13 +126,16 @@ public:
 
  void SetRate(DataRate bps);
 
- void SendPacket();
+ void SendPacket(uint32_t rate);
 
  void SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp);
 
  void SetDetouredIface(Ptr<InrppInterface> interface,Ipv4Address address);
 
+ Ptr<InrppInterface> GetDetouredIface(void);
  void UpdateResidual(Ipv4Address address, uint32_t residual);
+
+ uint32_t GetRate();
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);

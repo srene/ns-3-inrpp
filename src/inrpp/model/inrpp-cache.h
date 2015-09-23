@@ -68,8 +68,12 @@ typedef std::pair<Ptr<InrppInterface>,Ptr<CachedPacket> > PairCache;
 typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> > Cache;
 typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> >::iterator CacheIter;
 
+
 class InrppCache : public Object
 {
+
+	typedef Callback< void, uint32_t> HighThCallback;
+	typedef Callback< void, uint32_t> LowThCallback;
 
 public:
   /**
@@ -79,6 +83,10 @@ public:
   static TypeId GetTypeId (void);
   InrppCache ();
   ~InrppCache ();
+
+  void SetHighThCallback(HighThCallback cb);
+
+  void SetLowThCallback(LowThCallback cb);
 
   void Flush ();
 
@@ -97,6 +105,12 @@ private:
   TracedValue<uint32_t> m_size;
   uint32_t m_maxCacheSize;
   std::map<Ptr<InrppInterface>,uint32_t> m_ifaceSize;
+  uint32_t m_sizeTh;
+
+  HighThCallback m_highTh;
+  LowThCallback m_lowTh;
+  bool m_hTh;
+  bool m_lTh;
 };
 
 

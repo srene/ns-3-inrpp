@@ -89,11 +89,11 @@ TcpSocketBase::GetTypeId (void)
                    MakeCallbackAccessor (&TcpSocketBase::m_icmpCallback6),
                    MakeCallbackChecker ())
     .AddAttribute ("WindowScaling", "Enable or disable Window Scaling option",
-                   BooleanValue (true),
+                   BooleanValue (false),
                    MakeBooleanAccessor (&TcpSocketBase::m_winScalingEnabled),
                    MakeBooleanChecker ())
     .AddAttribute ("Timestamp", "Enable or disable Timestamp option",
-                   BooleanValue (true),
+                   BooleanValue (false),
                    MakeBooleanAccessor (&TcpSocketBase::m_timestampEnabled),
                    MakeBooleanChecker ())
     .AddAttribute ("MinRto",

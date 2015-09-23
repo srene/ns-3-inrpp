@@ -362,6 +362,7 @@ TcpHeader::Deserialize (Buffer::Iterator start)
   // Deserialize options if they exist
   m_options.clear ();
   uint32_t optionLen = (m_length - 5) * 4;
+  NS_LOG_LOGIC("Optionlen "<<optionLen);
   if (optionLen > 40)
     {
       NS_LOG_ERROR ("Illegal TCP option length " << optionLen << "; options discarded");

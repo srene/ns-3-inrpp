@@ -74,10 +74,15 @@ InrppCache::GetTypeId (void)
     .SetParent<Object> ()
     .AddAttribute ("MaxCacheSize",
                    "The size of the queue for packets pending an arp reply.",
-                   UintegerValue (1000000),
+                   UintegerValue (10000000),
                    MakeUintegerAccessor (&InrppCache::GetMaxSize,
                            	   	   	   	 &InrppCache::SetMaxSize),
                    MakeUintegerChecker<uint32_t> ())
+	.AddAttribute ("ThresholdCacheSize",
+				   "The size of the queue for packets pending an arp reply.",
+				   UintegerValue (8000000),
+				   MakeUintegerAccessor (&InrppCache::m_sizeTh),
+				   MakeUintegerChecker<uint32_t> ())
 	.AddTraceSource ("Size",
 					 "Remote side's flow control window",
 					 MakeTraceSourceAccessor (&InrppCache::m_size),
@@ -109,10 +114,18 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 	NS_LOG_FUNCTION(this<<m_size);
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
+
+	    if ((m_size.Get()>m_sizeTh)&&!m_hTh)
+		{
+		  NS_LOG_LOGIC ("Queue reaching full " << this);
+		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
+		  m_hTh = true;
+		  m_lTh = false;
+
+		}
+
 		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry,interface);
-
 		m_InrppCache.insert(PairCache(iface,p));
-
 		m_size+=packet->GetSize();
 		uint32_t size = 0;
 		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
@@ -136,9 +149,18 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface)
 	CacheIter it = m_InrppCache.find(iface);
 	if(it!=m_InrppCache.end())
 	{
+
 		p = it->second;
 		m_InrppCache.erase (it);
 		m_size-=p->GetPacket()->GetSize();
+
+	    if ((m_size.Get()<=m_sizeTh)&&(!m_lTh&&m_hTh))
+		{
+		  NS_LOG_LOGIC ("Queue uncongested " << this);
+		  if(!m_lowTh.IsNull())m_lowTh (m_size.Get());
+		  m_lTh = true;
+		  m_hTh = false;
+		}
 
 		uint32_t size = 0;
 		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
@@ -185,6 +207,19 @@ InrppCache::GetSize (Ptr<InrppInterface> iface)
   return m_size;
 }
 
+void
+InrppCache::SetHighThCallback(HighThCallback cb)
+{
+	NS_LOG_FUNCTION (this << &cb);
+	m_highTh = cb;
+}
+
+void
+InrppCache::SetLowThCallback(LowThCallback cb)
+{
+	m_lowTh = cb;
+
+}
 
 } // namespace ns3
 

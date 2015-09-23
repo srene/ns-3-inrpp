@@ -32,6 +32,7 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/ipv4-l3-protocol.h"
 #include "inrpp-interface.h"
+#include "ns3/tcp-header.h"
 
 namespace ns3 {
 
@@ -122,11 +123,24 @@ private:
 
   void Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
                             const Address &to, NetDevice::PacketType packetType);
+
+  void HighTh( uint32_t packets);
+
+  void LowTh( uint32_t packets);
+
+  void AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce, uint32_t rate);
+
+  void ProcessInrppOption(TcpHeader& header,Ptr<InrppInterface> iface);
+
+  Ptr<InrppInterface> FindDetourIface(Ptr<InrppInterface> iface);
+
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
+  bool m_cacheFull;
   //std::map <Ipv4Address, uint32_t> m_residualList;
-
-
+  std::vector <uint32_t> m_noncesList;
+  bool m_mustCache;
+  uint32_t m_rate;
 };
 
 } // namespace ns3

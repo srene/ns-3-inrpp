@@ -18,7 +18,7 @@
 /*
 			   n1
           1.2/   \ 2.1
-  1 Mbps    /	  \  1 Mbps
+  1.5 Mbps  /	  \  1 Mbps
      1ms   /       \   1ms
 	   1.1/         \
 		 /			 \2.2
@@ -110,9 +110,10 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
- // Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
- // Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
-
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::InrppCache::ThresholdCacheSize", UintegerValue (800000));
 
 //
 // Allow the user to override any of the defaults at
@@ -129,7 +130,7 @@ main (int argc, char *argv[])
 //
   NS_LOG_INFO ("Create nodes.");
   NodeContainer nodes;
-  nodes.Create (5);
+  nodes.Create (6);
 
   NS_LOG_INFO ("Create channels.");
 
@@ -149,15 +150,21 @@ main (int argc, char *argv[])
   NetDeviceContainer devices2;
   NetDeviceContainer devices3;
   NetDeviceContainer devices4;
+  NetDeviceContainer devices5;
 
-  devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
-  devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1500Kbps"));
   devices3 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
   devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
+  devices5 = pointToPoint.Install (nodes.Get(5),nodes.Get(4));
 
 
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("500Kbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
+  devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
+  devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
+
+
+
 
 //
 // Install the internet stack on the nodes with INRPP
@@ -168,8 +175,9 @@ main (int argc, char *argv[])
   inrpp.Install (nodes.Get(0));
   inrpp.Install (nodes.Get(1));
   inrpp.Install (nodes.Get(2));
+  inrpp.Install (nodes.Get(4));
   internet.Install (nodes.Get(3));
-  internet.Install (nodes.Get(4));
+  internet.Install (nodes.Get(5));
 
 //
 // We've got the "hardware" in place.  Now we need to add IP addresses.
@@ -186,7 +194,8 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer i3 = ipv4.Assign (devices3);
   ipv4.SetBase ("10.0.4.0", "255.255.255.0");
   Ipv4InterfaceContainer i4 = ipv4.Assign (devices4);
-
+  ipv4.SetBase ("10.0.5.0", "255.255.255.0");
+  Ipv4InterfaceContainer i5 = ipv4.Assign (devices5);
 //
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
@@ -235,6 +244,31 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
   txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr4));
 
+  PointerValue ptr5;
+  devices2.Get(1)->GetAttribute ("TxQueue", ptr5);
+  Ptr<Queue> txQueue5 = ptr5.Get<Queue> ();
+  std::ostringstream osstr8;
+  osstr8 << "netdevice_5.bf";
+  Ptr<OutputStreamWrapper> streamtr8 = asciiTraceHelper.CreateFileStream (osstr8.str());
+  txQueue5->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr8));
+
+  PointerValue ptr6;
+  devices4.Get(0)->GetAttribute ("TxQueue", ptr6);
+  Ptr<Queue> txQueue6 = ptr6.Get<Queue> ();
+  std::ostringstream osstr9;
+  osstr9 << "netdevice_6.bf";
+  Ptr<OutputStreamWrapper> streamtr9 = asciiTraceHelper.CreateFileStream (osstr9.str());
+  txQueue6->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr9));
+
+  PointerValue ptr11;
+  devices5.Get(0)->GetAttribute ("TxQueue", ptr11);
+  Ptr<Queue> txQueue11 = ptr11.Get<Queue> ();
+  std::ostringstream osstr11;
+  osstr11 << "netdevice_7.bf";
+  Ptr<OutputStreamWrapper> streamtr11 = asciiTraceHelper.CreateFileStream (osstr11.str());
+  txQueue6->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr11));
+
+
   txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
   /*PointerValue ptr4;
@@ -266,6 +300,13 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> streamtr7 = asciiTraceHelper.CreateFileStream (osstr7.str());
   ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr7));
 
+  std::ostringstream osstr10;
+  osstr10 << "netdevice_4.bw";
+  Ptr<OutputStreamWrapper> streamtr10 = asciiTraceHelper.CreateFileStream (osstr10.str());
+  Ptr<InrppL3Protocol> ip3 = nodes.Get(2)->GetObject<InrppL3Protocol> ();
+  uint32_t iface3 = ip3->GetInterfaceForDevice(devices3.Get(0));
+  ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr10));
+
   NS_LOG_INFO ("Create Applications.");
 
   uint16_t port = 9000;  // well-known echo port number
@@ -274,7 +315,7 @@ main (int argc, char *argv[])
                          InetSocketAddress (i3.GetAddress (1), port));
   // Set the amount of data to send in bytes.  Zero is unlimited.
   source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-  ApplicationContainer sourceApps = source.Install (nodes.Get (4));
+  ApplicationContainer sourceApps = source.Install (nodes.Get (5));
   sourceApps.Start (Seconds (1.0));
   sourceApps.Stop (Seconds (100.0));
 
