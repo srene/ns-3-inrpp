@@ -53,6 +53,10 @@ TcpInrpp::GetTypeId (void)
                    BooleanValue (false),
                    MakeBooleanAccessor (&TcpInrpp::m_limitedTx),
                    MakeBooleanChecker ())
+	.AddAttribute ("Rate", "Tcp rate",
+					UintegerValue (1400000),
+					MakeUintegerAccessor (&TcpInrpp::m_initialRate),
+					MakeUintegerChecker<uint32_t> ())
     /*.AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
@@ -70,10 +74,11 @@ TcpInrpp::TcpInrpp (void)
     m_inFastRec (false),
     m_limitedTx (false), // mute valgrind, actual value set by the attribute system
 	m_nonce(0),
-	m_rate(0),
-	m_flag(2)
+	m_flag(2),
+	m_rate(0)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this<<m_initialRate);
+  m_tcpRate = m_initialRate;
 }
 
 TcpInrpp::TcpInrpp (const TcpInrpp& sock)
@@ -86,7 +91,7 @@ TcpInrpp::TcpInrpp (const TcpInrpp& sock)
     m_inFastRec (false),
     m_limitedTx (sock.m_limitedTx),
 	m_nonce(sock.m_nonce),
-	m_rate(sock.m_rate),
+//	m_rate(sock.m_rate),
 	m_flag(sock.m_flag)
 {
   NS_LOG_FUNCTION (this);
@@ -112,6 +117,7 @@ TcpInrpp::Connect (const Address & address)
 {
   NS_LOG_FUNCTION (this << address);
   InitializeCwnd ();
+  m_tcpRate = m_initialRate;
   return TcpSocketBase::Connect (address);
 }
 
@@ -276,6 +282,10 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 	  m_flag = inrpp->GetFlag();
 	  m_nonce =  inrpp->GetNonce ();
 	  m_rate = inrpp->GetDeltaRate();
+	  if(m_flag==1)
+		  m_tcpRate = m_rate;
+	  else if(m_flag==0||m_flag==2)
+		  m_tcpRate = m_initialRate;
 //	  m_timestampToEcho = ts->GetTimestamp ();
 
 	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
@@ -287,7 +297,7 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 bool
 TcpInrpp::SendPendingData (bool withAck)
 {
-	  NS_LOG_FUNCTION (this << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) );
+	  NS_LOG_FUNCTION (this << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate);
 	  if (m_txBuffer->Size () == 0)
 	    {
 	      return false;                           // Nothing to send
@@ -310,7 +320,7 @@ TcpInrpp::SendPendingData (bool withAck)
 	  // Try to send more data
 	  if (!m_sendPendingDataEvent.IsRunning ())
 	    {
-		 Time t = Seconds(((double)m_segmentSize*8)/1400000);
+		 Time t = Seconds(((double)m_segmentSize*8)/m_tcpRate);
 	      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
 	    }
 
@@ -324,13 +334,12 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
 	 NS_LOG_FUNCTION (this << tcpHeader);
 
-	 if(m_flag!=2)
+	 if(m_flag==0||m_flag==1)
 	 {
 		 Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 		 option->SetFlag(3);
 		 option->SetNonce (m_nonce);
 	     option->SetDeltaRate (m_rate);
-
 	     tcpHeader.AppendOption (option);
 	 }
 

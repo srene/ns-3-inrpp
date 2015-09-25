@@ -89,8 +89,10 @@ protected:
   bool                   m_inFastRec;    //!< currently in fast recovery
   bool                   m_limitedTx;    //!< perform limited transmit
   uint32_t 				 m_nonce;
-  uint32_t 				 m_rate;
   uint8_t 				 m_flag;
+  uint32_t 				 m_rate;
+  uint32_t 				 m_initialRate;
+  uint32_t 				 m_tcpRate;
 };
 
 } // namespace ns3

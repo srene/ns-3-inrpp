@@ -307,6 +307,18 @@ main (int argc, char *argv[])
   uint32_t iface3 = ip3->GetInterfaceForDevice(devices3.Get(0));
   ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr10));
 
+
+  std::ostringstream osstr21;
+  osstr21 << "netcache_4.bf";
+  Ptr<OutputStreamWrapper> streamtr21 = asciiTraceHelper.CreateFileStream (osstr21.str());
+  Ptr<InrppL3Protocol> ip4 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
+ // ip4->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BwChange, streamtr21));
+
+  std::ostringstream osstr22;
+  osstr22 << "netcache_0.bf";
+  Ptr<OutputStreamWrapper> streamtr22 = asciiTraceHelper.CreateFileStream (osstr22.str());
+ // ip->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BwChange, streamtr22));
+
   NS_LOG_INFO ("Create Applications.");
 
   uint16_t port = 9000;  // well-known echo port number

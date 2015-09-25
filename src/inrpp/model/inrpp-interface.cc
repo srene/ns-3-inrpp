@@ -107,7 +107,7 @@ InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate());
 
-	if(m_state!=NO_DETOUR&&m_currentBW2<m_bps.GetBitRate())
+	if((m_state==DETOUR&&m_currentBW2<m_bps.GetBitRate())||(m_state==BACKPRESSURE&&m_currentBW2<m_bps.GetBitRate()))
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate());
 		SetState(NO_DETOUR);

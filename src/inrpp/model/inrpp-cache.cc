@@ -127,14 +127,14 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry,interface);
 		m_InrppCache.insert(PairCache(iface,p));
 		m_size+=packet->GetSize();
-		uint32_t size = 0;
 		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
 		if(it!=m_ifaceSize.end())
 		{
-		  size = it->second;
+		  NS_LOG_LOGIC("Size found " << it->second);
+		  it->second += packet->GetSize();
+		} else {
+			m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,packet->GetSize()));
 		}
-		size+=packet->GetSize();
-		m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,size));
 		return true;
 	} else {
 		return false;
@@ -162,14 +162,13 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface)
 		  m_hTh = false;
 		}
 
-		uint32_t size = 0;
 		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
 		if(it!=m_ifaceSize.end())
 		{
-		  size = it->second;
+		  NS_LOG_LOGIC("Size found " << it->second);
+		  it->second-=p->GetPacket()->GetSize();
 		}
-		size-=p->GetPacket()->GetSize();
-		m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,size));
+
 
 		return p;
 	}
@@ -207,6 +206,11 @@ InrppCache::GetSize (Ptr<InrppInterface> iface)
   return m_size;
 }
 
+uint32_t
+InrppCache::GetSize ()
+{
+	return m_size;
+}
 void
 InrppCache::SetHighThCallback(HighThCallback cb)
 {

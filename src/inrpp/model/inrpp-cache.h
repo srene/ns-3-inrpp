@@ -99,6 +99,8 @@ public:
   uint32_t GetMaxSize (void) const;
 
   uint32_t GetSize (Ptr<InrppInterface> iface);
+
+  uint32_t GetSize();
 private:
 
   Cache m_InrppCache;

@@ -76,7 +76,7 @@ public:
   void SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address infoAddress);
   void Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
-
+  Ptr<InrppCache> GetCache();
 protected:
   virtual void DoDispose (void);
   /*
@@ -133,6 +133,8 @@ private:
   void ProcessInrppOption(TcpHeader& header,Ptr<InrppInterface> iface);
 
   Ptr<InrppInterface> FindDetourIface(Ptr<InrppInterface> iface);
+
+  bool IsNonceFromInterface(uint32_t nonce);
 
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
