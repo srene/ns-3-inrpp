@@ -110,8 +110,8 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (3000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
   Config::SetDefault ("ns3::InrppCache::ThresholdCacheSize", UintegerValue (800000));
 
@@ -303,8 +303,8 @@ main (int argc, char *argv[])
   std::ostringstream osstr10;
   osstr10 << "netdevice_4.bw";
   Ptr<OutputStreamWrapper> streamtr10 = asciiTraceHelper.CreateFileStream (osstr10.str());
-  Ptr<InrppL3Protocol> ip3 = nodes.Get(2)->GetObject<InrppL3Protocol> ();
-  uint32_t iface3 = ip3->GetInterfaceForDevice(devices3.Get(0));
+  Ptr<InrppL3Protocol> ip3 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
+  uint32_t iface3 = ip3->GetInterfaceForDevice(devices4.Get(0));
   ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr10));
 
 

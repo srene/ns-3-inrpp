@@ -16,10 +16,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "inrpp-tail-queue.h"
+
 #include "ns3/log.h"
 #include "ns3/enum.h"
 #include "ns3/uinteger.h"
-#include "inrpp-tail-queue.h"
 
 namespace ns3 {
 

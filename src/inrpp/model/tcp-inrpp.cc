@@ -320,7 +320,7 @@ TcpInrpp::SendPendingData (bool withAck)
 	  // Try to send more data
 	  if (!m_sendPendingDataEvent.IsRunning ())
 	    {
-		 Time t = Seconds(((double)m_segmentSize*8)/m_tcpRate);
+		 Time t = Seconds(((double)(m_segmentSize+60)*8)/m_tcpRate);
 	      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
 	    }
 

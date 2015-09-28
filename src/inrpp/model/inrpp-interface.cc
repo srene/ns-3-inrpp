@@ -91,14 +91,13 @@ InrppInterface::~InrppInterface ()
 void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
-
+	NS_LOG_FUNCTION (this);
 	if(m_state==NO_DETOUR)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<m_state);
 		SetState(DETOUR);
 		SendPacket(m_bps.GetBitRate());
 	}
-
 
 }
 
@@ -113,7 +112,6 @@ InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 		SetState(NO_DETOUR);
 	}
 	//m_txEvent.Cancel();
-
 
 }
 

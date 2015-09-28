@@ -190,8 +190,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	  Ptr<Packet> packet = p->Copy();
 	  packet->AddHeader(header);
-
-	  NS_LOG_LOGIC("Cache size "<< m_cache->GetSize(outInterface) << " " << m_cache->GetSize());
+	  NS_LOG_LOGIC("Cache size "<< m_cache->GetSize(outInterface) << " " << m_cache->GetSize() << " " << m_mustCache << " " << outInterface->GetState());
 
 
 	  if(outInterface->GetState()==DETOUR||outInterface->GetState()==BACKPRESSURE)
@@ -202,7 +201,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 		 } else {
 			 outInterface->SendPacket(outInterface->GetRate());
 		 }
-	  } else if(outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache){
+	  } else if((outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache)||(outInterface->GetState()==PROP_BACKPRESSURE&&m_mustCache)){
 
 	     NS_LOG_LOGIC("UPSTREAM BACKPRESSURE STATE");
 
@@ -223,7 +222,6 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 void
 InrppL3Protocol::Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 {
-
 
 	  //Ipv4Header ipHeader = header;
 	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
