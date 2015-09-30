@@ -74,7 +74,8 @@ InrppInterface::InrppInterface ()
 	m_lastSampleBW3(0),
 	m_lastBW3(0),
     data3(0),
-	m_nonce(rand())
+	m_nonce(rand()),
+	m_disable(false)
 {
   NS_LOG_FUNCTION (this);
   t1 = Simulator::Now();
@@ -110,6 +111,9 @@ InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate());
 		SetState(NO_DETOUR);
+	} else if(m_state==DETOUR||m_state==BACKPRESSURE)
+	{
+		m_disable = true;
 	}
 	//m_txEvent.Cancel();
 
@@ -119,7 +123,7 @@ Ptr<InrppRoute>
 InrppInterface::GetDetour(void)
 {
 
-	  return m_detourRoute;
+	return m_detourRoute;
 
 }
 
@@ -142,8 +146,8 @@ InrppInterface::SetState(InrppState state)
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
 
-
 }
+
 void
 InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv)
 {
@@ -158,7 +162,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
-		  double alpha = 0.1;
+		  double alpha = 0.4;
 		  double   sample_bwe = m_currentBW;
 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
 		  m_lastSampleBW = sample_bwe;
@@ -173,7 +177,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
 		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
 		  data3 = 0;
-		  double alpha = 0.1;
+		  double alpha = 0.4;
 		  double   sample_bwe = m_currentBW3;
 		  m_currentBW3 = (alpha * m_lastBW3) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW3) / 2));
 		  m_lastSampleBW3 = sample_bwe;
@@ -191,7 +195,8 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
   NS_LOG_LOGIC(this);
 
   data2+= p->GetSize() * 8;
-  if(Simulator::Now().GetSeconds()-t2.GetSeconds()>0.01){
+  if(Simulator::Now().GetSeconds()-t2.GetSeconds()>0.01)
+  {
 	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
 	  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-t2.GetSeconds()) << " " << m_currentBW2);
 	  data2 = 0;
@@ -202,6 +207,17 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 	  m_lastBW2 = m_currentBW2;
 	  t2 = Simulator::Now();
 
+  }
+
+  if(m_disable&&m_currentBW2<m_bps.GetBitRate())
+  {
+		SetState(NO_DETOUR);
+		m_disable=false;
+  }
+
+  if((m_state==BACKPRESSURE)&&(m_currentBW2<m_bps.GetBitRate())&&(!m_cache->IsFull()))
+  {
+		SetState(DISABLE_BACK);
   }
 
 }
@@ -298,7 +314,6 @@ InrppInterface::SendPacket(uint32_t rate)
 {
 	if(!m_txEvent.IsRunning()){
 		NS_LOG_FUNCTION(this);
-
 		Ptr<CachedPacket> c = m_cache->GetPacket(this);
 		if(c){
 			Ptr<Ipv4Route> rtentry = c->GetRoute();
@@ -306,7 +321,7 @@ InrppInterface::SendPacket(uint32_t rate)
 			m_inrpp->Send(rtentry,packet);
 			uint32_t sendingRate = std::min(rate,(uint32_t)m_bps.GetBitRate());
 			Time t = Seconds(((double)(packet->GetSize()*8)+60)/sendingRate);
-			NS_LOG_LOGIC("Time " << t.GetSeconds() << packet->GetSize()*8 << " " << rate);
+			NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packet->GetSize() << " " << rate);
 			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this,sendingRate);
 		}
 
@@ -348,18 +363,19 @@ InrppInterface::SendResidual()
 	{
 		NS_LOG_FUNCTION(this<<m_detouredIface);
 
-		if(m_cache->GetSize(m_detouredIface)>0){
+		if(m_cache->GetSize(m_detouredIface)>0)
+		{
 			Ptr<CachedPacket> c = m_cache->GetPacket(m_detouredIface);
 			if(c)
 			{
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
-				  InrppTag tag;
-				  tag.SetAddress (rtentry->GetGateway());
-				  packet->AddPacketTag (tag);
-				  rtentry->SetGateway(m_detourRoute->GetDetour());
-				  rtentry->SetOutputDevice(m_detourRoute->GetOutputDevice());
-				  m_inrpp->Send(rtentry,packet);
+				InrppTag tag;
+				tag.SetAddress (rtentry->GetGateway());
+				packet->AddPacketTag (tag);
+				rtentry->SetGateway(m_detourRoute->GetDetour());
+				rtentry->SetOutputDevice(m_detourRoute->GetOutputDevice());
+				m_inrpp->Send(rtentry,packet);
 				Time t = Seconds(((double)packet->GetSize()*8)/m_residualMin);
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << packet->GetSize()*8 << " " << m_residualMin);
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);

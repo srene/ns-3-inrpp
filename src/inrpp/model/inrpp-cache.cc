@@ -225,5 +225,11 @@ InrppCache::SetLowThCallback(LowThCallback cb)
 
 }
 
+bool
+InrppCache::IsFull()
+{
+	return (m_size.Get() >= m_sizeTh);
+}
+
 } // namespace ns3
 

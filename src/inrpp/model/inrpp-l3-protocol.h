@@ -143,6 +143,10 @@ private:
   std::vector <uint32_t> m_noncesList;
   bool m_mustCache;
   uint32_t m_rate;
+
+  std::map <uint32_t, std::vector<Ptr<InrppInterface> > > m_nonceIfaces;
+  std::map <uint32_t, uint32_t > m_nonceCounter;
+
 };
 
 } // namespace ns3

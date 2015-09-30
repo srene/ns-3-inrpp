@@ -109,7 +109,7 @@ InrppTailQueue::SetNetDevice(Ptr<NetDevice> dev)
 bool 
 InrppTailQueue::DoEnqueue (Ptr<Packet> p)
 {
-  NS_LOG_FUNCTION (this << p);
+  NS_LOG_FUNCTION (this << p << m_packets.size ());
 
   if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_highPacketsTh)&&!m_hTh)
     {

@@ -101,6 +101,9 @@ public:
   uint32_t GetSize (Ptr<InrppInterface> iface);
 
   uint32_t GetSize();
+
+  bool IsFull();
+
 private:
 
   Cache m_InrppCache;

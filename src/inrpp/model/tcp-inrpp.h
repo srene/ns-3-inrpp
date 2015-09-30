@@ -55,6 +55,7 @@ public:
   // From TcpSocketBase
   virtual int Connect (const Address &address);
   virtual int Listen (void);
+  void SetRate (uint32_t rate );
 
 protected:
   virtual uint32_t Window (void); // Return the max possible number of unacked bytes
@@ -72,6 +73,7 @@ protected:
   virtual void ScaleSsThresh (uint8_t scaleFactor);
   bool SendPendingData (bool withAck);
   void AddOptions (TcpHeader& tcpHeader);
+  void UpdateRate();
 
 private:
   /**
@@ -93,6 +95,8 @@ protected:
   uint32_t 				 m_rate;
   uint32_t 				 m_initialRate;
   uint32_t 				 m_tcpRate;
+  EventId m_updateEvent;       //!< Transmit cached packet event
+
 };
 
 } // namespace ns3

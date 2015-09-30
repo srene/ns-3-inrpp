@@ -16,15 +16,15 @@
 
 // Network topology
 /*
-			   n1
-          1.2/   \ 2.1
-  1.5 Mbps  /	  \  1 Mbps
-     1ms   /       \   1ms
-	   1.1/         \
-		 /			 \2.2
-  n4-----n0------------n2--------n3
-  4.2  4.1 0.1 500 Kbps  0.2 3.1      3.2
-             1 ms
+			 n6				   n1
+			  \			  1.2 /   \ 2.1
+	    500k   \       500k  /	   \  500 kbps
+		    	\	 1ms    /       \   1ms
+		 		 \	   1.1 /         \
+		  1.5Mbps \  1.5Mb/			  \2.2  1.5Mb
+		n5--------n4-----n0------------n2--------n3
+				  4.2  4.1 0.1 500 Kbps  0.2 3.1      3.2
+							 1 ms
 
 
 */
@@ -44,6 +44,7 @@
 #include "ns3/ipv4-list-routing-helper.h"
 #include "ns3/ipv4-nix-vector-helper.h"
 #include "ns3/inrpp-module.h"
+#include "ns3/queue.h"
 
 using namespace ns3;
 
@@ -95,7 +96,6 @@ RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
 
 void StartLog(Ptr<Socket> socket);
 
-
 int
 main (int argc, char *argv[])
 {
@@ -110,10 +110,11 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (3000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (3000000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
   Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
   Config::SetDefault ("ns3::InrppCache::ThresholdCacheSize", UintegerValue (800000));
+  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 
 //
 // Allow the user to override any of the defaults at
@@ -130,7 +131,7 @@ main (int argc, char *argv[])
 //
   NS_LOG_INFO ("Create nodes.");
   NodeContainer nodes;
-  nodes.Create (6);
+  nodes.Create (7);
 
   NS_LOG_INFO ("Create channels.");
 
@@ -139,8 +140,8 @@ main (int argc, char *argv[])
 //
   PointToPointHelper pointToPoint;
   pointToPoint.SetQueue ("ns3::InrppTailQueue",
-                           "LowerThPackets", UintegerValue (minTh),
-                           "HigherThPackets", UintegerValue (maxTh),
+                           "LowerThBytes", UintegerValue (minTh*1500),
+                           "HigherThBytes", UintegerValue (maxTh*1500),
 						   "MaxPackets", UintegerValue(maxPackets));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
@@ -151,17 +152,18 @@ main (int argc, char *argv[])
   NetDeviceContainer devices3;
   NetDeviceContainer devices4;
   NetDeviceContainer devices5;
+  NetDeviceContainer devices6;
 
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1500Kbps"));
   devices3 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
   devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
   devices5 = pointToPoint.Install (nodes.Get(5),nodes.Get(4));
 
-
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("500Kbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
+  devices6 = pointToPoint.Install (nodes.Get(6),nodes.Get(4));
 
 
 
@@ -178,6 +180,7 @@ main (int argc, char *argv[])
   inrpp.Install (nodes.Get(4));
   internet.Install (nodes.Get(3));
   internet.Install (nodes.Get(5));
+  internet.Install (nodes.Get(6));
 
 //
 // We've got the "hardware" in place.  Now we need to add IP addresses.
@@ -196,6 +199,8 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer i4 = ipv4.Assign (devices4);
   ipv4.SetBase ("10.0.5.0", "255.255.255.0");
   Ipv4InterfaceContainer i5 = ipv4.Assign (devices5);
+  ipv4.SetBase ("10.0.6.0", "255.255.255.0");
+  Ipv4InterfaceContainer i6 = ipv4.Assign (devices6);
 //
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
@@ -329,7 +334,7 @@ main (int argc, char *argv[])
   source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
   ApplicationContainer sourceApps = source.Install (nodes.Get (5));
   sourceApps.Start (Seconds (1.0));
-  sourceApps.Stop (Seconds (100.0));
+  sourceApps.Stop (Seconds (50.0));
 
   std::ostringstream oss1;
   oss1 << "node0.cwnd";
@@ -348,6 +353,28 @@ main (int argc, char *argv[])
   sinkApps.Start (Seconds (0.0));
   sinkApps.Stop (Seconds (100.0));
 
+
+   port = 9001;  // well-known echo port number
+
+   BulkSendHelper source2 ("ns3::TcpSocketFactory",
+                          InetSocketAddress (i3.GetAddress (1), port));
+   // Set the amount of data to send in bytes.  Zero is unlimited.
+   source2.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
+   ApplicationContainer sourceApps2 = source2.Install (nodes.Get (6));
+   sourceApps2.Start (Seconds (1.0));
+   sourceApps2.Stop (Seconds (100.0));
+
+   Ptr<BulkSendApplication> bulk2 = DynamicCast<BulkSendApplication> (sourceApps2.Get (0));
+   bulk2->SetCallback(MakeCallback(&StartLog));
+
+ // Create a PacketSinkApplication and install it on node 1
+ //
+   PacketSinkHelper sink2 ("ns3::TcpSocketFactory",
+                          InetSocketAddress (Ipv4Address::GetAny (), port));
+   ApplicationContainer sinkApps2 = sink2.Install (nodes.Get (3));
+   sinkApps2.Start (Seconds (0.0));
+   sinkApps2.Stop (Seconds (100.0));
+
 //
 // Set up tracing if enabled
 //
@@ -359,7 +386,6 @@ main (int argc, char *argv[])
     }
 
   Ptr<Ipv4L3Protocol> ipa = nodes.Get(0)->GetObject<Ipv4L3Protocol> ();
-
   ipa->TraceConnectWithoutContext ("UnicastForward", MakeCallback (&CwndTracer));
 
   Ipv4GlobalRoutingHelper g;
@@ -401,4 +427,9 @@ void StartLog(Ptr<Socket> socket)
 	  oss2 << "node0.rtt";
 	  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (oss2.str());
 	  socket->TraceConnectWithoutContext("RTT", MakeBoundCallback (&RttTracer, stream2));
+
+	 // Simulator::Schedule (Seconds (50.0),&DecreaseRate,socket,400000);
+	  socket->GetObject<TcpInrpp>()->SetRate(480000);
+
 }
+

@@ -51,7 +51,8 @@ enum InrppState{
 	DETOUR,       // 1
 	BACKPRESSURE,     // 2
 	UP_BACKPRESSURE,     // 3
-	PROP_BACKPRESSURE  // 4
+	PROP_BACKPRESSURE,  // 4
+	DISABLE_BACK   // 5
 	 } ;
 
 /**
@@ -136,6 +137,7 @@ public:
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
  uint32_t GetRate();
+
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -181,6 +183,7 @@ private:
   std::map <Ipv4Address, uint32_t> m_residualList;
   Ptr<InrppInterface> m_detouredIface;
   uint32_t m_residualMin;
+  bool m_disable;
 
 };
 
