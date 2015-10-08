@@ -80,6 +80,7 @@ private:
    * \brief Set the congestion window when connection starts
    */
   void InitializeCwnd (void);
+  void CalculatePacing(uint32_t bytes);
 
 protected:
   //TracedValue<uint32_t>  m_cWnd;         //!< Congestion window
@@ -96,7 +97,11 @@ protected:
   uint32_t 				 m_initialRate;
   uint32_t 				 m_tcpRate;
   EventId m_updateEvent;       //!< Transmit cached packet event
-
+  uint32_t m_ackRate;
+    Time time1;
+    uint32_t m_pacingRate;
+    double                 m_lastSampleRate;           //!< Last bandwidth sample
+    double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
 };
 
 } // namespace ns3

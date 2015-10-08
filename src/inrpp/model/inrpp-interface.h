@@ -22,6 +22,7 @@
 #ifndef INRPP_INTERFACE_H
 #define INRPP_INTERFACE_H
 
+#include <queue>
 #include <list>
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-interface.h"
@@ -34,6 +35,7 @@
 #include "inrpp-cache.h"
 #include "ns3/data-rate.h"
 #include "inrpp-l3-protocol.h"
+#include "ns3/ipv4-route.h"
 
 namespace ns3 {
 
@@ -112,9 +114,11 @@ public:
  void SetState(InrppState state);
 
  uint32_t GetResidual();
+
  uint32_t GetBW();
 
  uint32_t GetFlow();
+
  uint32_t GetDetoured();
 
  void CalculateFlow(Ptr<const Packet> p);
@@ -127,24 +131,26 @@ public:
 
  void SetRate(DataRate bps);
 
- void SendPacket(uint32_t rate);
+ void SendPacket();
 
  void SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp);
 
  void SetDetouredIface(Ptr<InrppInterface> interface,Ipv4Address address);
 
  Ptr<InrppInterface> GetDetouredIface(void);
+
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
  uint32_t GetRate();
+
+ void PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route);
+
+ void CalculatePacing(uint32_t bytes);
 
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
   void SendResidual();
-  //std::map <Ipv4Address, Ptr<InrppRoute> > m_routeList;
-  Ptr<InrppRoute> m_detourRoute;
-  InrppState m_state;
 
   TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
   double                 m_lastSampleBW;           //!< Last bandwidth sample
@@ -163,28 +169,29 @@ private:
   double                 m_lastBW3;                 //!< Last bandwidth sample after being filtered
   Time t3;
 
+  Ptr<InrppRoute> m_detourRoute;
+  InrppState m_state;
   uint32_t data3;
-
   uint32_t m_residual;
-
   uint32_t m_nonce;
-
   uint32_t m_deltaRate;
-
   Ptr<InrppCache> m_cache;
-
   DataRate m_bps;
-
   EventId m_txEvent;       //!< Transmit cached packet event
   EventId m_txResidualEvent;
+  EventId m_txAckEvent;
   Ptr<InrppL3Protocol> m_inrpp;
-
   std::map <Ptr<InrppInterface>, Ipv4Address> m_detouredIfaces;
   std::map <Ipv4Address, uint32_t> m_residualList;
   Ptr<InrppInterface> m_detouredIface;
   uint32_t m_residualMin;
   bool m_disable;
-
+  std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
+  uint32_t m_ackRate;
+  Time time1;
+  uint32_t m_rate;
+  double                 m_lastSampleRate;           //!< Last bandwidth sample
+  double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
 };
 
 } // namespace ns3

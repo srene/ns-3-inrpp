@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2010 Adrian Sai-wah Tam
+ * Copyright (c) 2015 Sergi Rene
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Adrian Sai-wah Tam <adrian.sw.tam@gmail.com>
+ * Author: Sergi Rene <s.rene@ucl.ac.uk>
  */
 
 #define NS_LOG_APPEND_CONTEXT \
@@ -283,8 +283,13 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 	  m_nonce =  inrpp->GetNonce ();
 	  m_rate = inrpp->GetDeltaRate();
 
+	  if(m_flag==3){
+		  NS_LOG_LOGIC("Flag 3 received");
+	  }
 	  if(m_flag==1){
-		  m_tcpRate = m_rate/2;
+		  NS_LOG_LOGIC("Flag 1 received");
+		  m_tcpRate = std::min(m_pacingRate,m_initialRate);
+		  //m_tcpRate = 400000;
 		  /*if(!m_updateEvent.IsRunning()){
 			  m_tcpRate = m_tcpRate*m_rate/100;
 			  NS_LOG_LOGIC("Rate " << m_rate << " " << m_tcpRate);
@@ -299,9 +304,9 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
 				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " and rate=" << inrpp->GetDeltaRate() << " " << m_tcpRate);
 	}
-	NS_LOG_LOGIC("Updat rate " << m_lastRtt);
+//	NS_LOG_LOGIC("Update rate " << m_lastRtt);
 
-
+	CalculatePacing(tcpHeader.GetAckNumber().GetValue());
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }
 
@@ -348,7 +353,7 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
 	 NS_LOG_FUNCTION (this << tcpHeader);
 
-	 if(m_flag==0||m_flag==1)
+	 if(m_flag==0||m_flag==1||m_flag==3)
 	 {
 		 Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 		 option->SetFlag(3);
@@ -374,6 +379,30 @@ TcpInrpp::UpdateRate()
 	  m_tcpRate = m_tcpRate*m_rate/100;
 
 	 m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::UpdateRate,this);
+}
+
+void
+TcpInrpp::CalculatePacing(uint32_t bytes)
+{
+	NS_LOG_FUNCTION(this<<(bytes - m_ackRate));
+	if(bytes>m_ackRate)
+	{
+		m_pacingRate = ((bytes - m_ackRate)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
+	//	m_rate = ((1500)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
+		m_ackRate = bytes;
+		double alpha = 0.1;
+		double sample_bwe = m_pacingRate;
+		m_pacingRate = (alpha * m_lastRate) + ((1 - alpha) * ((sample_bwe + m_lastSampleRate) / 2));
+		NS_LOG_LOGIC("AckPacing " << m_pacingRate << " "<< (Simulator::Now().GetSeconds()-time1.GetSeconds()));
+
+		m_lastSampleRate = sample_bwe;
+		m_lastRate = m_pacingRate;
+		time1 = Simulator::Now();
+	}
+
+
+
+
 }
 
 } // namespace ns3

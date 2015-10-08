@@ -38,12 +38,11 @@ NS_LOG_COMPONENT_DEFINE ("InrppCache");
 
 NS_OBJECT_ENSURE_REGISTERED (InrppCache);
 
-CachedPacket::CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route, uint32_t iface)
+CachedPacket::CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route)
 {
 	NS_LOG_FUNCTION (this);
 	m_packet = p;
 	m_route = route;
-	m_iface = iface;
 }
 CachedPacket::~CachedPacket ()
 {
@@ -62,11 +61,7 @@ CachedPacket::GetRoute()
 	return m_route;
 }
 
-uint32_t
-CachedPacket::GetIface()
-{
-	return m_iface;
-}
+
 TypeId 
 InrppCache::GetTypeId (void)
 {
@@ -109,7 +104,7 @@ InrppCache::Flush (void)
 }
 
 bool
-InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t interface)
+InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
 	NS_LOG_FUNCTION(this<<m_size);
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
@@ -124,7 +119,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 
 		}
 
-		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry,interface);
+		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry);
 		m_InrppCache.insert(PairCache(iface,p));
 		m_size+=packet->GetSize();
 		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);

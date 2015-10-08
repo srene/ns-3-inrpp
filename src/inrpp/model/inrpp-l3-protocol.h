@@ -128,7 +128,7 @@ private:
 
   void LowTh( uint32_t packets);
 
-  void AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce, uint32_t rate);
+  bool AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce);
 
   void ProcessInrppOption(TcpHeader& header,Ptr<InrppInterface> iface);
 
@@ -142,11 +142,10 @@ private:
   //std::map <Ipv4Address, uint32_t> m_residualList;
   std::vector <uint32_t> m_noncesList;
   bool m_mustCache;
+  uint32_t m_initCache;
   uint32_t m_rate;
-
-  std::map <uint32_t, std::vector<Ptr<InrppInterface> > > m_nonceIfaces;
-  std::map <uint32_t, uint32_t > m_nonceCounter;
-
+  uint32_t m_back;
+  Time t;
 };
 
 } // namespace ns3

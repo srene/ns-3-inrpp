@@ -49,18 +49,16 @@ class CachedPacket : public Object
 
 public:
 
-   CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route, uint32_t iface);
+   CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route);
    ~CachedPacket ();
 
    Ptr<const Packet> GetPacket();
    Ptr<Ipv4Route> GetRoute();
-   uint32_t GetIface();
 
 private:
 
 	Ptr<const Packet> m_packet;
 	Ptr<Ipv4Route> m_route;
-	uint32_t m_iface;
 };
 
 
@@ -90,7 +88,7 @@ public:
 
   void Flush ();
 
-  bool Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t interface);
+  bool Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
 
   Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface);
 
