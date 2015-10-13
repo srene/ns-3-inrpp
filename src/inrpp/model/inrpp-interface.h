@@ -192,6 +192,7 @@ private:
   uint32_t m_rate;
   double                 m_lastSampleRate;           //!< Last bandwidth sample
   double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
+  uint32_t m_cwnd;
 };
 
 } // namespace ns3

@@ -57,11 +57,11 @@ TcpInrpp::GetTypeId (void)
 					UintegerValue (1400000),
 					MakeUintegerAccessor (&TcpInrpp::m_initialRate),
 					MakeUintegerChecker<uint32_t> ())
-    /*.AddTraceSource ("CongestionWindow",
+    .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
                      "ns3::TracedValue::Uint32Callback")
-    .AddTraceSource ("SlowStartThreshold",
+    /*.AddTraceSource ("SlowStartThreshold",
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpInrpp::m_ssThresh),
                      "ns3::TracedValue::Uint32Callback")*/
@@ -75,7 +75,9 @@ TcpInrpp::TcpInrpp (void)
     m_limitedTx (false), // mute valgrind, actual value set by the attribute system
 	m_nonce(0),
 	m_flag(2),
-	m_rate(0)
+	m_rate(0),
+	m_back(false),
+	m_lastSeq(0)
 {
   NS_LOG_FUNCTION (this<<m_initialRate);
   m_tcpRate = m_initialRate;
@@ -92,7 +94,8 @@ TcpInrpp::TcpInrpp (const TcpInrpp& sock)
     m_limitedTx (sock.m_limitedTx),
 	m_nonce(sock.m_nonce),
 //	m_rate(sock.m_rate),
-	m_flag(sock.m_flag)
+	m_flag(sock.m_flag),
+	m_back(sock.m_back)
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_LOGIC ("Invoked the copy constructor");
@@ -140,6 +143,16 @@ TcpInrpp::Fork (void)
 void
 TcpInrpp::NewAck (const SequenceNumber32& seq)
 {
+	if(m_back)
+	{
+		m_cWnd += (seq.GetValue()-m_lastSeq);
+	} else
+	{
+		m_cWnd = 0;
+	}
+	m_lastSeq = seq.GetValue();
+
+
   NS_LOG_FUNCTION (this << seq);
  // NS_LOG_LOGIC ("TcpInrpp received ACK for seq " << seq <<
   //    /          " cwnd " << m_cWnd <<
@@ -274,21 +287,18 @@ void
 TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 {
 	NS_LOG_FUNCTION(this);
-
 	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
 	{
 
 	  Ptr<TcpOptionInrppBack> inrpp = DynamicCast<TcpOptionInrppBack> (tcpHeader.GetOption (TcpOption::INRPP_BACK));
 	  m_flag = inrpp->GetFlag();
 	  m_nonce =  inrpp->GetNonce ();
-	  m_rate = inrpp->GetDeltaRate();
 
-	  if(m_flag==3){
-		  NS_LOG_LOGIC("Flag 3 received");
-	  }
+	  NS_LOG_LOGIC("Flag " << (uint32_t)m_flag << " received");
+
 	  if(m_flag==1){
-		  NS_LOG_LOGIC("Flag 1 received");
-		  m_tcpRate = std::min(m_pacingRate,m_initialRate);
+		  m_back = true;
+		  //m_tcpRate = std::min(m_pacingRate,m_initialRate);
 		  //m_tcpRate = 400000;
 		  /*if(!m_updateEvent.IsRunning()){
 			  m_tcpRate = m_tcpRate*m_rate/100;
@@ -297,16 +307,16 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 		  }*/
 	  }else if(m_flag==0||m_flag==2){
 		//  m_updateEvent.Cancel();
+		  m_back = false;
 		  m_tcpRate = m_initialRate;
 	  }
 //	  m_timestampToEcho = ts->GetTimestamp ();
 
 	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
-				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " and rate=" << inrpp->GetDeltaRate() << " " << m_tcpRate);
+				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
 	}
 //	NS_LOG_LOGIC("Update rate " << m_lastRtt);
 
-	CalculatePacing(tcpHeader.GetAckNumber().GetValue());
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }
 
@@ -315,36 +325,79 @@ TcpInrpp::SendPendingData (bool withAck)
 {
 	  NS_LOG_FUNCTION (this << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate << m_initialRate);
 	  if (m_txBuffer->Size () == 0)
-	    {
-	      return false;                           // Nothing to send
-	    }
+		{
+		  return false;                           // Nothing to send
+		}
 	  if (m_endPoint == 0 && m_endPoint6 == 0)
-	    {
-	      NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
-	      return false; // Is this the right way to handle this condition?
-	    }
+		{
+		  NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
+		  return false; // Is this the right way to handle this condition?
+		}
 	  uint32_t nPacketsSent = 0;
 
-	  if(m_txBuffer->SizeFromSequence (m_nextTxSequence) >= 0)
+	  if(m_back){
+		  uint32_t nPacketsSent = 0;
+		   while (m_txBuffer->SizeFromSequence (m_nextTxSequence))
+		     {
+		       uint32_t w = m_cWnd; // Get available window size
+		       // Stop sending if we need to wait for a larger Tx window (prevent silly window syndrome)
+		       NS_LOG_LOGIC("Window " <<  w << " SizefromSeq " << m_txBuffer->SizeFromSequence (m_nextTxSequence));
+		       if (w < m_segmentSize && m_txBuffer->SizeFromSequence (m_nextTxSequence) > w)
+		         {
+		           NS_LOG_LOGIC ("Preventing Silly Window Syndrome. Wait to send.");
+		           break; // No more
+		         }
+		       // Nagle's algorithm (RFC896): Hold off sending if there is unacked data
+		       // in the buffer and the amount of data to send is less than one segment
+		       if (!m_noDelay && UnAckDataCount () > 0
+		           && m_txBuffer->SizeFromSequence (m_nextTxSequence) < m_segmentSize)
+		         {
+		           NS_LOG_LOGIC ("Invoking Nagle's algorithm. Wait to send.");
+		           break;
+		         }
+		       NS_LOG_LOGIC ("TcpSocketBase " << this << " SendPendingData" <<
+		                     " w " << w <<
+		                     " rxwin " << m_rWnd <<
+		                     " segsize " << m_segmentSize <<
+		                     " nextTxSeq " << m_nextTxSequence <<
+		                     " highestRxAck " << m_txBuffer->HeadSequence () <<
+		                     " pd->Size " << m_txBuffer->Size () <<
+		                     " pd->SFS " << m_txBuffer->SizeFromSequence (m_nextTxSequence));
+		       uint32_t s = std::min (w, m_segmentSize);  // Send no more than window
+		       uint32_t sz = SendDataPacket (m_nextTxSequence, s, withAck);
+		       nPacketsSent++;                             // Count sent this loop
+		       m_nextTxSequence += sz;                     // Advance next tx sequence
+		       m_cWnd-=sz;
+		     }
+		   NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets");
+		   return (nPacketsSent > 0);
+	  } else
 	  {
-		  uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, withAck);
-		  nPacketsSent++;                             // Count sent this loop
-		  m_nextTxSequence += sz;                     // Advance next tx sequence
-		  NS_LOG_LOGIC("Sent " << sz << " bytes");
-	  } else if(m_closeOnEmpty)
-	  {
-		  return false;
+
+		  if(m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
+		  {
+			  NS_LOG_LOGIC("NextSeq " << m_nextTxSequence);
+			  uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, withAck);
+			  nPacketsSent++;                             // Count sent this loop
+			  m_nextTxSequence += sz;                     // Advance next tx sequence
+			  NS_LOG_LOGIC("Sent " << sz << " bytes");
+		  } else if(m_closeOnEmpty)
+		  {
+			  return false;
+		  }
+
+		  // Try to send more data
+		  if (!m_sendPendingDataEvent.IsRunning ())
+		    {
+			 Time t = Seconds(((double)(m_segmentSize+60)*8)/m_tcpRate);
+			 NS_LOG_LOGIC("Schedule next packet at " << Simulator::Now().GetSeconds()+t.GetSeconds());
+		      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
+		    }
+
+		  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets " << m_tcpRate << " " << " rate");
+		  return (nPacketsSent > 0);
 	  }
 
-	  // Try to send more data
-	  if (!m_sendPendingDataEvent.IsRunning ())
-	    {
-		 Time t = Seconds(((double)(m_segmentSize+60)*8)/m_tcpRate);
-	      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
-	    }
-
-	  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets " << m_tcpRate << " " << " rate");
-	  return (nPacketsSent > 0);
 
 }
 
@@ -358,7 +411,6 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 		 Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 		 option->SetFlag(3);
 		 option->SetNonce (m_nonce);
-	     option->SetDeltaRate (m_rate);
 	     tcpHeader.AppendOption (option);
 	 }
 
@@ -379,30 +431,6 @@ TcpInrpp::UpdateRate()
 	  m_tcpRate = m_tcpRate*m_rate/100;
 
 	 m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::UpdateRate,this);
-}
-
-void
-TcpInrpp::CalculatePacing(uint32_t bytes)
-{
-	NS_LOG_FUNCTION(this<<(bytes - m_ackRate));
-	if(bytes>m_ackRate)
-	{
-		m_pacingRate = ((bytes - m_ackRate)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
-	//	m_rate = ((1500)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
-		m_ackRate = bytes;
-		double alpha = 0.1;
-		double sample_bwe = m_pacingRate;
-		m_pacingRate = (alpha * m_lastRate) + ((1 - alpha) * ((sample_bwe + m_lastSampleRate) / 2));
-		NS_LOG_LOGIC("AckPacing " << m_pacingRate << " "<< (Simulator::Now().GetSeconds()-time1.GetSeconds()));
-
-		m_lastSampleRate = sample_bwe;
-		m_lastRate = m_pacingRate;
-		time1 = Simulator::Now();
-	}
-
-
-
-
 }
 
 } // namespace ns3

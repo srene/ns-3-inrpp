@@ -55,11 +55,6 @@ public:
    * \return the timestamp
    */
   uint32_t GetNonce(void) const;
-  /**
-   * \brief Get the timestamp echo stored in the Option
-   * \return the timestamp echo
-   */
-  uint32_t GetDeltaRate (void) const;
 
   uint8_t GetFlag (void) const;
   /**
@@ -67,45 +62,14 @@ public:
    * \param ts the timestamp
    */
   void SetNonce (uint32_t nonce);
-  /**
-   * \brief Set the timestamp echo stored in the Option
-   * \param ts the timestamp echo
-   */
-  void SetDeltaRate (uint32_t deltaRate);
 
   void SetFlag (uint8_t flag);
 
-  /**
-    * \brief Return an uint32_t value which represent "now"
-    *
-    * The value returned is usually used as Timestamp option for the
-    * TCP header; when the value will be echoed back, calculating the RTT
-    * will be an easy matter.
-    *
-    * The RFC does not mention any units for this value; following what
-    * is implemented in OS, we use milliseconds. Any change to this must be
-    * reflected to EstimateRttFromTs.
-    *
-    * \see EstimateRttFromTs
-    * \return The Timestamp value to use
-    */
-  //static uint32_t NowToTsValue ();
 
-  /**
-   * \brief Estimate the Time elapsed from a TS echo value
-   *
-   * The echoTime should be a value returned from NowToTsValue.
-   *
-   * \param echoTime Echoed value from other side
-   * \see NowToTsValue
-   * \return The measured RTT
-   */
-  //static Time ElapsedTimeFromTsValue (uint32_t echoTime);
 
 protected:
   uint8_t m_flag;     //!< Header destination address
   uint32_t m_nonce;
-  uint32_t m_deltaRate;
 };
 
 } // namespace ns3

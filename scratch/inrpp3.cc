@@ -112,10 +112,11 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1500000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1500000));
   Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
-  Config::SetDefault ("ns3::InrppCache::ThresholdCacheSize", UintegerValue (800000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (800000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (500000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 
 //
@@ -160,13 +161,13 @@ main (int argc, char *argv[])
   devices3 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
   devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1000Kbps"));
-  devices5 = pointToPoint.Install (nodes.Get(5),nodes.Get(4));
+  devices6 = pointToPoint.Install (nodes.Get(6),nodes.Get(4));
 
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("500Kbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
-  devices6 = pointToPoint.Install (nodes.Get(6),nodes.Get(4));
+  devices5 = pointToPoint.Install (nodes.Get(5),nodes.Get(4));
 
 
 
@@ -212,7 +213,7 @@ main (int argc, char *argv[])
   Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
   rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
   /// \todo handle multi-address case
-  rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
+  rtentry->SetDetour (Ipv4Address ("10.0.1.2"));
   rtentry->SetOutputDevice (devices0.Get(0));
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
@@ -274,10 +275,16 @@ main (int argc, char *argv[])
   std::ostringstream osstr11;
   osstr11 << "netdevice_7.bf";
   Ptr<OutputStreamWrapper> streamtr11 = asciiTraceHelper.CreateFileStream (osstr11.str());
-  txQueue6->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr11));
+  txQueue11->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr11));
 
-
-  txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
+  PointerValue ptr12;
+  devices6.Get(0)->GetAttribute ("TxQueue", ptr12);
+  Ptr<Queue> txQueue12 = ptr12.Get<Queue> ();
+  std::ostringstream osstr12;
+  osstr12 << "netdevice_8.bf";
+  Ptr<OutputStreamWrapper> streamtr12 = asciiTraceHelper.CreateFileStream (osstr12.str());
+  txQueue12->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr12));
+  txQueue12->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
   /*PointerValue ptr4;
   devices3.Get(0)->GetAttribute ("TxQueue", ptr4);
@@ -354,7 +361,7 @@ main (int argc, char *argv[])
                          InetSocketAddress (Ipv4Address::GetAny (), port));
   ApplicationContainer sinkApps = sink.Install (nodes.Get (3));
   sinkApps.Start (Seconds (0.0));
-  sinkApps.Stop (Seconds (100.0));
+  sinkApps.Stop (Seconds (200.0));
 
 
    port = 9001;  // well-known echo port number
@@ -364,8 +371,8 @@ main (int argc, char *argv[])
    // Set the amount of data to send in bytes.  Zero is unlimited.
    source2.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
    ApplicationContainer sourceApps2 = source2.Install (nodes.Get (6));
-   sourceApps2.Start (Seconds (1.0));
-   sourceApps2.Stop (Seconds (100.0));
+   sourceApps2.Start (Seconds (2.0));
+   sourceApps2.Stop (Seconds (200.0));
 
    Ptr<BulkSendApplication> bulk2 = DynamicCast<BulkSendApplication> (sourceApps2.Get (0));
    bulk2->SetCallback(MakeCallback(&StartLog));
@@ -376,7 +383,7 @@ main (int argc, char *argv[])
                           InetSocketAddress (Ipv4Address::GetAny (), port));
    ApplicationContainer sinkApps2 = sink2.Install (nodes.Get (3));
    sinkApps2.Start (Seconds (0.0));
-   sinkApps2.Stop (Seconds (100.0));
+   sinkApps2.Stop (Seconds (200.0));
 
 //
 // Set up tracing if enabled
@@ -393,7 +400,7 @@ main (int argc, char *argv[])
 
   Ipv4GlobalRoutingHelper g;
   Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("inrpp2.routes", std::ios::out);
-  g.PrintRoutingTableAllAt (Seconds (100.0), routingStream);
+  g.PrintRoutingTableAllAt (Seconds (200.0), routingStream);
 
  // Ptr<Node> n2 = nodes.Get (2);
  // Ptr<Ipv4> ipv02 = n2->GetObject<Ipv4> ();
@@ -408,7 +415,7 @@ main (int argc, char *argv[])
 // Now, do the actual simulation.
 //
   NS_LOG_INFO ("Run Simulation.");
-  Simulator::Stop (Seconds (100.0));
+  Simulator::Stop (Seconds (200.0));
   Simulator::Run ();
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
@@ -433,10 +440,10 @@ void StartLog(Ptr<Socket> socket)
 
 	 // Simulator::Schedule (Seconds (50.0),&DecreaseRate,socket,400000);
 	  if(i==0){
-		  socket->GetObject<TcpInrpp>()->SetRate(980000);
+		  socket->GetObject<TcpInrpp>()->SetRate(480000);
 		  i++;
 	  } else {
-		  socket->GetObject<TcpInrpp>()->SetRate(480000);
+		  socket->GetObject<TcpInrpp>()->SetRate(980000);
 
 	  }
 

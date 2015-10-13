@@ -377,7 +377,6 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		                                 << " data size " << packet->GetSize ());
 
 		ProcessInrppOption(tcpHeader,iface);
-		iface->CalculatePacing(tcpHeader.GetAckNumber().GetValue());
 		m_back = false;
 		if(iface->GetState()==BACKPRESSURE)
 		{
@@ -465,25 +464,26 @@ InrppL3Protocol::LowTh(uint32_t packets)
 {
 	NS_LOG_FUNCTION(this<<packets);
 
-	/*for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+	for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
 	{
 	  Ptr<Ipv4Interface> iface = *i;
 	  Ptr<LoopbackNetDevice> loop = iface->GetDevice()->GetObject<LoopbackNetDevice>();
 	  if(!loop)
 	  {
 		  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
-		  if(iface2->GetState()==PROP_BACKPRESSURE&&iface2->GetFlow()<iface2->GetRate())
+		  if(iface2->GetState()==PROP_BACKPRESSURE)
 			  iface2->SetState(UP_BACKPRESSURE);
-
+		  if(iface2->GetState()==BACKPRESSURE)
+			  iface2->SetState(DISABLE_BACK);
 	  }
-	}*/
+	}
 
 }
 
 bool
 InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce)
 {
-  NS_LOG_FUNCTION (this << header);
+  NS_LOG_FUNCTION (this << header << flag);
 
   bool add = false;
   if (!header.HasOption (TcpOption::INRPP_BACK))
@@ -501,7 +501,6 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce)
 	  Ptr<TcpOptionInrppBack> ts = DynamicCast<TcpOptionInrppBack> (header.GetOption (TcpOption::INRPP_BACK));
 	  ts->SetFlag(flag);
 	  ts->SetNonce(nonce);
-	//  ts->SetDeltaRate(rate);
   }
 
   return add;
@@ -515,13 +514,15 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 
 	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
 	{
+		  iface->CalculatePacing(1500);
 
 	  Ptr<TcpOptionInrppBack> ts = DynamicCast<TcpOptionInrppBack> (tcpHeader.GetOption (TcpOption::INRPP_BACK));
 
 	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
-				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce () << " and rate=" << ts->GetDeltaRate());
+				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce ());
 
 	  if(ts->GetFlag()==1){
+
 		  if(iface->GetState()==NO_DETOUR)
 		  {
 			  iface->SetState(UP_BACKPRESSURE);

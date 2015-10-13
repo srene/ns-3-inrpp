@@ -31,8 +31,7 @@ NS_OBJECT_ENSURE_REGISTERED (TcpOptionInrppBack);
 TcpOptionInrppBack::TcpOptionInrppBack ()
   : TcpOption (),
 	m_flag (0),
-	m_nonce (0),
-	m_deltaRate(0)
+	m_nonce (0)
 {
 }
 
@@ -60,13 +59,13 @@ TcpOptionInrppBack::GetInstanceTypeId (void) const
 void
 TcpOptionInrppBack::Print (std::ostream &os) const
 {
-  os << (uint32_t)m_flag << ";" << m_nonce << ";" << m_deltaRate;
+  os << (uint32_t)m_flag << ";" << m_nonce;
 }
 
 uint32_t
 TcpOptionInrppBack::GetSerializedSize (void) const
 {
-  return 11;
+  return 7;
 }
 
 void
@@ -74,10 +73,9 @@ TcpOptionInrppBack::Serialize (Buffer::Iterator start) const
 {
   Buffer::Iterator i = start;
   i.WriteU8 (GetKind ()); // Kind
-  i.WriteU8 (11); // Length
-  i.WriteU8 (m_flag); // Length
-  i.WriteHtonU32 (m_nonce); // Local timestamp
-  i.WriteHtonU32 (m_deltaRate); // Echo timestamp
+  i.WriteU8 (7); // Length
+  i.WriteU8 (m_flag); // Flag
+  i.WriteHtonU32 (m_nonce); // Nonce
 }
 
 uint32_t
@@ -89,19 +87,18 @@ TcpOptionInrppBack::Deserialize (Buffer::Iterator start)
   NS_LOG_LOGIC("Kind " << (uint32_t)readKind);
   if (readKind != GetKind ())
     {
-      NS_LOG_WARN ("Malformed Timestamp option");
+      NS_LOG_WARN ("Malformed Inrpp option");
       return 0;
     }
 
   uint8_t size = i.ReadU8 ();
-  if (size != 11)
+  if (size != 7)
     {
-      NS_LOG_WARN ("Malformed Timestamp option");
+      NS_LOG_WARN ("Malformed Inrpp option");
       return 0;
     }
   m_flag = i.ReadU8();
   m_nonce = i.ReadNtohU32 ();
-  m_deltaRate = i.ReadNtohU32 ();
   return GetSerializedSize ();
 }
 
@@ -117,12 +114,6 @@ TcpOptionInrppBack::GetNonce(void) const
   return m_nonce;
 }
 
-uint32_t
-TcpOptionInrppBack::GetDeltaRate (void) const
-{
-  return m_deltaRate;
-}
-
 uint8_t
 TcpOptionInrppBack::GetFlag (void) const
 {
@@ -135,11 +126,6 @@ TcpOptionInrppBack::SetNonce (uint32_t nonce)
   m_nonce = nonce;
 }
 
-void
-TcpOptionInrppBack::SetDeltaRate (uint32_t deltaRate)
-{
-  m_deltaRate = deltaRate;
-}
 
 void
 TcpOptionInrppBack::SetFlag (uint8_t flag)
@@ -147,29 +133,5 @@ TcpOptionInrppBack::SetFlag (uint8_t flag)
   m_flag = flag;
 }
 
-/*uint32_t
-TcpOptionInrppBack::NowToTsValue ()
-{
-  uint64_t now = (uint64_t) Simulator::Now ().GetMilliSeconds ();
-
-  // high: (now & 0xFFFFFFFF00000000ULL) >> 32;
-  // low: now & 0xFFFFFFFF
-  return (now & 0xFFFFFFFF);
-}
-
-Time
-TcpOptionInrppBack::ElapsedTimeFromTsValue (uint32_t echoTime)
-{
-  uint64_t now64 = (uint64_t) Simulator::Now ().GetMilliSeconds ();
-  uint32_t now32 = now64 & 0xFFFFFFFF;
-
-  Time ret = Seconds (0.0);
-  if (now32 > echoTime)
-    {
-      ret = MilliSeconds (now32 - echoTime);
-    }
-
-  return ret;
-}*/
 
 } // namespace ns3

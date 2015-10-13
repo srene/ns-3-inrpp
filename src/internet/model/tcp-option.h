@@ -57,7 +57,6 @@ public:
     MSS = 2,      //!< MSS
     WINSCALE = 3, //!< WINSCALE
     TS = 8,       //!< TS
-	INRPP = 251,  //!< INRPP
 	INRPP_BACK = 252, //!< INRPP BACKPRESSURE
     UNKNOWN = 255 //!< not a standardized value; for unknown recv'd options
   };

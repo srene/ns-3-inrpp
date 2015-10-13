@@ -73,10 +73,15 @@ InrppCache::GetTypeId (void)
                    MakeUintegerAccessor (&InrppCache::GetMaxSize,
                            	   	   	   	 &InrppCache::SetMaxSize),
                    MakeUintegerChecker<uint32_t> ())
-	.AddAttribute ("ThresholdCacheSize",
+	.AddAttribute ("HighThresholdCacheSize",
 				   "The size of the queue for packets pending an arp reply.",
 				   UintegerValue (8000000),
-				   MakeUintegerAccessor (&InrppCache::m_sizeTh),
+				   MakeUintegerAccessor (&InrppCache::m_highSizeTh),
+				   MakeUintegerChecker<uint32_t> ())
+	.AddAttribute ("LowThresholdCacheSize",
+				   "The size of the queue for packets pending an arp reply.",
+				   UintegerValue (5000000),
+				   MakeUintegerAccessor (&InrppCache::m_lowSizeTh),
 				   MakeUintegerChecker<uint32_t> ())
 	.AddTraceSource ("Size",
 					 "Remote side's flow control window",
@@ -110,7 +115,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()>m_sizeTh)&&!m_hTh)
+	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -149,7 +154,7 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface)
 		m_InrppCache.erase (it);
 		m_size-=p->GetPacket()->GetSize();
 
-	    if ((m_size.Get()<=m_sizeTh)&&(!m_lTh&&m_hTh))
+	    if ((m_size.Get()<=m_lowSizeTh)&&(!m_lTh&&m_hTh))
 		{
 		  NS_LOG_LOGIC ("Queue uncongested " << this);
 		  if(!m_lowTh.IsNull())m_lowTh (m_size.Get());
@@ -223,7 +228,7 @@ InrppCache::SetLowThCallback(LowThCallback cb)
 bool
 InrppCache::IsFull()
 {
-	return (m_size.Get() >= m_sizeTh);
+	return (m_size.Get() >= m_highSizeTh);
 }
 
 } // namespace ns3

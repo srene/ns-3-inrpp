@@ -416,7 +416,6 @@ main (int argc, char *argv[])
 
 void StartLog(Ptr<Socket> socket)
 {
-
 	 // Simulator::Schedule (Seconds (50.0),&DecreaseRate,socket,400000);
 	  if(i==0){
 		  std::ostringstream oss1;
@@ -430,7 +429,7 @@ void StartLog(Ptr<Socket> socket)
 		  oss2 << "node0.rtt";
 		  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (oss2.str());
 		  socket->TraceConnectWithoutContext("RTT", MakeBoundCallback (&RttTracer, stream2));
-		  socket->GetObject<TcpInrpp>()->SetRate(1480000);
+		  socket->GetObject<TcpInrpp>()->SetRate(980000);
 		  i++;
 	  } else {
 		  std::ostringstream oss1;

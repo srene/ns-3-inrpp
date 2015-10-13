@@ -108,7 +108,8 @@ private:
   TracedValue<uint32_t> m_size;
   uint32_t m_maxCacheSize;
   std::map<Ptr<InrppInterface>,uint32_t> m_ifaceSize;
-  uint32_t m_sizeTh;
+  uint32_t m_highSizeTh;
+  uint32_t m_lowSizeTh;
 
   HighThCallback m_highTh;
   LowThCallback m_lowTh;
