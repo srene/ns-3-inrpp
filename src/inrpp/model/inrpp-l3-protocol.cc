@@ -41,7 +41,7 @@
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
-#include "inrpp-backp-tag.h"
+//#include "inrpp-backp-tag.h"
 #include "tcp-option-inrpp-back.h"
 
 namespace ns3 {
@@ -204,16 +204,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			packet->AddHeader(ipHeader);
 			NS_LOG_LOGIC("Push packet");
 			outInterface->PushPacket(packet,rtentry);
-			/*}
-		else if(outInterface->GetState()==UP_BACKPRESSURE)
-		{
-			packet->AddHeader(tcpHeader);
-			packet->AddHeader(ipHeader);
-			if(!m_cache->Insert(outInterface,rtentry,packet)){
-				NS_LOG_LOGIC("CACHE FULL");
-			} else {
-				outInterface->SendPacket(outInterface->GetRate());
-			}*/
+
 		} else
 		{
 			packet->AddHeader(tcpHeader);
