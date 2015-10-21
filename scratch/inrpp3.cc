@@ -112,8 +112,8 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1500000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1500000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (200000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (200000));
   Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
   Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (800000));
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (500000));
@@ -210,15 +210,14 @@ main (int argc, char *argv[])
 
 //Configure detour path at n0
   Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
-  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
+  /*Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
   rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
-  /// \todo handle multi-address case
   rtentry->SetDetour (Ipv4Address ("10.0.1.2"));
   rtentry->SetOutputDevice (devices0.Get(0));
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));*/
 
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);

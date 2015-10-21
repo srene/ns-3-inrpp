@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2006 INRIA
+ * Copyright (c) 2015 University College of London
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,8 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
+ * Author: Sergi Rene <s.rene@ucl.ac.uk>
  */
+
 #ifndef INRPP_L3_PROTOCOL_H
 #define INRPP_L3_PROTOCOL_H
 
@@ -74,7 +75,7 @@ public:
 
   void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
   void SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address infoAddress);
-  void Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
+  void SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
   Ptr<InrppCache> GetCache();
 protected:

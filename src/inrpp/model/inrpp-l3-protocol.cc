@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2006 INRIA
+ * Copyright (c) 2015 University College of London
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,8 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
+ * Author: Sergi Rene <s.rene@ucl.ac.uk>
  */
+
 #include "inrpp-l3-protocol.h"
 #include <vector>
 #include <algorithm>
@@ -41,7 +42,6 @@
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
-//#include "inrpp-backp-tag.h"
 #include "tcp-option-inrpp-back.h"
 
 namespace ns3 {
@@ -179,9 +179,9 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	{
 
 		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << m_initCache << " " << m_cache->GetSize());
-		if ((outInterface->GetState()!=NO_DETOUR&&outInterface->GetState()!=DISABLE_BACK)&&(m_mustCache||m_initCache))
+		if ((outInterface->GetState()!=NO_DETOUR)&&(m_mustCache||m_initCache))
 		{
-			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR)
+			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
 			{
 				if(AddOptionInrpp(tcpHeader,3,outInterface->GetNonce()))
 				{
@@ -210,18 +210,18 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
 			NS_LOG_LOGIC("Send packet");
-			Send(rtentry,packet);
+			SendData(rtentry,packet);
 		}
 	} else {
 		packet->AddHeader(ipHeader);
 		NS_LOG_LOGIC("Send packet");
-		Send(rtentry,packet);
+		SendData(rtentry,packet);
 	}
 
 }
 
 void
-InrppL3Protocol::Send (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
+InrppL3Protocol::SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 {
 
 	  Ptr<Packet> packet = p->Copy ();
@@ -505,7 +505,6 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 
 	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
 	{
-		  iface->CalculatePacing(1500);
 
 	  Ptr<TcpOptionInrppBack> ts = DynamicCast<TcpOptionInrppBack> (tcpHeader.GetOption (TcpOption::INRPP_BACK));
 
@@ -513,6 +512,7 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce ());
 
 	  if(ts->GetFlag()==1){
+		  iface->CalculatePacing(1500);
 
 		  if(iface->GetState()==NO_DETOUR)
 		  {

@@ -223,7 +223,8 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
   }
   if(m_state==DISABLE_BACK&&m_cache->GetSize()==0)
   {
-	  SetState(NO_DETOUR);
+	  //SetState(NO_DETOUR);
+	  SetState(DETOUR);
   }
 
 }
@@ -306,9 +307,9 @@ InrppInterface::SetRate(DataRate bps)
 uint32_t
 InrppInterface::GetRate()
 {
-	if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)
-		return m_rate;
-	else
+	//if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)
+	//	return m_rate;
+	//else
 		return m_bps.GetBitRate();
 }
 
@@ -321,33 +322,43 @@ InrppInterface::SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp)
 void
 InrppInterface::SendPacket()
 {
+
 	if(!m_txEvent.IsRunning()){
 		NS_LOG_FUNCTION(this<<m_queue.empty()<<m_queue.size());
 		uint32_t rate = GetRate();
 		uint32_t sendingRate = std::min(rate,(uint32_t)m_bps.GetBitRate());
 
-		if(m_queue.empty())
-		{
-			Ptr<CachedPacket> c = m_cache->GetPacket(this);
-			if(c){
-				Ptr<Ipv4Route> rtentry = c->GetRoute();
-				Ptr<const Packet> packet = c->GetPacket();
-				m_inrpp->Send(rtentry,packet);
-				Time t = Seconds(((double)(packet->GetSize()*8)+60)/sendingRate);
-				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packet->GetSize() << " " << rate);
+			if(m_queue.empty())
+			{
+				if(((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate>=1500)||(m_state!=UP_BACKPRESSURE&&m_state!=PROP_BACKPRESSURE))
+				{
+				Ptr<CachedPacket> c = m_cache->GetPacket(this);
+				if(c){
+					Ptr<Ipv4Route> rtentry = c->GetRoute();
+					Ptr<const Packet> packet = c->GetPacket();
+					//m_inrpp->Send(rtentry,packet);
+
+						NS_LOG_LOGIC("Packet sent " << m_ackRate);
+						//Ptr<Ipv4Route> rtentry = c->GetRoute();
+						//Ptr<const Packet> packet = c->GetPacket();
+						m_inrpp->SendData(rtentry,packet);
+						m_ackRate-=packet->GetSize();
+
+					Time t = Seconds(((double)(packet->GetSize()*8)+60)/sendingRate);
+					NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packet->GetSize() << " " << rate << " " << m_ackRate);
+					m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
+				}
+				}
+			} else {
+				std::pair<Ptr<Packet>,Ptr<Ipv4Route> > packetRoute = m_queue.front();
+				m_inrpp->SendData(packetRoute.second,packetRoute.first);
+				m_queue.pop();
+				Time t = Seconds(((double)(packetRoute.first->GetSize()*8)+60)/sendingRate);
+				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packetRoute.first->GetSize() << " " << rate);
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
-		} else {
-			std::pair<Ptr<Packet>,Ptr<Ipv4Route> > paquetRoute = m_queue.front();
-			m_queue.pop();
-			m_inrpp->Send(paquetRoute.second,paquetRoute.first);
-			Time t = Seconds(((double)(paquetRoute.first->GetSize()*8)+60)/sendingRate);
-			NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << paquetRoute.first->GetSize() << " " << rate);
-			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
-		}
-
-
 	}
+
 }
 
 void
@@ -397,7 +408,7 @@ InrppInterface::SendResidual()
 				packet->AddPacketTag (tag);
 				rtentry->SetGateway(m_detourRoute->GetDetour());
 				rtentry->SetOutputDevice(m_detourRoute->GetOutputDevice());
-				m_inrpp->Send(rtentry,packet);
+				m_inrpp->SendData(rtentry,packet);
 				Time t = Seconds(((double)packet->GetSize()*8)/m_residualMin);
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << packet->GetSize()*8 << " " << m_residualMin);
 				m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
@@ -420,7 +431,7 @@ InrppInterface::CalculatePacing(uint32_t bytes)
 	//if(bytes-m_ackRate>0)m_cwnd += bytes - m_ackRate;
 	//if(bytes>m_ackRate)
 	m_ackRate+=bytes;
-	if(Simulator::Now().GetSeconds()-time1.GetSeconds()>0.01)
+	/*if(Simulator::Now().GetSeconds()-time1.GetSeconds()>0.01)
 	{
 		m_rate = ((m_ackRate)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
 	//	m_rate = ((1500)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
@@ -433,11 +444,7 @@ InrppInterface::CalculatePacing(uint32_t bytes)
 		m_lastSampleRate = sample_bwe;
 		m_lastRate = m_rate;
 		time1 = Simulator::Now();
-    }
-
-
-
-
+    }*/
 
 }
 

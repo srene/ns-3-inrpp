@@ -115,7 +115,8 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
-  Config::SetDefault ("ns3::InrppCache::ThresholdCacheSize", UintegerValue (800000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (800000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (500000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 
 //
