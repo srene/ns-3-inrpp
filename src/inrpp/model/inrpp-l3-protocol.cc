@@ -60,7 +60,7 @@ InrppL3Protocol::GetTypeId (void)
   static TypeId tid = TypeId ("ns3::InrppL3Protocol")
     .SetParent<Ipv4L3Protocol> ()
     .AddConstructor<InrppL3Protocol> ()
-    .SetGroupName ("Internet")
+    .SetGroupName ("Inrpp")
   ;
   return tid;
 }

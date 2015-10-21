@@ -32,7 +32,7 @@ TypeId InrppTailQueue::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::InrppTailQueue")
     .SetParent<DropTailQueue> ()
-    .SetGroupName("Network")
+    .SetGroupName("Inrpp")
     .AddConstructor<InrppTailQueue> ()
     /*.AddAttribute ("Mode",
                    "Whether to use bytes (see MaxBytes) or packets (see MaxPackets) as the maximum queue size metric.",

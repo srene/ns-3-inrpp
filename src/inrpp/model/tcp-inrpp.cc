@@ -43,7 +43,7 @@ TcpInrpp::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpInrpp")
     .SetParent<TcpSocketBase> ()
-    .SetGroupName ("Internet")
+    .SetGroupName ("Inrpp")
     .AddConstructor<TcpInrpp> ()
     .AddAttribute ("ReTxThreshold", "Threshold for fast retransmit",
                     UintegerValue (3),

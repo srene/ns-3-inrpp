@@ -44,7 +44,7 @@ TcpOptionInrppBack::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpOptionInrppBack")
     .SetParent<TcpOption> ()
-    .SetGroupName ("Internet")
+    .SetGroupName ("Inrpp")
     .AddConstructor<TcpOptionInrppBack> ()
   ;
   return tid;

@@ -77,7 +77,7 @@ InrppHeader::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::InrppHeader")
     .SetParent<Header> ()
-    .SetGroupName ("Internet")
+    .SetGroupName ("Inrpp")
     .AddConstructor<InrppHeader> ()
   ;
   return tid;
