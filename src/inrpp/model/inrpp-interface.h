@@ -172,7 +172,7 @@ private:
   Ptr<InrppRoute> m_detourRoute;
   InrppState m_state;
   uint32_t data3;
-  uint32_t m_residual;
+ //uint32_t m_residual;
   uint32_t m_nonce;
   uint32_t m_deltaRate;
   Ptr<InrppCache> m_cache;
@@ -189,10 +189,10 @@ private:
   std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
   uint32_t m_ackRate;
   Time time1;
-  uint32_t m_rate;
-  double                 m_lastSampleRate;           //!< Last bandwidth sample
-  double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
-  uint32_t m_cwnd;
+  //uint32_t m_rate;
+  //double                 m_lastSampleRate;           //!< Last bandwidth sample
+  //double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
+  //uint32_t m_cwnd;
 };
 
 } // namespace ns3

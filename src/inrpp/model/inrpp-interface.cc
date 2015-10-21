@@ -76,8 +76,8 @@ InrppInterface::InrppInterface ()
     data3(0),
 	m_nonce(rand()),
 	m_disable(false),
-	m_ackRate(0),
-	m_cwnd(0)
+	m_ackRate(0)
+	//m_cwnd(0)
 {
   NS_LOG_FUNCTION (this);
   t1 = Simulator::Now();
