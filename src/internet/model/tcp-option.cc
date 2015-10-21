@@ -22,7 +22,6 @@
 #include "tcp-option-rfc793.h"
 #include "tcp-option-winscale.h"
 #include "tcp-option-ts.h"
-//#include "ns3/tcp-option-inrpp.h"
 #include "ns3/tcp-option-inrpp-back.h"
 #include "ns3/type-id.h"
 #include "ns3/log.h"
@@ -75,8 +74,8 @@ TcpOption::CreateOption (uint8_t kind)
     { TcpOption::END,       TcpOptionEnd::GetTypeId () },
     { TcpOption::MSS,       TcpOptionMSS::GetTypeId () },
     { TcpOption::NOP,       TcpOptionNOP::GetTypeId () },
-    { TcpOption::TS,        TcpOptionTS::GetTypeId () },
     { TcpOption::WINSCALE,  TcpOptionWinScale::GetTypeId () },
+    { TcpOption::TS,        TcpOptionTS::GetTypeId () },
     { TcpOption::INRPP_BACK,TcpOptionInrppBack::GetTypeId () },
     { TcpOption::UNKNOWN,  TcpOptionUnknown::GetTypeId () }
   };

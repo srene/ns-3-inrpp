@@ -16,18 +16,12 @@ def build(bld):
         'model/inrpp-tail-queue.cc',  
         'model/inrpp-interface.cc',    
         'model/inrpp-tag.cc',   
-#        'model/inrpp-backp-tag.cc', 
-#        'model/tcp-option-inrpp.cc',
         'model/tcp-option-inrpp-back.cc',     
         'model/tcp-inrpp.cc',                                           
         'helper/inrpp-stack-helper.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('inrpp')
-#    module_test.source = [
-#        'test/mac-extension-test-suite.cc',
-#        'test/ocb-test-suite.cc',
-#        ]
 
     headers = bld(features='ns3header')
     headers.module = 'inrpp'
@@ -39,8 +33,6 @@ def build(bld):
         'model/inrpp-interface.h',    
         'model/inrpp-tail-queue.h',          
         'model/inrpp-tag.h',  
-#        'model/inrpp-backp-tag.h',  
-#        'model/tcp-option-inrpp.h',
         'model/tcp-option-inrpp-back.h',   
         'model/tcp-inrpp.h',                                                                                                        
         'helper/inrpp-stack-helper.h',
