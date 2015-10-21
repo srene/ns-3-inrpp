@@ -7,7 +7,7 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('inrpp', ['core','internet', 'network'])
+    module = bld.create_ns3_module('inrpp', ['core', 'network'])
     module.source = [
         'model/inrpp-route.cc',        
         'model/inrpp-cache.cc',
