@@ -141,12 +141,15 @@ public:
 
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
- uint32_t GetRate();
+ //uint32_t GetRate();
 
  void PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route);
 
  void CalculatePacing(uint32_t bytes);
 
+ void SetInitCache(bool);
+
+ bool GetInitCache(void);
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -193,6 +196,8 @@ private:
   //double                 m_lastSampleRate;           //!< Last bandwidth sample
   //double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
   //uint32_t m_cwnd;
+  uint32_t packetSize;
+  bool m_initCache;
 };
 
 } // namespace ns3

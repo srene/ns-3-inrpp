@@ -67,9 +67,9 @@ InrppL3Protocol::GetTypeId (void)
 
 InrppL3Protocol::InrppL3Protocol ():
 //m_cacheFull(false),
-m_mustCache(false),
-m_initCache(true),
-m_back(false)
+m_mustCache(false)
+//m_initCache(true)
+//m_back(false)
 {
   NS_LOG_FUNCTION (this);
 
@@ -178,8 +178,8 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	if(packet->RemoveHeader(tcpHeader))
 	{
 
-		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << m_initCache << " " << m_cache->GetSize());
-		if ((outInterface->GetState()!=NO_DETOUR)&&(m_mustCache||m_initCache))
+		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
+		if ((outInterface->GetState()!=NO_DETOUR)&&(m_mustCache||outInterface->GetInitCache()))
 		{
 			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
 			{
@@ -195,7 +195,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			if(!m_cache->Insert(outInterface,rtentry,packet)){
 				NS_LOG_LOGIC("CACHE FULL");
 			} else {
-				NS_LOG_LOGIC("Cached at " << outInterface->GetRate());
+				//NS_LOG_LOGIC("Cached at " << outInterface->GetRate());
 				outInterface->SendPacket();
 			}
 		} else if(outInterface->GetState()==DETOUR||outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
@@ -209,7 +209,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 		{
 			packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
-			NS_LOG_LOGIC("Send packet");
+			NS_LOG_LOGIC("Send packet "<< rtentry->GetDestination());
 			SendData(rtentry,packet);
 		}
 	} else {
@@ -368,14 +368,14 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		                                 << " data size " << packet->GetSize ());
 
 		ProcessInrppOption(tcpHeader,iface);
-		m_back = false;
+		//m_back = false;
 		if(iface->GetState()==BACKPRESSURE)
 		{
-			m_back = true;
-			Ptr<InrppInterface> iface2 = FindDetourIface(iface);
-			m_rate = iface->GetRate();
-			if(iface2)m_rate+=iface2->GetResidual();
-			NS_LOG_LOGIC("Backpressure rate " << m_rate << " " << iface->GetFlow());
+			//m_back = true;
+			//Ptr<InrppInterface> iface2 = FindDetourIface(iface);
+			//m_rate = iface->GetRate();
+			//if(iface2)m_rate+=iface2->GetResidual();
+			//NS_LOG_LOGIC("Backpressure rate " << m_rate << " " << iface->GetFlow());
 			if(AddOptionInrpp(tcpHeader,1,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
@@ -484,7 +484,13 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce)
 		  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 		  option->SetFlag(flag);
 		  option->SetNonce (nonce);
-	//	  option->SetDeltaRate (rate);
+		  header.AppendOption (option);
+		  add = true;
+	  } else if (flag==1)
+	  {
+		  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
+		  option->SetFlag(flag);
+		  option->SetNonce (0);
 		  header.AppendOption (option);
 		  add = true;
 	  }
@@ -501,7 +507,7 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce)
 void
 InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> iface)
 {
-	NS_LOG_FUNCTION (this << tcpHeader);
+	NS_LOG_FUNCTION (this << tcpHeader << tcpHeader.GetLength());
 
 	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
 	{
@@ -512,7 +518,7 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce ());
 
 	  if(ts->GetFlag()==1){
-		  iface->CalculatePacing(1500);
+		  if(ts->GetNonce()!=0)iface->CalculatePacing(1496);
 
 		  if(iface->GetState()==NO_DETOUR)
 		  {
@@ -520,8 +526,12 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  }
 		  if(iface->GetState()==UP_BACKPRESSURE)
 		  {
+
+			  if(ts->GetNonce()!=0)
+			  {
 			  ts->SetFlag(0);
 			  m_noncesList.push_back(ts->GetNonce());
+			  }
 		  }
 		  if(iface->GetState()==PROP_BACKPRESSURE)
 		  {
@@ -548,7 +558,8 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  {
 			  NS_LOG_LOGIC("First nonce received");
 			  m_mustCache = true;
-			  m_initCache = false;
+			  iface->SetInitCache(false);
+			  //m_initCache = false;
 		  } else {
 			  m_mustCache = false;
 		  }
@@ -557,7 +568,8 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  {
 			  NS_LOG_LOGIC("Nonce from interface nonce received");
 			  m_mustCache=true;
-			  m_initCache = false;
+			  iface->SetInitCache(false);
+			  //m_initCache = false;
 		  }
 
 	  }

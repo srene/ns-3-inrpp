@@ -298,6 +298,7 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 
 	  if(m_flag==1){
 		  m_back = true;
+		  NS_LOG_LOGIC("Start backpressure");
 		  //m_tcpRate = std::min(m_pacingRate,m_initialRate);
 		  //m_tcpRate = 400000;
 		  /*if(!m_updateEvent.IsRunning()){
@@ -373,6 +374,7 @@ TcpInrpp::SendPendingData (bool withAck)
 		   return (nPacketsSent > 0);
 	  } else
 	  {
+		  NS_LOG_LOGIC("Full rate at "<< m_tcpRate);
 
 		  if(m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
 		  {
@@ -406,7 +408,7 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
 	 NS_LOG_FUNCTION (this << tcpHeader);
 
-	 if(m_flag==0||m_flag==1||m_flag==3)
+	 if((m_flag==0||m_flag==1||m_flag==3)&&(m_nonce!=0))
 	 {
 		 Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 		 option->SetFlag(3);
