@@ -154,5 +154,6 @@ DropTailQueue::DoPeek (void) const
   return p;
 }
 
+
 } // namespace ns3
 

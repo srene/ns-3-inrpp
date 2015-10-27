@@ -111,6 +111,10 @@ InrppTailQueue::DoEnqueue (Ptr<Packet> p)
 {
   NS_LOG_FUNCTION (this << p << m_packets.size ());
 
+  if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes))
+    {
+	  m_drop(p);
+    }
   if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_highPacketsTh)&&!m_hTh)
     {
       NS_LOG_LOGIC ("Queue reaching full " << this);
@@ -151,6 +155,12 @@ InrppTailQueue::DoEnqueue (Ptr<Packet> p)
   NS_LOG_LOGIC ("Number bytes " << m_bytesInQueue);
 
   return true;
+}
+void
+InrppTailQueue::SetDropCallback(DropCallback cb)
+{
+	NS_LOG_FUNCTION (this << &cb);
+	m_drop = cb;
 }
 
 } // namespace ns3

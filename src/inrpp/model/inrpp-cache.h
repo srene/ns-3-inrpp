@@ -102,6 +102,12 @@ public:
 
   bool IsFull();
 
+  void AddPacket();
+  void RemovePacket();
+
+  uint32_t GetThreshold();
+
+
 private:
 
   Cache m_InrppCache;
@@ -115,6 +121,8 @@ private:
   LowThCallback m_lowTh;
   bool m_hTh;
   bool m_lTh;
+
+  uint32_t m_packets;
 };
 
 

@@ -30,6 +30,7 @@ class TraceContainer;
 
 typedef Callback< void, uint32_t,Ptr<NetDevice> > HighThCallback;
 typedef Callback< void, uint32_t,Ptr<NetDevice> > LowThCallback;
+typedef Callback< void, Ptr<const Packet> > DropCallback;
 
 /**
  * \ingroup queue
@@ -56,6 +57,8 @@ public:
 
   void SetLowThCallback(LowThCallback cb);
 
+  void SetDropCallback(DropCallback cb);
+
   void SetNetDevice(Ptr<NetDevice> dev);
 private:
   virtual bool DoEnqueue (Ptr<Packet> p);
@@ -75,6 +78,7 @@ private:
 
   HighThCallback m_highTh;
   LowThCallback m_lowTh;
+  DropCallback m_drop;
   Ptr<NetDevice> m_netDevice;
   bool m_hTh;
   bool m_lTh;

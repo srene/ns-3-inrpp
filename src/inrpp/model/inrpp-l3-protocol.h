@@ -78,6 +78,7 @@ public:
   void SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
   Ptr<InrppCache> GetCache();
+  void LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device);
 protected:
   virtual void DoDispose (void);
   /*
@@ -138,6 +139,8 @@ private:
   bool IsNonceFromInterface(uint32_t nonce);
 
   Ptr<InrppCache> m_cache; //!< ARP cache container
+
+  Ptr<InrppCache> m_secondCache; //!< ARP cache container
 
   bool m_cacheFull;
   //std::map <Ipv4Address, uint32_t> m_residualList;

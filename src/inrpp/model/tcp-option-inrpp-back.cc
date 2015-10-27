@@ -39,6 +39,7 @@ TcpOptionInrppBack::~TcpOptionInrppBack ()
 {
 }
 
+/*
 TypeId
 TcpOptionInrppBack::GetTypeId (void)
 {
@@ -48,7 +49,7 @@ TcpOptionInrppBack::GetTypeId (void)
     .AddConstructor<TcpOptionInrppBack> ()
   ;
   return tid;
-}
+}*/
 
 TypeId
 TcpOptionInrppBack::GetInstanceTypeId (void) const

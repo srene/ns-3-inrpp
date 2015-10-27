@@ -56,6 +56,7 @@ public:
   virtual int Connect (const Address &address);
   virtual int Listen (void);
   void SetRate (uint32_t rate );
+  virtual int Send (Ptr<Packet> p, uint32_t flags);
 
 protected:
   virtual uint32_t Window (void); // Return the max possible number of unacked bytes
@@ -98,6 +99,12 @@ protected:
   EventId m_updateEvent;       //!< Transmit cached packet event
   bool m_back;
   uint32_t m_lastSeq;
+
+  TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW;           //!< Last bandwidth sample
+  double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
+  Time t1;
+  uint32_t data;
 };
 
 } // namespace ns3

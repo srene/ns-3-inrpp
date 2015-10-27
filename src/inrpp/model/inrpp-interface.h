@@ -150,10 +150,14 @@ public:
  void SetInitCache(bool);
 
  bool GetInitCache(void);
+
+
+ bool GetDisable(void);
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
   void SendResidual();
+  void Drop(Ptr<const Packet> p);
 
   TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
   double                 m_lastSampleBW;           //!< Last bandwidth sample
@@ -192,12 +196,13 @@ private:
   std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
   uint32_t m_ackRate;
   Time time1;
-  //uint32_t m_rate;
-  //double                 m_lastSampleRate;           //!< Last bandwidth sample
-  //double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
+  uint32_t m_rate;
+  double                 m_lastSampleRate;           //!< Last bandwidth sample
+  double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
   //uint32_t m_cwnd;
   uint32_t packetSize;
   bool m_initCache;
+  uint32_t m_pacingData;
 };
 
 } // namespace ns3

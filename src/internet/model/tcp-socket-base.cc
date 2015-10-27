@@ -616,6 +616,7 @@ TcpSocketBase::Send (Ptr<Packet> p, uint32_t flags)
           if (!m_sendPendingDataEvent.IsRunning ())
             {
               m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpSocketBase::SendPendingData, this, m_connected);
+        	  //SendPendingData(m_connected);
             }
         }
       return p->GetSize ();
@@ -2073,6 +2074,7 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
   m_highTxMark = std::max (seq + sz, m_highTxMark.Get ());
   return sz;
 }
+
 
 /* Send as much pending data as possible according to the Tx window. Note that
  *  this function did not implement the PSH flag

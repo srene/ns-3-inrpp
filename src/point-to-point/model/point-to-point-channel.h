@@ -25,6 +25,7 @@
 #include "ns3/nstime.h"
 #include "ns3/data-rate.h"
 #include "ns3/traced-callback.h"
+#include "point-to-point-net-device.h"
 
 namespace ns3 {
 

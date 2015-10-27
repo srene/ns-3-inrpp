@@ -61,6 +61,9 @@ TcpInrpp::GetTypeId (void)
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
                      "ns3::TracedValue::Uint32Callback")
+	.AddTraceSource("Throughput", "The estimated bandwidth",
+					 MakeTraceSourceAccessor(&TcpInrpp::m_currentBW),
+					 "ns3::TracedValue::DoubleCallback")
     /*.AddTraceSource ("SlowStartThreshold",
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpInrpp::m_ssThresh),
@@ -77,10 +80,16 @@ TcpInrpp::TcpInrpp (void)
 	m_flag(2),
 	m_rate(0),
 	m_back(false),
-	m_lastSeq(0)
+	m_lastSeq(0),
+	m_currentBW(0),
+    m_lastSampleBW(0),
+	m_lastBW(0),
+	data(0)
 {
   NS_LOG_FUNCTION (this<<m_initialRate);
   m_tcpRate = m_initialRate;
+  t1 = Simulator::Now();
+
 }
 
 TcpInrpp::TcpInrpp (const TcpInrpp& sock)
@@ -213,22 +222,22 @@ TcpInrpp::Retransmit (void)
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
-  m_inFastRec = false;
+ // m_inFastRec = false;
 
   // If erroneous timeout in closed/timed-wait state, just return
-  if (m_state == CLOSED || m_state == TIME_WAIT) return;
+ // if (m_state == CLOSED || m_state == TIME_WAIT) return;
   // If all data are received (non-closing socket and nothing to send), just return
-  if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark) return;
+ // if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark) return;
 
   // According to RFC2581 sec.3.1, upon RTO, ssthresh is set to half of flight
   // size and cwnd is set to 1*MSS, then the lost packet is retransmitted and
   // TCP back to slow start
   //m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
   //m_cWnd = m_segmentSize;
-  m_nextTxSequence = m_txBuffer->HeadSequence (); // Restart from highest Ack
+ // m_nextTxSequence = m_txBuffer->HeadSequence (); // Restart from highest Ack
  // NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
   //             ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
-  DoRetransmit ();                          // Retransmit the packet
+ // DoRetransmit ();                          // Retransmit the packet
 }
 
 void
@@ -308,6 +317,7 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 		  }*/
 	  }else if(m_flag==0||m_flag==2){
 		//  m_updateEvent.Cancel();
+		  NS_LOG_LOGIC("Full rate again");
 		  m_back = false;
 		  m_tcpRate = m_initialRate;
 	  }
@@ -321,10 +331,48 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }
 
+int
+TcpInrpp::Send (Ptr<Packet> p, uint32_t flags)
+{
+  NS_LOG_FUNCTION (this << p);
+  NS_ABORT_MSG_IF (flags, "use of flags is not supported in TcpSocketBase::Send()");
+  if (m_state == ESTABLISHED || m_state == SYN_SENT || m_state == CLOSE_WAIT)
+    {
+      // Store the packet into Tx buffer
+      if (!m_txBuffer->Add (p))
+        { // TxBuffer overflow, send failed
+          m_errno = ERROR_MSGSIZE;
+          return -1;
+        }
+      if (m_shutdownSend)
+        {
+          m_errno = ERROR_SHUTDOWN;
+          return -1;
+        }
+      // Submit the data to lower layers
+      NS_LOG_LOGIC ("txBufSize=" << m_txBuffer->Size () << " state " << TcpStateName[m_state]);
+      if (m_state == ESTABLISHED || m_state == CLOSE_WAIT)
+        { // Try to send the data out
+          if (!m_sendPendingDataEvent.IsRunning ())
+            {
+              m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpInrpp::SendPendingData, this, m_connected);
+        	  //SendPendingData(m_connected);
+            }
+        }
+      return p->GetSize ();
+    }
+  else
+    { // Connection not established yet
+      m_errno = ERROR_NOTCONN;
+      return -1; // Send failure
+    }
+}
+
+
 bool
 TcpInrpp::SendPendingData (bool withAck)
 {
-	  NS_LOG_FUNCTION (this << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate << m_initialRate);
+	  NS_LOG_FUNCTION (this << m_back << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate << m_initialRate);
 	  if (m_txBuffer->Size () == 0)
 		{
 		  return false;                           // Nothing to send
@@ -366,6 +414,20 @@ TcpInrpp::SendPendingData (bool withAck)
 		                     " pd->SFS " << m_txBuffer->SizeFromSequence (m_nextTxSequence));
 		       uint32_t s = std::min (w, m_segmentSize);  // Send no more than window
 		       uint32_t sz = SendDataPacket (m_nextTxSequence, s, withAck);
+
+		 	  data+= sz * 8;
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		 		  data = 0;
+		 		  double alpha = 0.6;
+		 		  double   sample_bwe = m_currentBW;
+		 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+		 		  m_lastSampleBW = sample_bwe;
+		 		  m_lastBW = m_currentBW;
+		 		  t1 = Simulator::Now();
+
+		 	  }
+
 		       nPacketsSent++;                             // Count sent this loop
 		       m_nextTxSequence += sz;                     // Advance next tx sequence
 		       m_cWnd-=sz;
@@ -382,6 +444,20 @@ TcpInrpp::SendPendingData (bool withAck)
 			  uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, withAck);
 			  nPacketsSent++;                             // Count sent this loop
 			  m_nextTxSequence += sz;                     // Advance next tx sequence
+
+		 	  data+= sz * 8;
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		 		  data = 0;
+		 		  double alpha = 0.6;
+		 		  double   sample_bwe = m_currentBW;
+		 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+		 		  m_lastSampleBW = sample_bwe;
+		 		  m_lastBW = m_currentBW;
+		 		  t1 = Simulator::Now();
+
+		 	  }
+
 			  NS_LOG_LOGIC("Sent " << sz << " bytes");
 		  } else if(m_closeOnEmpty)
 		  {

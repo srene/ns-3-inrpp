@@ -79,7 +79,8 @@ InrppInterface::InrppInterface ()
 	m_disable(false),
 	m_ackRate(0),
 	packetSize(0),
-	m_initCache(true)
+	m_initCache(true),
+	m_pacingData(0)
 	//m_cwnd(0)
 {
   NS_LOG_FUNCTION (this);
@@ -98,7 +99,7 @@ void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION (this);
-	if(m_state==NO_DETOUR)
+	if(m_state==NO_DETOUR||m_state==DISABLE_BACK)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<m_state);
 		SetState(DETOUR);
@@ -110,18 +111,22 @@ InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 void
 InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 {
-	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate());
+	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate()<<m_cache->GetSize()<<m_cache->GetThreshold());
 
 	//if((m_state==DETOUR&&m_currentBW2<m_bps.GetBitRate())||(m_state==BACKPRESSURE&&m_currentBW2<m_bps.GetBitRate()))
 	//{
 	//	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate());
-		SetState(NO_DETOUR);
+	//	SetState(NO_DETOUR);
 	//} else if(m_state==DETOUR||m_state==BACKPRESSURE)
 	//{
 	//	m_disable = true;
 	//}
 	//m_txEvent.Cancel();
-
+	if(m_cache->GetSize()<m_cache->GetThreshold()){
+		SetState(DISABLE_BACK);
+	} else {
+		m_disable = true;
+	}
 }
 
 Ptr<InrppRoute>
@@ -150,7 +155,7 @@ InrppInterface::SetState(InrppState state)
 {
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
-
+	if(state==DISABLE_BACK)m_disable=false;
 	if(m_state==NO_DETOUR)m_initCache=true;
 
 }
@@ -165,7 +170,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
   if(!p->PeekPacketTag (tag))
   {
 	  data+= p->GetSize() * 8;
-	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
 		  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
@@ -216,7 +221,7 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 
   }
 
-  if(m_disable&&(m_state==BACKPRESSURE)&&(m_currentBW2<m_bps.GetBitRate())&&(!m_cache->IsFull()))
+ /* if(m_disable&&(m_state==BACKPRESSURE)&&(m_currentBW2<m_bps.GetBitRate())&&(!m_cache->IsFull()))
   {
 	  NS_LOG_LOGIC("Disable backp " << m_currentBW2);
 		SetState(DISABLE_BACK);
@@ -225,7 +230,7 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
   {
 		SetState(NO_DETOUR);
 		m_disable=false;
-  }
+  }*/
   if(m_state==DISABLE_BACK&&m_cache->GetSize()==0)
   {
 	  //SetState(NO_DETOUR);
@@ -273,7 +278,9 @@ InrppInterface::SetDevice (Ptr<NetDevice> device)
   q->SetNetDevice(device);
   q->SetHighThCallback (MakeCallback (&InrppInterface::HighTh,this));
   q->SetLowThCallback (MakeCallback (&InrppInterface::LowTh,this));
+  q->SetDropCallback (MakeCallback (&InrppInterface::Drop,this));
 
+  //q->TraceConnectWithoutContext ("Drop", MakeCallback (&InrppInterface::Drop),this);
   Ptr<PointToPointChannel> ch = device->GetChannel()->GetObject<PointToPointChannel>();
   ch->TraceConnectWithoutContext ("TxRxPointToPoint", MakeCallback (&InrppInterface::TxRx,this));
   Ipv4Interface::SetDevice(device);
@@ -329,7 +336,7 @@ InrppInterface::SendPacket()
 {
 
 	if(!m_txEvent.IsRunning()){
-		NS_LOG_FUNCTION(this<<m_queue.empty()<<m_queue.size());
+		NS_LOG_FUNCTION(this<<m_queue.empty()<<m_queue.size()<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize());
 	//	uint32_t rate = GetRate();
 	//	uint32_t sendingRate = std::min(rate,(uint32_t)m_bps.GetBitRate());
 
@@ -359,6 +366,7 @@ InrppInterface::SendPacket()
 				std::pair<Ptr<Packet>,Ptr<Ipv4Route> > packetRoute = m_queue.front();
 				m_inrpp->SendData(packetRoute.second,packetRoute.first);
 				m_queue.pop();
+				m_cache->RemovePacket();
 				Time t = Seconds(((double)(packetRoute.first->GetSize()*8)+60)/(uint32_t)m_bps.GetBitRate());
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packetRoute.first->GetSize());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
@@ -428,20 +436,22 @@ void
 InrppInterface::PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route)
 {
 	m_queue.push(std::make_pair(p,route));
+	m_cache->AddPacket();
 }
 
 void
 InrppInterface::CalculatePacing(uint32_t bytes)
 {
-	NS_LOG_FUNCTION(this);
+	NS_LOG_FUNCTION(this<<m_rate);
 	//if(bytes-m_ackRate>0)m_cwnd += bytes - m_ackRate;
 	//if(bytes>m_ackRate)
 	m_ackRate+=bytes;
-	/*if(Simulator::Now().GetSeconds()-time1.GetSeconds()>0.01)
+	m_pacingData+=bytes;
+	if(Simulator::Now().GetSeconds()-time1.GetSeconds()>0.01)
 	{
-		m_rate = ((m_ackRate)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
+		m_rate = ((m_pacingData)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
 	//	m_rate = ((1500)*8)/(Simulator::Now().GetSeconds()-time1.GetSeconds());
-		m_ackRate = 0;
+		m_pacingData = 0;
 		double alpha = 0.6;
 		double sample_bwe = m_rate;
 		m_rate = (alpha * m_lastRate) + ((1 - alpha) * ((sample_bwe + m_lastSampleRate) / 2));
@@ -450,7 +460,7 @@ InrppInterface::CalculatePacing(uint32_t bytes)
 		m_lastSampleRate = sample_bwe;
 		m_lastRate = m_rate;
 		time1 = Simulator::Now();
-    }*/
+    }
 
 }
 
@@ -464,6 +474,20 @@ bool
 InrppInterface::GetInitCache(void)
 {
 	return m_initCache;
+}
+
+bool
+InrppInterface::GetDisable(void)
+{
+	return m_disable;
+}
+
+void
+InrppInterface::Drop (Ptr<const Packet> p)
+{
+	NS_LOG_FUNCTION(this<<p);
+
+	m_inrpp->LostPacket(p,this,GetDevice());
 }
 
 } // namespace ns3

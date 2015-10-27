@@ -92,7 +92,8 @@ InrppCache::GetTypeId (void)
 }
 
 InrppCache::InrppCache ():
-m_size(0)
+m_size(0),
+m_packets(0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -115,7 +116,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
+	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -230,6 +231,25 @@ InrppCache::IsFull()
 {
 	return (m_size.Get() >= m_highSizeTh);
 }
+
+void
+InrppCache::AddPacket()
+{
+	m_packets++;
+}
+
+void
+InrppCache::RemovePacket()
+{
+	m_packets--;
+}
+
+uint32_t
+InrppCache::GetThreshold()
+{
+	return m_lowSizeTh;
+}
+
 
 } // namespace ns3
 
