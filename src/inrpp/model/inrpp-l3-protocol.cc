@@ -178,7 +178,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	if(packet->RemoveHeader(tcpHeader))
 	{
-
+		if(m_mustCache)outInterface->SetInitCache(false);
 		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
 		if(tcpHeader.GetFlags () & TcpHeader::SYN)
 		{
@@ -188,8 +188,8 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			SendData(rtentry,packet);
 		} else if ((outInterface->GetState()!=NO_DETOUR)&&(m_mustCache||outInterface->GetInitCache()))
 		{
-			//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
-			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
+			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
+			//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
 			{
 				if(AddOptionInrpp(tcpHeader,3,outInterface->GetNonce()))
 				{
@@ -238,7 +238,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 void
 InrppL3Protocol::SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 {
-
+	  m_route = rtentry;
 	  Ptr<Packet> packet = p->Copy ();
 	  Ipv4Header ipHeader;
 	  packet->RemoveHeader(ipHeader);
@@ -479,7 +479,8 @@ InrppL3Protocol::LowTh(uint32_t packets)
 		  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
 		  if(iface2->GetState()==PROP_BACKPRESSURE)
 			  iface2->SetState(UP_BACKPRESSURE);
-		  if(iface2->GetState()==BACKPRESSURE&&iface2->GetDisable())
+          if(iface2->GetState()==BACKPRESSURE&&iface2->GetDisable())
+		 // if(iface2->GetState()==BACKPRESSURE)
 			  iface2->SetState(DISABLE_BACK);
 
 	  }
@@ -580,7 +581,7 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  {
 			  NS_LOG_LOGIC("First nonce received");
 			  m_mustCache = true;
-			  iface->SetInitCache(false);
+			 // iface->SetInitCache(false);
 			  //m_initCache = false;
 		  } else {
 			  m_mustCache = false;
@@ -590,7 +591,7 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  {
 			  NS_LOG_LOGIC("Nonce from interface nonce received");
 			  m_mustCache=true;
-			  iface->SetInitCache(false);
+			  //iface->SetInitCache(false);
 			  //m_initCache = false;
 		  }
 
@@ -651,28 +652,32 @@ InrppL3Protocol::GetCache()
 void
 InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device)
 {
-	NS_LOG_FUNCTION(this<<packet<<iface<<device);
+	NS_LOG_FUNCTION(this<<packet->GetSize()<<iface<<device);
 	 Ptr<Packet> p = packet->Copy();
 	 PppHeader ppp;
 	 p->RemoveHeader (ppp);
 	 TcpHeader tcpHeader;
      Ipv4Header ipHeader;
      p->RemoveHeader(ipHeader);
-     int32_t ifaceNumber = GetInterfaceForDevice (device);
+    // int32_t ifaceNumber = GetInterfaceForDevice (device);
 
-	 if(p->RemoveHeader(tcpHeader))
-	 {
+    if(p->RemoveHeader(tcpHeader))
+	{
 			if(AddOptionInrpp(tcpHeader,3,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
 				ipHeader.SetPayloadSize(size+12);
 			}
 
-			ProcessInrppOption(tcpHeader,iface);
+			//ProcessInrppOption(tcpHeader,iface);
 
 			p->AddHeader(tcpHeader);
+			p->AddHeader(ipHeader);
 
-		    if (!m_routingProtocol->RouteInput (p, ipHeader, device,
+			if(!m_cache->InsertFirst(iface,m_route,p)){
+				NS_LOG_LOGIC("CACHE FULL");
+			}
+		    /*if (!m_routingProtocol->RouteInput (p, ipHeader, device,
 		                                      MakeCallback (&InrppL3Protocol::IpForward, this),
 		                                      MakeCallback (&Ipv4L3Protocol::IpMulticastForward, this),
 		                                      MakeCallback (&Ipv4L3Protocol::LocalDeliver, this),
@@ -680,8 +685,8 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 		                                      ))
 		    {
 		      NS_LOG_WARN ("No route found for forwarding packet.  Drop.");
-		      m_dropTrace (ipHeader, p, DROP_NO_ROUTE, m_node->GetObject<Ipv4> (), ifaceNumber);
-		    }
+		   //   m_dropTrace (ipHeader, p, DROP_NO_ROUTE, m_node->GetObject<Ipv4> (), ifaceNumber);
+		    }*/
 	 }
 
 }

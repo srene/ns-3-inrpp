@@ -84,7 +84,8 @@ TcpInrpp::TcpInrpp (void)
 	m_currentBW(0),
     m_lastSampleBW(0),
 	m_lastBW(0),
-	data(0)
+	data(0),
+	m_ackInterval(0)
 {
   NS_LOG_FUNCTION (this<<m_initialRate);
   m_tcpRate = m_initialRate;
@@ -130,6 +131,7 @@ TcpInrpp::Connect (const Address & address)
   NS_LOG_FUNCTION (this << address);
   InitializeCwnd ();
   m_tcpRate = m_initialRate;
+  t = Simulator::Now();
   return TcpSocketBase::Connect (address);
 }
 
@@ -154,7 +156,8 @@ TcpInrpp::NewAck (const SequenceNumber32& seq)
 {
 	if(m_back)
 	{
-		m_cWnd += (seq.GetValue()-m_lastSeq);
+		//m_cWnd+= (seq.GetValue()-m_lastSeq);
+		m_cWnd += m_segmentSize;
 	} else
 	{
 		m_cWnd = 0;
@@ -213,6 +216,11 @@ void
 TcpInrpp::DupAck (const TcpHeader& t, uint32_t count)
 {
   NS_LOG_FUNCTION (this << count);
+	m_cWnd += m_segmentSize;
+	  if (!m_sendPendingDataEvent.IsRunning ())
+	    {
+	      m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpInrpp::SendPendingData, this, m_connected);
+	    }
 
 }
 
@@ -502,13 +510,36 @@ TcpInrpp::SetRate(uint32_t rate)
 	m_tcpRate = m_initialRate;
 }
 
-void
+/*void
 TcpInrpp::UpdateRate()
 {
 	NS_LOG_FUNCTION(this<<m_lastRtt);
 	  m_tcpRate = m_tcpRate*m_rate/100;
 
 	 m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::UpdateRate,this);
+}*/
+
+void
+TcpInrpp::SendAck()
+{
+	NS_LOG_FUNCTION(this);
+	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
+    SendEmptyPacket (TcpHeader::ACK);
+
 }
+void
+TcpInrpp::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
+{
+	NS_LOG_FUNCTION(this);
+	TcpSocketBase::ReceivedData (p,tcpHeader);
+	m_ackInterval = Simulator::Now().GetSeconds() - t.GetSeconds();
+	t = Simulator::Now();
+	m_ackEvent.Cancel();
+	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
+	//m_updateEvent.Cancel();
+	//m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::ReceivedData,this);
+
+}
+
 
 } // namespace ns3

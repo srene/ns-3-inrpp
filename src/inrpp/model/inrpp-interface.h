@@ -143,7 +143,7 @@ public:
 
  //uint32_t GetRate();
 
- void PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route);
+ //void PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route);
 
  void CalculatePacing(uint32_t bytes);
 
@@ -193,7 +193,7 @@ private:
   Ptr<InrppInterface> m_detouredIface;
   uint32_t m_residualMin;
   bool m_disable;
-  std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
+  //std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
   uint32_t m_ackRate;
   Time time1;
   uint32_t m_rate;

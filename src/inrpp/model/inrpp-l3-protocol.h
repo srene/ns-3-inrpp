@@ -140,7 +140,7 @@ private:
 
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
-  Ptr<InrppCache> m_secondCache; //!< ARP cache container
+ // Ptr<InrppCache> m_secondCache; //!< ARP cache container
 
   bool m_cacheFull;
   //std::map <Ipv4Address, uint32_t> m_residualList;
@@ -150,6 +150,7 @@ private:
   uint32_t m_rate;
   uint32_t m_back;
   Time t;
+  Ptr<Ipv4Route> m_route;
 };
 
 } // namespace ns3

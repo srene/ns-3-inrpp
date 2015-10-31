@@ -113,7 +113,7 @@ InrppTailQueue::DoEnqueue (Ptr<Packet> p)
 
   if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes))
     {
-	  m_drop(p);
+	  if(!m_drop.IsNull())m_drop(p);
     }
   if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_highPacketsTh)&&!m_hTh)
     {

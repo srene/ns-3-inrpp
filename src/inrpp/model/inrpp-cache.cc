@@ -143,6 +143,40 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 
 }
 
+bool
+InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
+{
+	NS_LOG_FUNCTION(this<<m_size);
+	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
+	{
+
+	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+		{
+		  NS_LOG_LOGIC ("Queue reaching full " << this);
+		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
+		  m_hTh = true;
+		  m_lTh = false;
+
+		}
+
+		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry);
+		m_InrppCache.insert(m_InrppCache.begin(),PairCache(iface,p));
+		m_size+=packet->GetSize();
+		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		if(it!=m_ifaceSize.end())
+		{
+		  NS_LOG_LOGIC("Size found " << it->second);
+		  it->second += packet->GetSize();
+		} else {
+			m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,packet->GetSize()));
+		}
+		return true;
+	} else {
+		return false;
+	}
+
+}
+
 Ptr<CachedPacket>
 InrppCache::GetPacket(Ptr<InrppInterface> iface)
 {
