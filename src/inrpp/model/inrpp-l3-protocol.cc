@@ -460,7 +460,8 @@ InrppL3Protocol::HighTh( uint32_t packets)
 		  else if(iface2->GetState()==UP_BACKPRESSURE)
 		  {
 			  iface2->SetState(PROP_BACKPRESSURE);
-		  }
+		  } else if(iface2->GetState()==DISABLE_BACK)
+			  iface2->SetState(BACKPRESSURE);
 	  }
 	}
 }
@@ -479,8 +480,8 @@ InrppL3Protocol::LowTh(uint32_t packets)
 		  Ptr<InrppInterface> iface2 = iface->GetObject<InrppInterface>();
 		  if(iface2->GetState()==PROP_BACKPRESSURE)
 			  iface2->SetState(UP_BACKPRESSURE);
-          if(iface2->GetState()==BACKPRESSURE&&iface2->GetDisable())
-		 // if(iface2->GetState()==BACKPRESSURE)
+          //if(iface2->GetState()==BACKPRESSURE&&iface2->GetDisable())
+		  if(iface2->GetState()==BACKPRESSURE)
 			  iface2->SetState(DISABLE_BACK);
 
 	  }

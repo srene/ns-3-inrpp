@@ -155,8 +155,12 @@ InrppInterface::SetState(InrppState state)
 {
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
-	if(state==DISABLE_BACK)m_disable=false;
-	if(m_state==NO_DETOUR)m_initCache=true;
+	//if(state==DISABLE_BACK)m_disable=false;
+	if(m_state==NO_DETOUR)
+	{
+		m_disable=false;
+		m_initCache=true;
+	}
 
 }
 
@@ -234,7 +238,8 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
   if(m_state==DISABLE_BACK&&m_cache->GetSize()==0)
   {
 	  //SetState(NO_DETOUR);
-	  SetState(DETOUR);
+	  if(m_disable)SetState(NO_DETOUR);
+	  else SetState(DETOUR);
   }
 
 }
