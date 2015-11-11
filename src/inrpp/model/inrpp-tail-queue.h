@@ -60,6 +60,8 @@ public:
   void SetDropCallback(DropCallback cb);
 
   void SetNetDevice(Ptr<NetDevice> dev);
+
+  uint32_t GetNBytes();
 private:
   virtual bool DoEnqueue (Ptr<Packet> p);
   /*

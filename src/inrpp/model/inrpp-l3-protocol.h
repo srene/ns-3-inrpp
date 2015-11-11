@@ -79,6 +79,8 @@ public:
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
   Ptr<InrppCache> GetCache();
   void LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device);
+
+  void Discard(Ptr<const Packet> packet);
 protected:
   virtual void DoDispose (void);
   /*
@@ -150,7 +152,8 @@ private:
   uint32_t m_rate;
   uint32_t m_back;
   Time t;
-  Ptr<Ipv4Route> m_route;
+  //Ptr<Ipv4Route> m_route;
+  std::map <Ptr<const Packet>, Ptr<Ipv4Route> > m_routeList;
 };
 
 } // namespace ns3

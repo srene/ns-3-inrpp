@@ -325,6 +325,7 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 		  }*/
 	  }else if(m_flag==0||m_flag==2){
 		//  m_updateEvent.Cancel();
+		  m_cWnd = 0;
 		  NS_LOG_LOGIC("Full rate again");
 		  m_back = false;
 		  m_tcpRate = m_initialRate;
@@ -535,7 +536,7 @@ TcpInrpp::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
 	m_ackInterval = Simulator::Now().GetSeconds() - t.GetSeconds();
 	t = Simulator::Now();
 	m_ackEvent.Cancel();
-	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
+	m_ackEvent = Simulator::Schedule(Seconds(1.0),&TcpInrpp::SendAck,this);
 	//m_updateEvent.Cancel();
 	//m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::ReceivedData,this);
 

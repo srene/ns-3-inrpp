@@ -92,6 +92,7 @@ public:
    */
   std::list<Ptr<Socket> > GetAcceptedSockets (void) const;
  
+  Time GetCompletionTime();
 protected:
   virtual void DoDispose (void);
 private:
@@ -133,6 +134,7 @@ private:
   /// Traced Callback: received packets, source address.
   TracedCallback<Ptr<const Packet>, const Address &> m_rxTrace;
 
+  Time t;
 };
 
 } // namespace ns3

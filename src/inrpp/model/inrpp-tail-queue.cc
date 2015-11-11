@@ -163,5 +163,11 @@ InrppTailQueue::SetDropCallback(DropCallback cb)
 	m_drop = cb;
 }
 
+uint32_t
+InrppTailQueue::GetNBytes()
+{
+	return m_bytesInQueue;
+}
+
 } // namespace ns3
 

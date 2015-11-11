@@ -195,6 +195,8 @@ void PacketSink::HandleRead (Ptr<Socket> socket)
 void PacketSink::HandlePeerClose (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
+  t = Simulator::Now()-t;
+
 }
  
 void PacketSink::HandlePeerError (Ptr<Socket> socket)
@@ -208,6 +210,12 @@ void PacketSink::HandleAccept (Ptr<Socket> s, const Address& from)
   NS_LOG_FUNCTION (this << s << from);
   s->SetRecvCallback (MakeCallback (&PacketSink::HandleRead, this));
   m_socketList.push_back (s);
+  t = Simulator::Now();
+}
+
+Time PacketSink::GetCompletionTime()
+{
+	return t;
 }
 
 } // Namespace ns3

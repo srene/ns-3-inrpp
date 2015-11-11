@@ -2171,7 +2171,7 @@ TcpSocketBase::AdvertisedWindowSize ()
 void
 TcpSocketBase::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
 {
-  NS_LOG_FUNCTION (this << tcpHeader);
+  NS_LOG_FUNCTION (this << tcpHeader << m_rxBuffer->NextRxSequence());
   NS_LOG_LOGIC ("seq " << tcpHeader.GetSequenceNumber () <<
                 " ack " << tcpHeader.GetAckNumber () <<
                 " pkt size " << p->GetSize () );

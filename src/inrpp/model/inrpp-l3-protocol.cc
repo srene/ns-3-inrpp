@@ -238,12 +238,12 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 void
 InrppL3Protocol::SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 {
-	  m_route = rtentry;
+	  //m_route = rtentry;
 	  Ptr<Packet> packet = p->Copy ();
 	  Ipv4Header ipHeader;
 	  packet->RemoveHeader(ipHeader);
 
-	  TcpHeader tcpHeader;
+	  /*TcpHeader tcpHeader;
 	  if(packet->RemoveHeader(tcpHeader))
 	 	 {
 
@@ -253,7 +253,7 @@ InrppL3Protocol::SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 	 		                                 << " flags "<< std::hex << (int)tcpHeader.GetFlags () << std::dec
 	 		                                 << " data size " << packet->GetSize ());
 	 	 }
-	  packet->AddHeader(tcpHeader);
+	  packet->AddHeader(tcpHeader);*/
 	  int32_t interface = GetInterfaceForDevice (rtentry->GetOutputDevice ());
 	  NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()
 			  << " " << rtentry->GetSource() << " " << interface
@@ -276,6 +276,7 @@ InrppL3Protocol::SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p)
 		m_dropTrace (ipHeader, packet, DROP_TTL_EXPIRED, m_node->GetObject<Ipv4> (), interface);
 		return;
 	  }
+	  m_routeList.insert(std::make_pair(packet,rtentry));
 
 	  m_unicastForwardTrace (ipHeader, packet, interface);
 	  SendRealOut (rtentry, packet, ipHeader);
@@ -461,7 +462,9 @@ InrppL3Protocol::HighTh( uint32_t packets)
 		  {
 			  iface2->SetState(PROP_BACKPRESSURE);
 		  } else if(iface2->GetState()==DISABLE_BACK)
+		  {
 			  iface2->SetState(BACKPRESSURE);
+		  }
 	  }
 	}
 }
@@ -482,7 +485,7 @@ InrppL3Protocol::LowTh(uint32_t packets)
 			  iface2->SetState(UP_BACKPRESSURE);
           //if(iface2->GetState()==BACKPRESSURE&&iface2->GetDisable())
 		  if(iface2->GetState()==BACKPRESSURE)
-			  iface2->SetState(DISABLE_BACK);
+		  	  iface2->SetState(DISABLE_BACK);
 
 	  }
 	}
@@ -653,7 +656,7 @@ InrppL3Protocol::GetCache()
 void
 InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device)
 {
-	NS_LOG_FUNCTION(this<<packet->GetSize()<<iface<<device);
+	NS_LOG_FUNCTION(this<<packet->GetSize()<<iface<<device<<m_routeList.size());
 	 Ptr<Packet> p = packet->Copy();
 	 PppHeader ppp;
 	 p->RemoveHeader (ppp);
@@ -662,8 +665,15 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
      p->RemoveHeader(ipHeader);
     // int32_t ifaceNumber = GetInterfaceForDevice (device);
 
+     Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
+
+    NS_LOG_LOGIC("Detour State Cache " << iface->GetState() << " " << m_mustCache << " " << iface->GetInitCache() << " " << m_cache->GetSize() << " " << q->GetNBytes());
+
+     std::map <Ptr<const Packet>, Ptr<Ipv4Route> >::iterator it = m_routeList.find(packet);
+     if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
     if(p->RemoveHeader(tcpHeader))
 	{
+    		NS_LOG_LOGIC(tcpHeader);
 			if(AddOptionInrpp(tcpHeader,3,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
@@ -671,27 +681,26 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 			}
 
 			//ProcessInrppOption(tcpHeader,iface);
+			NS_LOG_LOGIC("TTL " << (uint32_t)ipHeader.GetTtl());
+			ipHeader.SetTtl (ipHeader.GetTtl () + 1);
+			NS_LOG_LOGIC("TTL " << (uint32_t)ipHeader.GetTtl());
 
 			p->AddHeader(tcpHeader);
 			p->AddHeader(ipHeader);
 
-			if(!m_cache->InsertFirst(iface,m_route,p)){
+
+			if(!m_cache->InsertFirst(iface,it->second,p)){
 				NS_LOG_LOGIC("CACHE FULL");
 			}
-		    /*if (!m_routingProtocol->RouteInput (p, ipHeader, device,
-		                                      MakeCallback (&InrppL3Protocol::IpForward, this),
-		                                      MakeCallback (&Ipv4L3Protocol::IpMulticastForward, this),
-		                                      MakeCallback (&Ipv4L3Protocol::LocalDeliver, this),
-		                                      MakeCallback (&Ipv4L3Protocol::RouteInputError, this)
-		                                      ))
-		    {
-		      NS_LOG_WARN ("No route found for forwarding packet.  Drop.");
-		   //   m_dropTrace (ipHeader, p, DROP_NO_ROUTE, m_node->GetObject<Ipv4> (), ifaceNumber);
-		    }*/
+
 	 }
 
 }
 
-
+void
+InrppL3Protocol::Discard(Ptr<const Packet> packet)
+{
+	m_routeList.erase(packet);
+}
 
 } // namespace ns3

@@ -93,7 +93,7 @@ int
 main (int argc, char *argv[])
 {
   i=0;
-  bool tracing = true;
+  bool tracing = false;
   uint32_t 		maxBytes = 10000000;
   uint32_t    	maxPackets = 50;
   uint32_t      minTh = 25;
@@ -109,7 +109,7 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
   //Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (12500000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (60000000));
   //Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (5000000));
   //Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (5000000));
@@ -126,6 +126,8 @@ main (int argc, char *argv[])
                 "Total number of bytes for application to send", maxBytes);
   cmd.AddValue ("n","number of flows", n);
   cmd.AddValue ("time","interflow time",time);
+  cmd.AddValue ("stop","stop time",stop);
+
   cmd.Parse (argc, argv);
 
 //
@@ -133,7 +135,7 @@ main (int argc, char *argv[])
 //
   NS_LOG_INFO ("Create nodes.");
   NodeContainer nodes;
-  nodes.Create (25);
+  nodes.Create ((2*n)+5);
 
   NS_LOG_INFO ("Create channels.");
 
@@ -189,8 +191,11 @@ main (int argc, char *argv[])
     ipv4.SetBase ("10.0.4.0", "255.255.255.0");
     Ipv4InterfaceContainer i4 = ipv4.Assign (devices4);
 
+    std::vector<Ptr<PacketSink> > sink;
+
   for(uint32_t i=0;i<n;i++)
   {
+
 	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
 	  NetDeviceContainer sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
 	  NetDeviceContainer destLink = pointToPoint.Install (nodes.Get(3),nodes.Get(5+n+i));
@@ -206,7 +211,7 @@ main (int argc, char *argv[])
       ipv4.SetBase(str.c_str(), "255.255.255.0");
 	  Ipv4InterfaceContainer iSource = ipv4.Assign (sourceLink);
       std::stringstream netAddr2;
-      netAddr2 << "10.0." << (i+15) << ".0";
+      netAddr2 << "10.0." << (i+5+n) << ".0";
       str = netAddr2.str();
       ipv4.SetBase(str.c_str(), "255.255.255.0");
 	  Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
@@ -221,7 +226,7 @@ main (int argc, char *argv[])
 	  osstr3 << "netdevice_" <<5+i<<".bf";
 	  Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
 	  txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
-
+	  txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 	  NS_LOG_INFO ("Create Applications.");
 
 	  uint16_t port = 9000+i;  // well-known echo port number
@@ -234,15 +239,18 @@ main (int argc, char *argv[])
 	  sourceApps.Start (Seconds (1.0+(i*time)));
 	  sourceApps.Stop (Seconds (stop));
 
-	  PacketSinkHelper sink ("ns3::TcpSocketFactory",
+	  PacketSinkHelper sink1 ("ns3::TcpSocketFactory",
 						   InetSocketAddress (Ipv4Address::GetAny (), port));
-	  ApplicationContainer sinkApps = sink.Install (nodes.Get(5+n+i));
+	  ApplicationContainer sinkApps = sink1.Install (nodes.Get(5+n+i));
 	  sinkApps.Start (Seconds (0.0));
 	  sinkApps.Stop (Seconds (stop));
 
 	  Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
 	  bulk->SetCallback(MakeCallback(&StartLog));
 
+	 // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
+	 // std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
+	  sink.push_back(DynamicCast<PacketSink> (sinkApps.Get (0)));
   }
 
 //
@@ -296,7 +304,7 @@ main (int argc, char *argv[])
 
 
   txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
-  txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
+  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
 
   std::ostringstream osstr4;
@@ -354,16 +362,24 @@ main (int argc, char *argv[])
 // Now, do the actual simulation.
 //
   NS_LOG_INFO ("Run Simulation.");
-  Simulator::Stop (Seconds (100.0));
+  Simulator::Stop (Seconds (stop));
   Simulator::Run ();
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
+
+  int fl = 0;
+  while (!sink.empty())
+  {
+    NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << sink.back()->GetCompletionTime().GetSeconds() << " sec.");
+    sink.pop_back();
+    fl++;
+  }
 
 }
 
 void StartLog(Ptr<Socket> socket)
 {
-	  socket->GetObject<TcpInrpp>()->SetRate(10000000);
+	  socket->GetObject<TcpInrpp>()->SetRate(9900000);
 	  AsciiTraceHelper asciiTraceHelper;
 	  std::ostringstream osstr;
 	  osstr << "netdevice_"<<i<<".tr";
