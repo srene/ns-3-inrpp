@@ -141,10 +141,6 @@ public:
 
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
- //uint32_t GetRate();
-
- //void PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route);
-
  void CalculatePacing(uint32_t bytes);
 
  void SetInitCache(bool);
@@ -179,7 +175,6 @@ private:
   Ptr<InrppRoute> m_detourRoute;
   InrppState m_state;
   uint32_t data3;
- //uint32_t m_residual;
   uint32_t m_nonce;
   uint32_t m_deltaRate;
   Ptr<InrppCache> m_cache;
@@ -193,16 +188,9 @@ private:
   Ptr<InrppInterface> m_detouredIface;
   uint32_t m_residualMin;
   bool m_disable;
-  //std::queue<std::pair<Ptr<Packet>,Ptr<Ipv4Route> > > m_queue; //!< the packets in the queue
   uint32_t m_ackRate;
-  //Time time1;
-  //uint32_t m_rate;
- // double                 m_lastSampleRate;           //!< Last bandwidth sample
-  //double                 m_lastRate;                 //!< Last bandwidth sample after being filtered
-  //uint32_t m_cwnd;
   uint32_t packetSize;
   bool m_initCache;
-  //uint32_t m_pacingData;
 };
 
 } // namespace ns3

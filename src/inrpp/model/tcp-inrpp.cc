@@ -334,6 +334,8 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 
 	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
 				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
+	} else {
+		m_flag=255;
 	}
 //	NS_LOG_LOGIC("Update rate " << m_lastRtt);
 
@@ -501,6 +503,8 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 	     tcpHeader.AppendOption (option);
 	 }
 
+
+
 	 TcpSocketBase::AddOptions (tcpHeader);
 }
 
@@ -536,7 +540,7 @@ TcpInrpp::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
 	m_ackInterval = Simulator::Now().GetSeconds() - t.GetSeconds();
 	t = Simulator::Now();
 	m_ackEvent.Cancel();
-	m_ackEvent = Simulator::Schedule(Seconds(1.0),&TcpInrpp::SendAck,this);
+	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
 	//m_updateEvent.Cancel();
 	//m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::ReceivedData,this);
 

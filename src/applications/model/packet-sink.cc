@@ -59,6 +59,9 @@ PacketSink::GetTypeId (void)
                      "A packet has been received",
                      MakeTraceSourceAccessor (&PacketSink::m_rxTrace),
                      "ns3::Packet::PacketAddressTracedCallback")
+	.AddTraceSource("EstimatedBW", "The estimated bandwidth",
+					 MakeTraceSourceAccessor(&PacketSink::m_currentBW),
+					 "ns3::TracedValue::DoubleCallback")
   ;
   return tid;
 }
@@ -187,6 +190,19 @@ void PacketSink::HandleRead (Ptr<Socket> socket)
                        << " port " << Inet6SocketAddress::ConvertFrom (from).GetPort ()
                        << " total Rx " << m_totalRx << " bytes");
         }
+	  data+= packet->GetSize() * 8;
+	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+		  //NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
+		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		  data = 0;
+		  double alpha = 0.6;
+		  double   sample_bwe = m_currentBW;
+		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+		  m_lastSampleBW = sample_bwe;
+		  m_lastBW = m_currentBW;
+		  t1 = Simulator::Now();
+
+	  }
       m_rxTrace (packet, from);
     }
 }

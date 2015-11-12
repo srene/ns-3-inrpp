@@ -26,6 +26,7 @@
 #include "ns3/ptr.h"
 #include "ns3/traced-callback.h"
 #include "ns3/address.h"
+#include "ns3/traced-value.h"
 
 namespace ns3 {
 
@@ -135,6 +136,13 @@ private:
   TracedCallback<Ptr<const Packet>, const Address &> m_rxTrace;
 
   Time t;
+
+
+  TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW;           //!< Last bandwidth sample
+  double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
+  Time t1;
+  uint32_t data;
 };
 
 } // namespace ns3
