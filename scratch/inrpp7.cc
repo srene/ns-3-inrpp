@@ -83,11 +83,8 @@ main (int argc, char *argv[])
   uint32_t      maxTh = 40;
   uint32_t 		stop = 100;
   uint32_t 		n = 100;
-  double 		time = 0.2;
+  double 		time = 0;
 
-  std::ostringstream st;
-  st << "test_fl" <<n<<"_int"<<time;
-  folder = st.str();
 
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
@@ -116,6 +113,11 @@ main (int argc, char *argv[])
   cmd.AddValue ("stop","stop time",stop);
 
   cmd.Parse (argc, argv);
+
+
+  std::ostringstream st;
+  st << "test_fl" <<n<<"_int"<<time;
+  folder = st.str();
 
 //
 // Explicitly create the nodes required by the topology (shown above).
@@ -352,7 +354,9 @@ main (int argc, char *argv[])
 //
   if (tracing)
     {
-      pointToPoint.EnablePcapAll ("inrpp2", false);
+	  std::ostringstream osstr;
+	  osstr << folder << "/inrpp2";
+      pointToPoint.EnablePcapAll (osstr.str(), false);
     }
 
   //Ptr<Ipv4L3Protocol> ipa = nodes.Get(0)->GetObject<Ipv4L3Protocol> ();

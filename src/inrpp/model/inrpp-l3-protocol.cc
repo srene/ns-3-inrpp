@@ -636,9 +636,8 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
     //NS_LOG_LOGIC("Detour State Cache " << iface->GetState() << " " << m_mustCache << " " << iface->GetInitCache() << " " << m_cache->GetSize() << " " << q->GetNBytes());
 
      std::map <Ptr<const Packet>, Ptr<Ipv4Route> >::iterator it = m_routeList.find(packet);
-     if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
-
- 	m_routeList.erase(packet);
+     //if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
+     NS_ASSERT_MSG(it!=m_routeList.end(),"Route not found");
 
     if(p->RemoveHeader(tcpHeader))
 	{
@@ -653,12 +652,14 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 			p->AddHeader(tcpHeader);
 			p->AddHeader(ipHeader);
 
-
 			if(!m_cache->InsertFirst(iface,it->second,p)){
 				NS_LOG_LOGIC("CACHE FULL");
 			}
 
 	 }
+
+ 	m_routeList.erase(packet);
+
 
 }
 
