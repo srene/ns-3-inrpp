@@ -187,6 +187,9 @@ main (int argc, char *argv[])
 
 	  int num = 0;
 	  int net = 0;
+   NodeContainer senders;
+   NodeContainer receivers;
+
   for(uint32_t i=0;i<n;i++)
   {
 
@@ -198,6 +201,9 @@ main (int argc, char *argv[])
 	  InternetStackHelper internet;
 	  internet.Install (nodes.Get(5+i));
 	  internet.Install (nodes.Get(5+n+i));
+
+	  senders.Add(nodes.Get(5+i));
+	  receivers.Add(nodes.Get(5+n+i));
 
 	      std::stringstream netAddr;
 	      netAddr << "10." << net << "." << (num+5) << ".0";
@@ -212,8 +218,7 @@ main (int argc, char *argv[])
 		  ipv4.SetBase(str.c_str(), "255.255.255.0");
 		  Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
 
-	  // Create a PacketSinkApplication and install it on node 1
-	
+
 	  if(tracing2)
 	  {
 	  	AsciiTraceHelper asciiTraceHelper;
@@ -364,12 +369,15 @@ main (int argc, char *argv[])
 //
 // Set up tracing if enabled
 //
+  // Create a PacketSinkApplication and install it on node 1
   if (tracing)
-    {
+	{
 	  std::ostringstream osstr;
 	  osstr << folder << "/inrpp2";
-      pointToPoint.EnablePcapAll (osstr.str(), false);
-    }
+	  pointToPoint.EnablePcap(osstr.str(),senders, false);
+	  pointToPoint.EnablePcap(osstr.str(),receivers, false);
+
+	}
 
   //Ptr<Ipv4L3Protocol> ipa = nodes.Get(0)->GetObject<Ipv4L3Protocol> ();
   //ipa->TraceConnectWithoutContext ("UnicastForward", MakeCallback (&CwndTracer));
