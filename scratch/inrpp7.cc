@@ -51,7 +51,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("inrpp6");
 
 uint32_t i;
-bool tracing;
+bool tracing,tracing2;
 std::string folder;
 Time t;
 
@@ -77,6 +77,7 @@ main (int argc, char *argv[])
   t = Simulator::Now();
   i=0;
   tracing = false;
+  tracing2 = false;
   uint32_t 		maxBytes = 10000000;
   uint32_t    	maxPackets = 50;
   uint32_t      minTh = 25;
@@ -106,6 +107,8 @@ main (int argc, char *argv[])
 //
   CommandLine cmd;
   cmd.AddValue ("tracing", "Flag to enable/disable tracing", tracing);
+  cmd.AddValue ("tracing2", "Flag to enable/disable tracing", tracing2);
+
   cmd.AddValue ("maxBytes",
                 "Total number of bytes for application to send", maxBytes);
   cmd.AddValue ("n","number of flows", n);
@@ -210,15 +213,18 @@ main (int argc, char *argv[])
 		  Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
 
 	  // Create a PacketSinkApplication and install it on node 1
-
-	  AsciiTraceHelper asciiTraceHelper;
-	  PointerValue ptr3;
-	  destLink.Get(0)->GetAttribute ("TxQueue", ptr3);
-	  Ptr<Queue> txQueue3 = ptr3.Get<Queue> ();
-	  std::ostringstream osstr3;
-	  osstr3 << folder << "/netdevice_" <<5+i<<".bf";
-	  Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
-	  txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
+	
+	  if(tracing2)
+	  {
+	  	AsciiTraceHelper asciiTraceHelper;
+	  	PointerValue ptr3;
+	  	destLink.Get(0)->GetAttribute ("TxQueue", ptr3);
+	  	Ptr<Queue> txQueue3 = ptr3.Get<Queue> ();
+	  	std::ostringstream osstr3;
+	  	osstr3 << folder << "/netdevice_" <<5+i<<".bf";
+	  	Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
+	  	txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
+	  }
 	  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 	  NS_LOG_INFO ("Create Applications.");
 
@@ -244,11 +250,15 @@ main (int argc, char *argv[])
 	 // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
 	 // std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
 	  sink.push_back(DynamicCast<PacketSink> (sinkApps.Get (0)));
-
-	  std::ostringstream osstr;
-	  osstr << folder << "/netdeviceRx_"<<i<<".tr";
-	  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-	  DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
+	
+   	  if(tracing2)
+	  {
+  	  	  AsciiTraceHelper asciiTraceHelper;
+		  std::ostringstream osstr;
+		  osstr << folder << "/netdeviceRx_"<<i<<".tr";
+		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
+		  DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
+	  }
 
 	  num++;
 	  if(num+5==255)
@@ -274,6 +284,8 @@ main (int argc, char *argv[])
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
   ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
+  if(tracing2)
+  {
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);
   Ptr<Queue> txQueue = ptr.Get<Queue> ();
@@ -342,7 +354,7 @@ main (int argc, char *argv[])
   osstr5 << folder << "/netdevice_2.bw";
   Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());
   ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));
-
+  }
   //std::ostringstream oss1;
   //oss1 << "node0.cwnd";
   //Ptr<OutputStreamWrapper> stream1 = asciiTraceHelper.CreateFileStream (oss1.str());
@@ -388,7 +400,7 @@ main (int argc, char *argv[])
 void StartLog(Ptr<Socket> socket)
 {
 	  socket->GetObject<TcpInrpp>()->SetRate(10000000);
-	  if(!tracing)
+	  if(tracing2)
 	  {
 		  AsciiTraceHelper asciiTraceHelper;
 		  std::ostringstream osstr;
