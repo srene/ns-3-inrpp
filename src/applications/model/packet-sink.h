@@ -94,6 +94,9 @@ public:
   std::list<Ptr<Socket> > GetAcceptedSockets (void) const;
  
   Time GetCompletionTime();
+
+  void SetCallback(Callback<void,Ptr<PacketSink> > cb);
+
 protected:
   virtual void DoDispose (void);
 private:
@@ -143,6 +146,10 @@ private:
   double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
   Time t1;
   uint32_t data;
+
+
+  Callback<void,Ptr<PacketSink>  > m_cb;
+
 };
 
 } // namespace ns3
