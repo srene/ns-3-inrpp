@@ -54,7 +54,8 @@ uint32_t i;
 bool tracing,tracing2;
 std::string folder;
 Time t;
-
+uint32_t active_flows;
+std::map<Ptr<PacketSink> ,uint32_t> flows;
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -70,30 +71,28 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 }
 
 void StartLog(Ptr<Socket> socket);
+void StopFlow(Ptr<PacketSink> p);
 
 int
 main (int argc, char *argv[])
 {
-  t = Simulator::Now();
-  i=0;
-  tracing = false;
-  tracing2 = false;
-  uint32_t 		maxBytes = 10000000;
-  uint32_t    	maxPackets = 50;
-  uint32_t      minTh = 25;
-  uint32_t      maxTh = 40;
-  uint32_t 		stop = 100;
-  uint32_t 		n = 100;
-  double 		time = 0;
+	active_flows = 0;
+	  t = Simulator::Now();
+	  i=0;
+	  tracing = true;
+	  tracing2 = true;
+	  uint32_t 		maxBytes = 10000000;
+	  uint32_t    	maxPackets = 50;
+	  uint32_t      minTh = 25;
+	  uint32_t      maxTh = 40;
+	  uint32_t 		stop = 100;
+	  uint32_t 		n = 10;
+	  double 		time = 1;
 
-
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (500000000));
-  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (240000000));
-  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (120000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 
 //
@@ -114,7 +113,7 @@ main (int argc, char *argv[])
 
 
   std::ostringstream st;
-  st << "test_fl" <<n<<"_int"<<time;
+  st << "tcptest_fl" <<n<<"_int"<<time;
   folder = st.str();
 
 //
@@ -247,9 +246,10 @@ main (int argc, char *argv[])
 	  Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
 	  bulk->SetCallback(MakeCallback(&StartLog));
 
-	 // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
+      Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
+      psink->SetCallback(MakeCallback(&StopFlow));
 	 // std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
-	  sink.push_back(DynamicCast<PacketSink> (sinkApps.Get (0)));
+	  sink.push_back(psink);
 	
    	  if(tracing2)
 	  {
@@ -271,18 +271,6 @@ main (int argc, char *argv[])
 
 //
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-//Configure detour path at n0
-  Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
-  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
-  rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
-  /// \todo handle multi-address case
-  rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
-  rtentry->SetOutputDevice (devices0.Get(0));
-  ip->SetDetourRoute(devices2.Get(0),rtentry);
-
-  Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   if(tracing2)
   {
@@ -321,41 +309,18 @@ main (int argc, char *argv[])
   txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr13));
 
 
-  //txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
-  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 
-
-  std::ostringstream osstr4;
-  osstr4 << folder << "/netdevice_1.bw";
-  Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
-  uint32_t iface = ip->GetInterfaceForDevice(devices2.Get(0));
-  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr4));
-
-  std::ostringstream osstr6;
-  osstr6 << folder << "/netdevice_5.bw";
-  Ptr<OutputStreamWrapper> streamtr6 = asciiTraceHelper.CreateFileStream (osstr6.str());
-  uint32_t iface2 = ip->GetInterfaceForDevice(devices0.Get(0));
-  ip->GetInterface(iface2)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("DetouredFlow", MakeBoundCallback (&BwChange, streamtr6));
-
-  std::ostringstream osstr7;
-  osstr7 << folder << "/netdevice_3.bw";
-  Ptr<OutputStreamWrapper> streamtr7 = asciiTraceHelper.CreateFileStream (osstr7.str());
-  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr7));
-
-  std::ostringstream osstr10;
-  osstr10 << folder << "/netdevice_4.bw";
-  Ptr<OutputStreamWrapper> streamtr10 = asciiTraceHelper.CreateFileStream (osstr10.str());
-  Ptr<InrppL3Protocol> ip3 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
-  uint32_t iface3 = ip3->GetInterfaceForDevice(devices4.Get(0));
-  ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr10));
-
-
-  std::ostringstream osstr5;
-  osstr5 << folder << "/netdevice_2.bw";
-  Ptr<OutputStreamWrapper> streamtr5 = asciiTraceHelper.CreateFileStream (osstr5.str());
-  ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr5));
   }
+  //std::ostringstream oss1;
+  //oss1 << "node0.cwnd";
+  //Ptr<OutputStreamWrapper> stream1 = asciiTraceHelper.CreateFileStream (oss1.str());
+  //Config::ConnectWithoutContext ("/NodeList/4/$ns3::TcpL4Protocol/SocketList/*/CongestionWindow", MakeBoundCallback (&CwndChange, stream1));
 
+
+//
+// Set up tracing if enabled
+//
+  // Create a PacketSinkApplication and install it on node 1
   if (tracing)
 	{
 	  std::ostringstream osstr;
@@ -378,8 +343,11 @@ main (int argc, char *argv[])
   int fl = 0;
   while (!sink.empty())
   {
-    NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << sink.back()->GetCompletionTime().GetSeconds() << " sec.");
+	std::map<Ptr<PacketSink>,uint32_t>::iterator it = flows.find(sink.back());
+
+    NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << sink.back()->GetCompletionTime().GetSeconds() << " sec " << " with " << it->second << " active flows.");
     sink.pop_back();
+    flows.erase(it);
     fl++;
   }
 
@@ -387,8 +355,9 @@ main (int argc, char *argv[])
 
 void StartLog(Ptr<Socket> socket)
 {
-	  socket->GetObject<TcpInrpp>()->SetRate(10000000);
-	  if(tracing2)
+	active_flows++;
+	 // socket->GetObject<TcpInrpp>()->SetRate(10000000);
+	 /* if(tracing2)
 	  {
 		  AsciiTraceHelper asciiTraceHelper;
 		  std::ostringstream osstr;
@@ -396,9 +365,15 @@ void StartLog(Ptr<Socket> socket)
 		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 		  socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
 		  i++;
-	  }
+	  }*/
 
 
+}
+
+void StopFlow(Ptr<PacketSink> p)
+{
+	flows.insert(std::make_pair<Ptr<PacketSink>,uint32_t>(p,active_flows));
+	active_flows--;
 }
 
 
