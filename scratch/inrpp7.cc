@@ -54,6 +54,12 @@ uint32_t i;
 bool tracing,tracing2;
 std::string folder;
 Time t;
+uint32_t active_flows;
+std::map<Ptr<PacketSink> ,uint32_t> flows;
+uint32_t n;
+std::vector<Ptr<PacketSink> > sink;
+std::map<Ptr<PacketSink> ,uint32_t> data;
+uint32_t started_flow;
 
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
@@ -69,7 +75,11 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 }
 
+void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
+
 void StartLog(Ptr<Socket> socket);
+void StopFlow(Ptr<PacketSink> p);
+void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 int
 main (int argc, char *argv[])
@@ -83,18 +93,20 @@ main (int argc, char *argv[])
   uint32_t      minTh = 25;
   uint32_t      maxTh = 40;
   uint32_t 		stop = 100;
-  uint32_t 		n = 100;
+  n = 10;
   double 		time = 0;
-
-
+  bool 			detour=true;
+  started_flow = 0;
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (500000000));
-  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (240000000));
-  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (120000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (400000000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (125000000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (60000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
+  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
+
 
 //
 // Allow the user to override any of the defaults at
@@ -108,15 +120,21 @@ main (int argc, char *argv[])
                 "Total number of bytes for application to send", maxBytes);
   cmd.AddValue ("n","number of flows", n);
   cmd.AddValue ("time","interflow time",time);
+  cmd.AddValue ("detour","interflow time",detour);
   cmd.AddValue ("stop","stop time",stop);
 
   cmd.Parse (argc, argv);
 
-
+  if(detour){
   std::ostringstream st;
   st << "test_fl" <<n<<"_int"<<time;
   folder = st.str();
-
+  }
+  else{
+	  std::ostringstream st;
+	  st << "test_nod_fl" <<n<<"_int"<<time;
+	  folder = st.str();
+  }
 //
 // Explicitly create the nodes required by the topology (shown above).
 //
@@ -134,7 +152,7 @@ main (int argc, char *argv[])
                            "LowerThBytes", UintegerValue (minTh*1500),
                            "HigherThBytes", UintegerValue (maxTh*1500),
 						   "MaxBytes", UintegerValue(maxPackets*1500));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
   NetDeviceContainer devices0;
@@ -177,8 +195,6 @@ main (int argc, char *argv[])
     Ipv4InterfaceContainer i3 = ipv4.Assign (devices3);
     ipv4.SetBase ("10.0.4.0", "255.255.255.0");
     Ipv4InterfaceContainer i4 = ipv4.Assign (devices4);
-
-    std::vector<Ptr<PacketSink> > sink;
 
 	  int num = 0;
 	  int net = 0;
@@ -226,7 +242,7 @@ main (int argc, char *argv[])
 	  	txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
 	  }
 	  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
-	  NS_LOG_INFO ("Create Applications.");
+	  //NS_LOG_INFO ("Create Applications.");
 
 	  uint16_t port = 9000+i;  // well-known echo port number
 
@@ -247,9 +263,11 @@ main (int argc, char *argv[])
 	  Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
 	  bulk->SetCallback(MakeCallback(&StartLog));
 
+      Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
+      psink->SetCallback(MakeCallback(&StopFlow));
 	 // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
 	 // std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
-	  sink.push_back(DynamicCast<PacketSink> (sinkApps.Get (0)));
+	  sink.push_back(psink);
 	
    	  if(tracing2)
 	  {
@@ -274,15 +292,29 @@ main (int argc, char *argv[])
 
 //Configure detour path at n0
   Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
-  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
-  rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
-  /// \todo handle multi-address case
-  rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
-  rtentry->SetOutputDevice (devices0.Get(0));
-  ip->SetDetourRoute(devices2.Get(0),rtentry);
-
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  Ptr<InrppL3Protocol> ip3 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
+  Ptr<InrppL3Protocol> ip4 = nodes.Get(2)->GetObject<InrppL3Protocol> ();
+  Ptr<InrppL3Protocol> ip5 = nodes.Get(3)->GetObject<InrppL3Protocol> ();
+
+  ip->SetCallback(MakeCallback(&LogState));
+  ip2->SetCallback(MakeCallback(&LogState));
+  ip3->SetCallback(MakeCallback(&LogState));
+  ip4->SetCallback(MakeCallback(&LogState));
+  ip5->SetCallback(MakeCallback(&LogState));
+  if(detour)
+  {
+	  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
+	  rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
+	  /// \todo handle multi-address case
+	  rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
+	  rtentry->SetOutputDevice (devices0.Get(0));
+	  ip->SetDetourRoute(devices2.Get(0),rtentry);
+
+
+	  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  }
+
 
   if(tracing2)
   {
@@ -376,17 +408,40 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Done.");
 
   int fl = 0;
+  double avg_ct=0;
   while (!sink.empty())
   {
-    NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << sink.back()->GetCompletionTime().GetSeconds() << " sec.");
+    std::map<Ptr<PacketSink>,uint32_t>::iterator it = flows.find(sink.back());
+    double ct =  sink.back()->GetCompletionTime().GetSeconds();
+	NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << ct << " sec " << " with " << it->second << " active flows.");
     sink.pop_back();
+    flows.erase(it);
     fl++;
+    avg_ct+=ct;
   }
+
+  NS_LOG_LOGIC("Average flow completion time " << avg_ct/n);
 
 }
 
+
 void StartLog(Ptr<Socket> socket)
 {
+	active_flows++;
+	NS_LOG_LOGIC("Start flow " << active_flows);
+
+	started_flow++;
+	if(started_flow==n)
+	{
+		for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
+		{
+			Ptr<PacketSink> p = *it;
+			p->TraceConnectWithoutContext ("Rx", MakeBoundCallback (&Sink,p));
+			std::map<Ptr<PacketSink> ,uint32_t>::iterator iter=flows.find(p);
+			if(iter==flows.end())data.insert(std::make_pair<Ptr<PacketSink>,uint32_t>(p,0));
+
+		}
+	}
 	  socket->GetObject<TcpInrpp>()->SetRate(10000000);
 	  if(tracing2)
 	  {
@@ -401,4 +456,47 @@ void StartLog(Ptr<Socket> socket)
 
 }
 
+void StopFlow(Ptr<PacketSink> p)
+{
+	NS_LOG_LOGIC("Flow ended " <<active_flows);
+	flows.insert(std::make_pair<Ptr<PacketSink>,uint32_t>(p,active_flows));
 
+	//if(active_flows==n)
+	//{
+		//NS_LOG_LOGIC("Ended");
+		double sum=0;
+		double powersum=0;
+		for (std::map<Ptr<PacketSink>,uint32_t>::iterator it=data.begin(); it!=data.end(); ++it)
+		{
+			//NS_LOG_LOGIC("PacketSink " << it->first << " data rx " << (it->second/1000));
+			sum+=(it->second/1000);
+			uint32_t powsum = pow((it->second/1000),2);
+			powersum+=powsum;
+
+		}
+		if(sum>0)
+		{
+			double fairness = (double)pow(sum,2) / (data.size() * powersum);
+			NS_LOG_LOGIC("Fairness index " << fairness);
+		}
+	//}
+	active_flows--;
+	data.erase(p);
+
+
+}
+
+void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad)
+{
+	std::map<Ptr<PacketSink>,uint32_t>::iterator it = data.find(psink);
+	uint32_t rx = it->second;
+	rx+=p->GetSize();
+	data.erase(it);
+	data.insert(std::make_pair<Ptr<PacketSink>,uint32_t>(psink,rx));
+
+}
+
+void LogState(Ptr<InrppInterface> iface,uint32_t state){
+
+	NS_LOG_LOGIC("Inrpp state changed " << iface << " to state " << state);
+}

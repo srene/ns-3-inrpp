@@ -81,6 +81,12 @@ public:
   void LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device);
 
   void Discard(Ptr<const Packet> packet);
+
+
+  void NotifyState(Ptr<InrppInterface> iface, uint32_t state);
+
+  void SetCallback(Callback<void,Ptr<InrppInterface>,uint32_t > cb);
+
 protected:
   virtual void DoDispose (void);
   /*
@@ -154,6 +160,8 @@ private:
   Time t;
   //Ptr<Ipv4Route> m_route;
   std::map <Ptr<const Packet>, Ptr<Ipv4Route> > m_routeList;
+
+  Callback<void,Ptr<InrppInterface>,uint32_t > m_cb;
 };
 
 } // namespace ns3

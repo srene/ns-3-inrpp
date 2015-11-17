@@ -139,6 +139,7 @@ InrppInterface::SetState(InrppState state)
 {
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
+	m_inrpp->NotifyState(this,state);
 	if(m_state==NO_DETOUR)
 	{
 		m_disable=false;

@@ -670,4 +670,15 @@ InrppL3Protocol::Discard(Ptr<const Packet> packet)
 	m_routeList.erase(packet);
 }
 
+void
+InrppL3Protocol::NotifyState(Ptr<InrppInterface> iface, uint32_t state)
+{
+	if(!m_cb.IsNull())m_cb(iface,state);
+}
+
+void
+InrppL3Protocol::SetCallback(Callback<void,Ptr<InrppInterface>,uint32_t > cb)
+{
+	m_cb = cb;
+}
 } // namespace ns3
