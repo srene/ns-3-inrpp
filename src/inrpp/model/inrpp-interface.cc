@@ -75,7 +75,9 @@ InrppInterface::InrppInterface ()
 	m_disable(false),
 	m_ackRate(0),
 	packetSize(0),
-	m_initCache(true)
+	m_initCache(true),
+	m_slot(0)//,
+	//m_lastSlot(0)
 
 {
   NS_LOG_FUNCTION (this);
@@ -139,6 +141,7 @@ InrppInterface::SetState(InrppState state)
 {
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
+	m_inrpp->NotifyState(this,state);
 	if(m_state==NO_DETOUR)
 	{
 		m_disable=false;
@@ -307,18 +310,36 @@ InrppInterface::SendPacket()
 {
 
 	if(!m_txEvent.IsRunning()){
-		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize());
+		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize(this,m_slot)<<m_cache->GetSize());
 		if(((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate>=packetSize)||(m_state!=UP_BACKPRESSURE&&m_state!=PROP_BACKPRESSURE))
 		{
-			Ptr<CachedPacket> c = m_cache->GetPacket(this);
+			uint32_t loop=0;
+			NS_LOG_FUNCTION(this<<m_slot);
+			Ptr<CachedPacket> c;
+			do{
+				NS_LOG_FUNCTION(this<<m_slot<<loop<<m_cache->GetSize(this,m_slot));
+				//std::map<uint32_t,uint32_t>::iterator it = m_weights.find(m_slot);
+				//if(it->second==m_lastSlot)
+				//{
+				//	m_slot++;
+				//	m_lastSlot=0;
+				//}
+				m_slot=m_slot%m_numSlot;
+			//	NS_LOG_FUNCTION(this<<m_slot<<it->second<<m_lastSlot);
+				c = m_cache->GetPacket(this,m_slot);
+				m_slot++;
+				NS_LOG_LOGIC("Packet " << c << " " << m_slot);
+				loop++;
+			}while(!c&&loop<=m_numSlot);
 			if(c){
+				//m_lastSlot++;
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
 				m_inrpp->SendData(rtentry,packet);
 				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)m_ackRate-=packetSize;
 					packetSize=packet->GetSize();
 				Time t = Seconds(((double)(packet->GetSize()*8)+16)/(uint32_t)m_bps.GetBitRate());
-				//	NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packet->GetSize() << " " << m_ackRate);
+				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << packet->GetSize() << " " << m_ackRate);
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
@@ -362,13 +383,31 @@ InrppInterface::SendResidual()
 
 	if(!m_txResidualEvent.IsRunning())
 	{
-		NS_LOG_FUNCTION(this<<m_detouredIface);
+		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize(m_detouredIface,m_slot));
 
-		if(m_cache->GetSize(m_detouredIface)>0)
+		if(m_cache->GetSize()>0)
 		{
-			Ptr<CachedPacket> c = m_cache->GetPacket(m_detouredIface);
+			NS_LOG_FUNCTION(this<<m_slot);
+			uint32_t loop=0;
+			Ptr<CachedPacket> c;
+			do{
+				NS_LOG_FUNCTION(this<<m_slot<<loop<<m_cache->GetSize(this,m_slot));
+			//	std::map<uint32_t,uint32_t>::iterator it = m_weights.find(m_slot);
+			//	if(it->second==m_lastSlot)
+			//	{
+		//			m_slot++;
+			//		m_lastSlot=0;
+			//	}
+				m_slot=m_slot%m_numSlot;
+				//NS_LOG_FUNCTION(this<<m_slot<<it->second<<m_lastSlot);
+				c = m_cache->GetPacket(m_detouredIface,m_slot);
+				m_slot++;
+				NS_LOG_LOGIC("Packet " << c << " " << m_slot);
+				loop++;
+			}while(!c&&loop<=m_numSlot);
 			if(c)
 			{
+				//m_lastSlot++;
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
 				InrppTag tag;
@@ -426,5 +465,16 @@ InrppInterface::Drop (Ptr<const Packet> p)
 	m_inrpp->LostPacket(p,this,GetDevice());
 }
 
+void
+InrppInterface::SetNumSlot(uint32_t numSlot)
+{
+	m_numSlot = numSlot;
+}
+
+/*void
+InrppInterface::SetWeights(std::map<uint32_t,uint32_t> weights)
+{
+	m_weights = weights;
+}*/
 } // namespace ns3
 

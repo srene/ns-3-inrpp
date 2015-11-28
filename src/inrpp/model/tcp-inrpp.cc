@@ -28,9 +28,8 @@
 #include "ns3/abort.h"
 #include "ns3/node.h"
 #include "ns3/packet.h"
-//#include "ns3/inrpp-backp-tag.h"
-#include "tcp-option-inrpp-back.h"
-
+#include "ns3/tcp-option-inrpp.h"
+#include "ns3/tcp-option-inrpp-back.h"
 
 namespace ns3 {
 
@@ -85,7 +84,8 @@ TcpInrpp::TcpInrpp (void)
     m_lastSampleBW(0),
 	m_lastBW(0),
 	data(0),
-	m_ackInterval(0)
+	m_slot(0)
+	//m_ackInterval(0)
 {
   NS_LOG_FUNCTION (this<<m_initialRate);
   m_tcpRate = m_initialRate;
@@ -105,7 +105,9 @@ TcpInrpp::TcpInrpp (const TcpInrpp& sock)
 	m_nonce(sock.m_nonce),
 //	m_rate(sock.m_rate),
 	m_flag(sock.m_flag),
-	m_back(sock.m_back)
+	m_back(sock.m_back),
+	m_slot(sock.m_slot)
+
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_LOGIC ("Invoked the copy constructor");
@@ -131,7 +133,7 @@ TcpInrpp::Connect (const Address & address)
   NS_LOG_FUNCTION (this << address);
   InitializeCwnd ();
   m_tcpRate = m_initialRate;
-  t = Simulator::Now();
+ // t = Simulator::Now();
   return TcpSocketBase::Connect (address);
 }
 
@@ -301,43 +303,48 @@ TcpInrpp::ScaleSsThresh (uint8_t scaleFactor)
 }
 
 void
+TcpInrpp::ReadOptions (const TcpHeader& header)
+{
+	if (header.HasOption (TcpOption::INRPP_BACK))
+	{
+
+	  Ptr<TcpOptionInrppBack> inrpp = DynamicCast<TcpOptionInrppBack> (header.GetOption (TcpOption::INRPP_BACK));
+	  m_flag = inrpp->GetFlag();
+	  m_nonce =  inrpp->GetNonce ();
+	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
+				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
+	}
+
+	if (header.HasOption (TcpOption::INRPP))
+	{
+		  Ptr<TcpOptionInrpp> inrpp = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
+		  m_slot = inrpp->GetFlag();
+		  m_nonce =  inrpp->GetNonce ();
+		  NS_LOG_LOGIC (this << m_node->GetId () << " Got Inrpp slot=" <<
+		 				    inrpp->GetFlag()<< " " << m_slot << " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
+	}
+
+
+	TcpSocketBase::ReadOptions (header);
+
+}
+void
 TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 {
 	NS_LOG_FUNCTION(this);
-	if (tcpHeader.HasOption (TcpOption::INRPP_BACK))
-	{
 
-	  Ptr<TcpOptionInrppBack> inrpp = DynamicCast<TcpOptionInrppBack> (tcpHeader.GetOption (TcpOption::INRPP_BACK));
-	  m_flag = inrpp->GetFlag();
-	  m_nonce =  inrpp->GetNonce ();
-
-	  NS_LOG_LOGIC("Flag " << (uint32_t)m_flag << " received");
+	  NS_LOG_LOGIC("INRPP_BACK Flag " << (uint32_t)m_flag << " received");
 
 	  if(m_flag==1){
 		  m_back = true;
 		  NS_LOG_LOGIC("Start backpressure");
-		  //m_tcpRate = std::min(m_pacingRate,m_initialRate);
-		  //m_tcpRate = 400000;
-		  /*if(!m_updateEvent.IsRunning()){
-			  m_tcpRate = m_tcpRate*m_rate/100;
-			  NS_LOG_LOGIC("Rate " << m_rate << " " << m_tcpRate);
-			  m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::UpdateRate,this);
-		  }*/
+
 	  }else if(m_flag==0||m_flag==2){
-		//  m_updateEvent.Cancel();
 		  m_cWnd = 0;
 		  NS_LOG_LOGIC("Full rate again");
 		  m_back = false;
 		  m_tcpRate = m_initialRate;
 	  }
-//	  m_timestampToEcho = ts->GetTimestamp ();
-
-	  NS_LOG_INFO (m_node->GetId () << " Got InrppBack flag=" <<
-				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
-	} else {
-		m_flag=255;
-	}
-//	NS_LOG_LOGIC("Update rate " << m_lastRtt);
 
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }
@@ -493,17 +500,16 @@ TcpInrpp::SendPendingData (bool withAck)
 void
 TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
-	 NS_LOG_FUNCTION (this << tcpHeader);
+	 NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
 
-	 if((m_flag==0||m_flag==1||m_flag==3)&&(m_nonce!=0))
+	 if(m_nonce!=0)
 	 {
-		 Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
-		 option->SetFlag(3);
+		 NS_LOG_FUNCTION (this << m_slot << m_nonce);
+		 Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
+		 option->SetFlag(m_slot);
 		 option->SetNonce (m_nonce);
 	     tcpHeader.AppendOption (option);
 	 }
-
-
 
 	 TcpSocketBase::AddOptions (tcpHeader);
 }
@@ -513,37 +519,6 @@ TcpInrpp::SetRate(uint32_t rate)
 {
 	m_initialRate =  rate;
 	m_tcpRate = m_initialRate;
-}
-
-/*void
-TcpInrpp::UpdateRate()
-{
-	NS_LOG_FUNCTION(this<<m_lastRtt);
-	  m_tcpRate = m_tcpRate*m_rate/100;
-
-	 m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::UpdateRate,this);
-}*/
-
-void
-TcpInrpp::SendAck()
-{
-	NS_LOG_FUNCTION(this);
-	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
-    SendEmptyPacket (TcpHeader::ACK);
-
-}
-void
-TcpInrpp::ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader)
-{
-	NS_LOG_FUNCTION(this);
-	TcpSocketBase::ReceivedData (p,tcpHeader);
-	m_ackInterval = Simulator::Now().GetSeconds() - t.GetSeconds();
-	t = Simulator::Now();
-	m_ackEvent.Cancel();
-	m_ackEvent = Simulator::Schedule(Seconds(0.1),&TcpInrpp::SendAck,this);
-	//m_updateEvent.Cancel();
-	//m_updateEvent = Simulator::Schedule(m_lastRtt,&TcpInrpp::ReceivedData,this);
-
 }
 
 

@@ -156,6 +156,8 @@ def build(bld):
         'model/tcp-option-rfc793.cc',
         'model/tcp-option-winscale.cc',
         'model/tcp-option-ts.cc',
+        'model/tcp-option-inrpp-back.cc',     
+        'model/tcp-option-inrpp.cc',           
         'model/ipv4-packet-info-tag.cc',
         'model/ipv6-packet-info-tag.cc',
         'model/ipv4-interface-address.cc',
@@ -249,7 +251,7 @@ def build(bld):
     privateheaders.source = [
         'model/tcp-option-winscale.h',
         'model/tcp-option-ts.h',
-        'model/tcp-option-rfc793.h',
+        'model/tcp-option-rfc793.h',        
         ]
     headers = bld(features='ns3header')
     headers.module = 'internet'
@@ -340,6 +342,8 @@ def build(bld):
         'model/ripng.h',
         'model/ripng-header.h',
         'helper/ripng-helper.h',
+        'model/tcp-option-inrpp-back.h',     
+        'model/tcp-option-inrpp.h',  
        ]
 
     if bld.env['NSC_ENABLED']:

@@ -34,6 +34,8 @@
 #include "ns3/ipv4-l3-protocol.h"
 #include "inrpp-interface.h"
 #include "ns3/tcp-header.h"
+#include "ns3/tcp-option-inrpp.h"
+#include "ns3/tcp-option-inrpp-back.h"
 
 namespace ns3 {
 
@@ -81,6 +83,13 @@ public:
   void LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device);
 
   void Discard(Ptr<const Packet> packet);
+
+
+  void NotifyState(Ptr<InrppInterface> iface, uint32_t state);
+
+  void SetCallback(Callback<void,Ptr<InrppInterface>,uint32_t > cb);
+
+  void ChangeFlag();
 protected:
   virtual void DoDispose (void);
   /*
@@ -132,7 +141,9 @@ private:
 
   void LowTh( uint32_t packets);
 
-  bool AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce);
+  bool AddOptionInrpp (TcpHeader& header,uint32_t nonce);
+
+  bool AddOptionInrppBack (TcpHeader& header,uint8_t flag,uint32_t nonce);
 
   void ProcessInrppOption(TcpHeader& header,Ptr<InrppInterface> iface);
 
@@ -154,6 +165,17 @@ private:
   Time t;
   //Ptr<Ipv4Route> m_route;
   std::map <Ptr<const Packet>, Ptr<Ipv4Route> > m_routeList;
+
+  Callback<void,Ptr<InrppInterface>,uint32_t > m_cb;
+
+  uint8_t m_cacheFlag;
+
+  EventId m_flagEvent;       //!< Transmit cached packet event
+
+  uint32_t m_numSlot;
+
+  //std::map<uint32_t,uint32_t> m_weights;
+
 };
 
 } // namespace ns3

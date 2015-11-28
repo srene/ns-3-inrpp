@@ -517,4 +517,10 @@ operator== (const TcpHeader &lhs, const TcpHeader &rhs)
     );
 }
 
+void
+TcpHeader::ClearOption()
+{
+	m_options.clear();
+	m_optionsLen = 0;
+}
 } // namespace ns3

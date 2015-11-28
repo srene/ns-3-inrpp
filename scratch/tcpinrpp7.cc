@@ -56,6 +56,10 @@ std::string folder;
 Time t;
 uint32_t active_flows;
 std::map<Ptr<PacketSink> ,uint32_t> flows;
+uint32_t n;
+std::vector<Ptr<PacketSink> > sink;
+std::map<Ptr<PacketSink> ,uint32_t> data;
+
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -69,6 +73,8 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
 
 }
+
+void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket);
 void StopFlow(Ptr<PacketSink> p);
@@ -86,7 +92,7 @@ main (int argc, char *argv[])
 	  uint32_t      minTh = 25;
 	  uint32_t      maxTh = 40;
 	  uint32_t 		stop = 100;
-	  uint32_t 		n = 10;
+	  n = 10;
 	  double 		time = 1;
 
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
@@ -133,7 +139,7 @@ main (int argc, char *argv[])
                            "LowerThBytes", UintegerValue (minTh*1500),
                            "HigherThBytes", UintegerValue (maxTh*1500),
 						   "MaxBytes", UintegerValue(maxPackets*1500));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
   NetDeviceContainer devices0;
@@ -177,7 +183,6 @@ main (int argc, char *argv[])
     ipv4.SetBase ("10.0.4.0", "255.255.255.0");
     Ipv4InterfaceContainer i4 = ipv4.Assign (devices4);
 
-    std::vector<Ptr<PacketSink> > sink;
 
 	  int num = 0;
 	  int net = 0;
@@ -225,7 +230,7 @@ main (int argc, char *argv[])
 	  	txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
 	  }
 	  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
-	  NS_LOG_INFO ("Create Applications.");
+	  //NS_LOG_INFO ("Create Applications.");
 
 	  uint16_t port = 9000+i;  // well-known echo port number
 
@@ -341,21 +346,36 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("Done.");
 
   int fl = 0;
+  double avg_ct=0;
+
   while (!sink.empty())
   {
-	std::map<Ptr<PacketSink>,uint32_t>::iterator it = flows.find(sink.back());
+	    std::map<Ptr<PacketSink>,uint32_t>::iterator it = flows.find(sink.back());
+	    double ct =  sink.back()->GetCompletionTime().GetSeconds();
+		NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << ct << " sec " << " with " << it->second << " active flows.");
+	    sink.pop_back();
+	    flows.erase(it);
+	    fl++;
+	    avg_ct+=ct;
 
-    NS_LOG_LOGIC("Flow " << fl << " bytes received " << sink.back()->GetTotalRx() << " using " << sink.back()->GetCompletionTime().GetSeconds() << " sec " << " with " << it->second << " active flows.");
-    sink.pop_back();
-    flows.erase(it);
-    fl++;
   }
+  NS_LOG_LOGIC("Average flow completion time " << avg_ct/n);
 
 }
 
 void StartLog(Ptr<Socket> socket)
 {
 	active_flows++;
+	//NS_LOG_LOGIC("Start flow " << active_flows);
+	if(active_flows==n)
+	{
+		for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
+		{
+			Ptr<PacketSink> p = *it;
+			p->TraceConnectWithoutContext ("Rx", MakeBoundCallback (&Sink,p));
+			data.insert(std::make_pair(p,0));
+		}
+	}
 	 // socket->GetObject<TcpInrpp>()->SetRate(10000000);
 	 /* if(tracing2)
 	  {
@@ -372,8 +392,36 @@ void StartLog(Ptr<Socket> socket)
 
 void StopFlow(Ptr<PacketSink> p)
 {
-	flows.insert(std::make_pair<Ptr<PacketSink>,uint32_t>(p,active_flows));
+	//NS_LOG_LOGIC("Flow ended " <<active_flows);
+	flows.insert(std::make_pair(p,active_flows));
+
+	if(active_flows==n)
+	{
+		//NS_LOG_LOGIC("Ended");
+		double sum=0;
+		double powersum=0;
+		for (std::map<Ptr<PacketSink>,uint32_t>::iterator it=data.begin(); it!=data.end(); ++it)
+		{
+			//NS_LOG_LOGIC("PacketSink " << it->first << " data rx " << (it->second/1000));
+			sum+=(it->second/1000);
+			uint32_t powsum = pow((it->second/1000),2);
+			powersum+=powsum;
+
+		}
+		double fairness = (double)pow(sum,2) / (n * powersum);
+		NS_LOG_LOGIC("Fairness index " << fairness);
+	}
 	active_flows--;
+
+
 }
 
+void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad)
+{
+	std::map<Ptr<PacketSink>,uint32_t>::iterator it = data.find(psink);
+	uint32_t rx = it->second;
+	rx+=p->GetSize();
+	data.erase(it);
+	data.insert(std::make_pair(psink,rx));
 
+}

@@ -74,14 +74,15 @@ protected:
   virtual void ScaleSsThresh (uint8_t scaleFactor);
   bool SendPendingData (bool withAck);
   void AddOptions (TcpHeader& tcpHeader);
+  virtual void ReadOptions (const TcpHeader& tcpHeader);
   //void UpdateRate();
-  void ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader);
+ // void ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader);
 private:
   /**
    * \brief Set the congestion window when connection starts
    */
   void InitializeCwnd (void);
-  void SendAck(void);
+  //void SendAck(void);
 
 protected:
   TracedValue<uint32_t>  m_cWnd;         //!< Congestion window
@@ -105,11 +106,11 @@ protected:
   double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
   Time t1;
   uint32_t data;
+  uint32_t m_slot;
 
-
-  EventId m_ackEvent;       //!< Transmit cached packet event
-  Time t;
-  double m_ackInterval;
+  //EventId m_ackEvent;       //!< Transmit cached packet event
+  //Time t;
+  //double m_ackInterval;
 
 };
 

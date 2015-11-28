@@ -43,7 +43,8 @@
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
-#include "tcp-option-inrpp-back.h"
+#include <random>
+#include <iostream>
 
 namespace ns3 {
 
@@ -62,21 +63,28 @@ InrppL3Protocol::GetTypeId (void)
     .SetParent<Ipv4L3Protocol> ()
     .AddConstructor<InrppL3Protocol> ()
     .SetGroupName ("Inrpp")
+	.AddAttribute ("NumSlot",
+					   "The size of the queue for packets pending an arp reply.",
+					   UintegerValue (100),
+					   MakeUintegerAccessor (&InrppL3Protocol::m_numSlot),
+					   MakeUintegerChecker<uint32_t> ())
   ;
   return tid;
 }
 
 InrppL3Protocol::InrppL3Protocol ():
 //m_cacheFull(false),
-m_mustCache(false)
+m_mustCache(false)//,
 //m_initCache(true)
 //m_back(false)
+//m_cacheFlag(0)
 {
   NS_LOG_FUNCTION (this);
 
   m_cache = CreateObject<InrppCache> ();
   m_cache->SetHighThCallback (MakeCallback (&InrppL3Protocol::HighTh,this));
   m_cache->SetLowThCallback (MakeCallback (&InrppL3Protocol::LowTh,this));
+  m_flagEvent = Simulator::Schedule(Seconds(0.1),&InrppL3Protocol::ChangeFlag,this);
 
 }
 
@@ -118,6 +126,8 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
   interface->SetCache(m_cache);
   interface->SetRate(device->GetObject<PointToPointNetDevice>()->GetDataRate());
   interface->SetInrppL3Protocol(this);
+  interface->SetNumSlot(m_numSlot);
+  //interface->SetWeights(m_weights);
   return Ipv4L3Protocol::AddIpv4Interface (interface);
 }
 
@@ -178,7 +188,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	if(packet->RemoveHeader(tcpHeader))
 	{
-		if(m_mustCache)outInterface->SetInitCache(false);
+//		if(m_mustCache)outInterface->SetInitCache(false);
 		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
 		/*if(tcpHeader.GetFlags () & TcpHeader::SYN)
 		{
@@ -187,21 +197,36 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			NS_LOG_LOGIC("Send packet "<< rtentry->GetDestination());
 			SendData(rtentry,packet);
 		} else*/
-		if ((outInterface->GetState()!=NO_DETOUR)&&(m_mustCache||outInterface->GetInitCache()))
+		if (outInterface->GetState()!=NO_DETOUR)
 		{
-			if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
+		//	if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
 			//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
-			{
-				if(AddOptionInrpp(tcpHeader,3,outInterface->GetNonce()))
+		//	{
+			//	uint8_t rand;
+				//std::random_device rd;
+		//		st/d::mt19937 gen(rd());
+		//		std::uniform_int_distribution<> dis(0, m_numSlot-1);
+		//		if(AddOptionInrpp(tcpHeader,dis(gen),outInterface->GetNonce()))
+				if(AddOptionInrpp(tcpHeader,outInterface->GetNonce()))
 				{
 					uint32_t size = ipHeader.GetPayloadSize();
 					ipHeader.SetPayloadSize(size+12);
 				}
+		//	}
+
+			uint32_t flag = 0;
+			if(tcpHeader.HasOption(TcpOption::INRPP))
+			{
+				Ptr<TcpOptionInrpp> inrpp = DynamicCast<TcpOptionInrpp> (tcpHeader.GetOption (TcpOption::INRPP));
+				flag = inrpp->GetFlag();
+				NS_LOG_LOGIC("Insert at slot " << this << " " << flag << " " << inrpp->GetFlag() << " " << inrpp->GetNonce()<< " " << tcpHeader.GetDestinationPort() << " " << m_cache->GetSize(outInterface,flag) << " " << m_cache->GetSize());
 			}
 
 			packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
-			if(!m_cache->Insert(outInterface,rtentry,packet)){
+			NS_LOG_LOGIC("Insert at slot " << flag);
+			if(!m_cache->Insert(outInterface,flag,rtentry,packet)){
+			//if(!m_cache->Insert(outInterface,m_cacheFlag,rtentry,packet)){
 				NS_LOG_LOGIC("CACHE FULL");
 			} else {
 				//NS_LOG_LOGIC("Cached at " << outInterface->GetRate());
@@ -367,7 +392,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		if(iface->GetState()==BACKPRESSURE)
 		{
 
-			if(AddOptionInrpp(tcpHeader,1,iface->GetNonce()))
+			if(AddOptionInrppBack(tcpHeader,1,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
 				ipHeader.SetPayloadSize(size+12);
@@ -375,7 +400,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		} else if (iface->GetState()==DISABLE_BACK)
 		{
 	       //NS_LOG_LOGIC("Disable backpressure enabled");
-			if(AddOptionInrpp(tcpHeader,2,iface->GetNonce()))
+			if(AddOptionInrppBack(tcpHeader,2,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
 				ipHeader.SetPayloadSize(size+12);
@@ -467,32 +492,52 @@ InrppL3Protocol::LowTh(uint32_t packets)
 }
 
 bool
-InrppL3Protocol::AddOptionInrpp (TcpHeader& header,uint8_t flag,uint32_t nonce)
+InrppL3Protocol::AddOptionInrpp (TcpHeader& header, uint32_t nonce)
+{
+  NS_LOG_FUNCTION (this << header << header.GetDestinationPort()%m_numSlot);
+
+  bool add = false;
+  if (!header.HasOption (TcpOption::INRPP))
+  {
+	  uint32_t flag = header.GetDestinationPort()%m_numSlot;
+	  NS_LOG_LOGIC("AddHeader " << flag);
+	  Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
+	  option->SetFlag(flag);
+	  //option->SetFlag(m_cacheFlag);
+	  option->SetNonce (nonce);
+	  header.AppendOption (option);
+	  //NS_LOG_FUNCTION("Create option inrpp " <<header);
+	  NS_LOG_FUNCTION (this << option->GetFlag());
+
+	  add = true;
+  }
+
+
+ // NS_LOG_FUNCTION (this << header);
+  return add;
+
+}
+
+bool
+InrppL3Protocol::AddOptionInrppBack (TcpHeader& header,uint8_t flag,uint32_t nonce)
 {
   NS_LOG_FUNCTION (this << header << flag);
 
   bool add = false;
+
+  if(header.HasOption (TcpOption::INRPP))
+  {
+	  Ptr<TcpOptionInrpp> option = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
+	  header.ClearOption();
+	  header.AppendOption(option);
+  }
   if (!header.HasOption (TcpOption::INRPP_BACK))
   {
-	  if(flag==3)
-	  {
-		  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
-		  option->SetFlag(flag);
-		  option->SetNonce (nonce);
-		  header.AppendOption (option);
-		  add = true;
-	  } else //if (flag==1)
-	  {
-		  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
-		  option->SetFlag(flag);
-		  option->SetNonce (0);
-		  header.AppendOption (option);
-		  add = true;
-	  }
-  } else {
-	  Ptr<TcpOptionInrppBack> ts = DynamicCast<TcpOptionInrppBack> (header.GetOption (TcpOption::INRPP_BACK));
-	  ts->SetFlag(flag);
-	  ts->SetNonce(nonce);
+	  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
+	  option->SetFlag(flag);
+	  option->SetNonce (nonce);
+	  header.AppendOption (option);
+	  add = true;
   }
 
   return add;
@@ -641,12 +686,12 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 
     if(p->RemoveHeader(tcpHeader))
 	{
-    		NS_LOG_LOGIC(tcpHeader);
-			if(AddOptionInrpp(tcpHeader,3,iface->GetNonce()))
-			{
-				uint32_t size = ipHeader.GetPayloadSize();
-				ipHeader.SetPayloadSize(size+12);
-			}
+    	    //NS_LOG_LOGIC(tcpHeader);
+			//if(AddOptionInrpp(tcpHeader,3,iface->GetNonce()))
+			//{
+			//	uint32_t size = ipHeader.GetPayloadSize();
+			//	ipHeader.SetPayloadSize(size+12);
+			//}
 
 			ipHeader.SetTtl (ipHeader.GetTtl () + 1);
 			p->AddHeader(tcpHeader);
@@ -670,4 +715,51 @@ InrppL3Protocol::Discard(Ptr<const Packet> packet)
 	m_routeList.erase(packet);
 }
 
+void
+InrppL3Protocol::NotifyState(Ptr<InrppInterface> iface, uint32_t state)
+{
+	if(!m_cb.IsNull())m_cb(iface,state);
+}
+
+void
+InrppL3Protocol::SetCallback(Callback<void,Ptr<InrppInterface>,uint32_t > cb)
+{
+	m_cb = cb;
+}
+
+void
+InrppL3Protocol::ChangeFlag()
+{
+	NS_LOG_FUNCTION(this);
+	m_cacheFlag++;
+	m_cacheFlag=m_cacheFlag%m_numSlot;
+	m_flagEvent = Simulator::Schedule(Seconds(0.1),&InrppL3Protocol::ChangeFlag,this);
+
+
+	/*for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin (); i != m_interfaces.end (); i++)
+	{
+		Ptr<Ipv4Interface> iface = *i;
+		Ptr<LoopbackNetDevice> loop = iface->GetDevice()->GetObject<LoopbackNetDevice>();
+			if(!loop)
+			{
+
+				if(iface->GetObject<InrppInterface>()->GetState()!=NO_DETOUR)
+				{
+					for(uint32_t i = 0; i<m_numSlot;++i)
+					{
+						NS_LOG_LOGIC("Cache size slot " << i << ": " << m_cache->GetSize(iface->GetObject<InrppInterface>(),i) << " " << m_cache->GetSize());
+						uint32_t weight = round(m_cache->GetSize(iface->GetObject<InrppInterface>(),i)/1494);
+						NS_LOG_LOGIC("Cache size slot " << i << ": " << weight << " " << round(weight*100/(m_cache->GetSize()/1494)));
+						weight = round(weight*100/(m_cache->GetSize()/1494));
+						m_weights.insert(std::make_pair(i,weight));
+						iface->GetObject<InrppInterface>()->SetWeights(m_weights);
+					}
+
+				}
+			}
+		}*/
+
+
+
+}
 } // namespace ns3

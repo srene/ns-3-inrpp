@@ -277,6 +277,7 @@ public:
    */
   bool IsChecksumOk (void) const;
 
+  void   ClearOption();
   /**
    * Comparison operator
    * \param lhs left operand

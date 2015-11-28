@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2006 INRIA
+ * Copyright (c) 2015 University College of London
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,8 +15,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
+ * Author: Sergi Rene <s.rene@ucl.ac.uk>
  */
+
+
 #ifndef INRPP_CACHE_H
 #define INRPP_CACHE_H
 
@@ -61,10 +63,11 @@ private:
 	Ptr<Ipv4Route> m_route;
 };
 
+typedef std::pair<Ptr<InrppInterface>,uint32_t> PairKey;
+typedef std::pair<PairKey,Ptr<CachedPacket> > PairCache;
+typedef std::multimap<PairKey,Ptr<CachedPacket> > Cache;
 
-typedef std::pair<Ptr<InrppInterface>,Ptr<CachedPacket> > PairCache;
-typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> > Cache;
-typedef std::multimap<Ptr<InrppInterface>,Ptr<CachedPacket> >::iterator CacheIter;
+typedef std::multimap<PairKey,Ptr<CachedPacket> >::iterator CacheIter;
 
 
 class InrppCache : public Object
@@ -88,16 +91,16 @@ public:
 
   void Flush ();
 
-  bool Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
+  bool Insert(Ptr<InrppInterface> iface, uint32_t flag,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
   bool InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
 
-  Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface);
+  Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface,uint32_t flag);
 
   void SetMaxSize (uint32_t size);
 
   uint32_t GetMaxSize (void) const;
 
-  uint32_t GetSize (Ptr<InrppInterface> iface);
+  uint32_t GetSize (Ptr<InrppInterface> iface,uint32_t slot);
 
   uint32_t GetSize();
 
@@ -114,7 +117,7 @@ private:
   Cache m_InrppCache;
   TracedValue<uint32_t> m_size;
   uint32_t m_maxCacheSize;
-  std::map<Ptr<InrppInterface>,uint32_t> m_ifaceSize;
+  std::map<PairKey,uint32_t> m_ifaceSize;
   uint32_t m_highSizeTh;
   uint32_t m_lowSizeTh;
 
@@ -124,6 +127,8 @@ private:
   bool m_lTh;
 
   uint32_t m_packets;
+
+  uint32_t m_split,m_round;
 };
 
 

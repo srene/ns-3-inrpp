@@ -36,6 +36,7 @@
 #include "ns3/data-rate.h"
 #include "inrpp-l3-protocol.h"
 #include "ns3/ipv4-route.h"
+#include <map>
 
 namespace ns3 {
 
@@ -44,6 +45,8 @@ class Packet;
 class Node;
 class InrppCache;
 class InrppL3Protocol;
+
+
 
 /**
  * \brief Names of the INRPP states
@@ -70,6 +73,8 @@ enum InrppState{
  */
 class InrppInterface  : public Ipv4Interface
 {
+
+
 public:
 
   /**
@@ -149,6 +154,10 @@ public:
 
 
  bool GetDisable(void);
+
+ void SetNumSlot(uint32_t numSlot);
+
+// void SetWeights(std::map<uint32_t,uint32_t> weights);
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -191,6 +200,12 @@ private:
   uint32_t m_ackRate;
   uint32_t packetSize;
   bool m_initCache;
+
+  uint32_t m_slot;
+  uint32_t m_numSlot;
+  //std::map<uint32_t,uint32_t> m_weights;
+
+  //uint32_t m_lastSlot;
 };
 
 } // namespace ns3

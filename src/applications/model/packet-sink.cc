@@ -134,6 +134,7 @@ void PacketSink::StartApplication ()    // Called at time specified by Start
             }
         }
     }
+  t = Simulator::Now();
 
   m_socket->SetRecvCallback (MakeCallback (&PacketSink::HandleRead, this));
   m_socket->SetAcceptCallback (
@@ -232,7 +233,6 @@ void PacketSink::HandleAccept (Ptr<Socket> s, const Address& from)
   NS_LOG_FUNCTION (this << s << from);
   s->SetRecvCallback (MakeCallback (&PacketSink::HandleRead, this));
   m_socketList.push_back (s);
-  t = Simulator::Now();
 }
 
 Time PacketSink::GetCompletionTime()

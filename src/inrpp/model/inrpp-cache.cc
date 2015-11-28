@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2006 INRIA
+ * Copyright (c) 2015 University College of London
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,8 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
+ * Author: Sergi Rene <s.rene@ucl.ac.uk>
  */
+
 #include "inrpp-cache.h"
 #include "ns3/assert.h"
 #include "ns3/packet.h"
@@ -93,7 +94,9 @@ InrppCache::GetTypeId (void)
 
 InrppCache::InrppCache ():
 m_size(0),
-m_packets(0)
+m_packets(0),
+m_split(100),
+m_round(0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -110,9 +113,9 @@ InrppCache::Flush (void)
 }
 
 bool
-InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
+InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
-	NS_LOG_FUNCTION(this<<m_size);
+	NS_LOG_FUNCTION(this<<m_size<<flag);
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
@@ -126,15 +129,15 @@ InrppCache::Insert(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const P
 		}
 
 		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry);
-		m_InrppCache.insert(PairCache(iface,p));
+		m_InrppCache.insert(PairCache(PairKey(iface,flag),p));
 		m_size+=packet->GetSize();
-		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
 		if(it!=m_ifaceSize.end())
 		{
-		  NS_LOG_LOGIC("Size found " << it->second);
+		  NS_LOG_LOGIC("Size found " << it->second << " " << flag << " " << iface);
 		  it->second += packet->GetSize();
 		} else {
-			m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,packet->GetSize()));
+			m_ifaceSize.insert(make_pair(PairKey(iface,flag),packet->GetSize()));
 		}
 		return true;
 	} else {
@@ -159,16 +162,16 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<co
 
 		}
 
-		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry);
-		m_InrppCache.insert(m_InrppCache.begin(),PairCache(iface,p));
+		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry);
+		m_InrppCache.insert(m_InrppCache.begin(),PairCache(PairKey(iface,0),p));
 		m_size+=packet->GetSize();
-		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,0));
 		if(it!=m_ifaceSize.end())
 		{
 		  NS_LOG_LOGIC("Size found " << it->second);
 		  it->second += packet->GetSize();
 		} else {
-			m_ifaceSize.insert(std::pair<Ptr<InrppInterface>,uint32_t>(iface,packet->GetSize()));
+			m_ifaceSize.insert(std::make_pair(PairKey(iface,0),packet->GetSize()));
 		}
 		return true;
 	} else {
@@ -178,13 +181,20 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<co
 }
 
 Ptr<CachedPacket>
-InrppCache::GetPacket(Ptr<InrppInterface> iface)
+InrppCache::GetPacket(Ptr<InrppInterface> iface,uint32_t flag)
 {
+	NS_LOG_FUNCTION(this<<iface<<flag);
 	Ptr<CachedPacket> p;
-	CacheIter it = m_InrppCache.find(iface);
+	CacheIter it = m_InrppCache.find(PairKey(iface,flag));
+
+
 	if(it!=m_InrppCache.end())
 	{
 
+	//	uint32_t pointer = m_InrppCache.count(iface) / m_split;
+	//	std::advance(it,pointer*m_round);
+	//	m_round++;
+	//	if(m_round==m_split)m_round=0;
 		p = it->second;
 		m_InrppCache.erase (it);
 		m_size-=p->GetPacket()->GetSize();
@@ -197,10 +207,10 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface)
 		  m_hTh = false;
 		}
 
-		std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
 		if(it!=m_ifaceSize.end())
 		{
-		  NS_LOG_LOGIC("Size found " << it->second);
+			  NS_LOG_LOGIC("Size found " << it->second << " " << flag << " " << iface);
 		  it->second-=p->GetPacket()->GetSize();
 		}
 
@@ -224,18 +234,21 @@ InrppCache::SetMaxSize (uint32_t size)
 uint32_t
 InrppCache::GetMaxSize (void) const
 {
-  NS_LOG_INFO(this);
+  NS_LOG_FUNCTION(this);
   return m_maxCacheSize;
 }
 
 uint32_t
-InrppCache::GetSize (Ptr<InrppInterface> iface)
+InrppCache::GetSize (Ptr<InrppInterface> iface,uint32_t slot)
 {
-  NS_LOG_INFO(this);
+  NS_LOG_FUNCTION(this<<iface<<slot);
   uint32_t m_size = 0;
-  std::map<Ptr<InrppInterface>,uint32_t>::iterator it = m_ifaceSize.find(iface);
+  std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,slot));
+  NS_LOG_LOGIC(slot);
+
   if(it!=m_ifaceSize.end())
   {
+	  NS_LOG_LOGIC("size");
 	  m_size = it->second;
   }
   return m_size;
