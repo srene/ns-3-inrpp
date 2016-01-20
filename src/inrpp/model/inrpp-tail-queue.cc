@@ -21,6 +21,8 @@
 #include "ns3/log.h"
 #include "ns3/enum.h"
 #include "ns3/uinteger.h"
+#include "ns3/inrpp-header.h"
+#include "ns3/ppp-header.h"
 
 namespace ns3 {
 
@@ -109,9 +111,14 @@ InrppTailQueue::SetNetDevice(Ptr<NetDevice> dev)
 bool 
 InrppTailQueue::DoEnqueue (Ptr<Packet> p)
 {
-  NS_LOG_FUNCTION (this << p << m_packets.size ());
-
-  if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes))
+  NS_LOG_FUNCTION (this << p << m_packets.size () << p->GetSize());
+  //p->Print (std::cout);
+	Ptr<Packet> packet = p->Copy ();
+	PppHeader h;
+	InrppHeader inrpp;
+	if(packet->RemoveHeader (h))NS_LOG_LOGIC("Send p2p Info");
+	//if(packet->PeekHeader (inrpp))NS_LOG_LOGIC("Send Inrpp Info");
+  if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes) && !packet->PeekHeader (inrpp))
     {
 	  if(!m_drop.IsNull())m_drop(p);
     }
@@ -149,7 +156,24 @@ InrppTailQueue::DoEnqueue (Ptr<Packet> p)
       m_hTh = false;
     }
 
-  DropTailQueue::DoEnqueue(p);
+  //DropTailQueue::DoEnqueue(p);
+
+  if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_maxPackets)&& !packet->PeekHeader (inrpp))
+    {
+      NS_LOG_LOGIC ("Queue full (at max packets) -- droppping pkt");
+      Drop (p);
+      return false;
+    }
+
+  if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes) && !packet->PeekHeader (inrpp))
+    {
+      NS_LOG_LOGIC ("Queue full (packet would exceed max bytes) -- droppping pkt");
+      Drop (p);
+      return false;
+    }
+
+  m_bytesInQueue += p->GetSize ();
+  m_packets.push (p);
 
   NS_LOG_LOGIC ("Number packets " << m_packets.size ());
   NS_LOG_LOGIC ("Number bytes " << m_bytesInQueue);

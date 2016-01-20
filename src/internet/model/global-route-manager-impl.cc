@@ -414,6 +414,15 @@ SPFVertex::ClearVertexProcessed (void)
   this->SetVertexProcessed (false);
 }
 
+//Onur added the following method 
+Ipv4Address 
+SPFVertex::GetNextHop (void)
+{
+  NS_LOG_FUNCTION (this);
+
+  return m_nextHop;
+}
+
 // ---------------------------------------------------------------------------
 //
 // GlobalRouteManagerLSDB Implementation
@@ -464,6 +473,7 @@ void
 GlobalRouteManagerLSDB::Insert (Ipv4Address addr, GlobalRoutingLSA* lsa)
 {
   NS_LOG_FUNCTION (this << addr << lsa);
+
   if (lsa->GetLSType () == GlobalRoutingLSA::ASExternalLSAs) 
     {
       m_extdatabase.push_back (lsa);
@@ -613,6 +623,8 @@ void
 GlobalRouteManagerImpl::BuildGlobalRoutingDatabase () 
 {
   NS_LOG_FUNCTION (this);
+
+  std::cout << "BuildGlobalRoutingDatabase is called\n\n";
 //
 // Walk the list of nodes looking for the GlobalRouter Interface.  Nodes with
 // global router interfaces are, not too surprisingly, our routers.
@@ -641,6 +653,8 @@ GlobalRouteManagerImpl::BuildGlobalRoutingDatabase ()
       Ptr<Ipv4GlobalRouting> grouting = rtr->GetRoutingProtocol ();
       uint32_t numLSAs = rtr->DiscoverLSAs ();
       NS_LOG_LOGIC ("Found " << numLSAs << " LSAs");
+
+      std::cout << "Found " << numLSAs << " LSAs \n\n";
 
       for (uint32_t j = 0; j < numLSAs; ++j)
         {

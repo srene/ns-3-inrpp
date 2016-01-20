@@ -523,6 +523,13 @@ public:
    */
   void ClearVertexProcessed (void);
 
+  //Onur added the following method. TODO Extend SPVFertex class instead of modifying it
+
+  /**
+   * @brief return m_nextHop
+   */
+  Ipv4Address GetNextHop (void);
+
 private:
   VertexType m_vertexType; //!< Vertex type
   Ipv4Address m_vertexId; //!< Vertex ID
@@ -763,6 +770,9 @@ private:
  * @returns the copied object
  */
   GlobalRouteManagerImpl& operator= (GlobalRouteManagerImpl& srmi);
+
+//Onur added this to be able to access the below members from InrppGlobalRouteManagerImpl
+protected:
 
   SPFVertex* m_spfroot; //!< the root node
   GlobalRouteManagerLSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager

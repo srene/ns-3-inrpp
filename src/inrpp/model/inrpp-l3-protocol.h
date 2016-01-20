@@ -76,7 +76,7 @@ public:
                 NetDevice::PacketType packetType);
 
   void SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route);
-  void SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address infoAddress);
+  void SendDetourInfo(uint32_t sourceIface, uint32_t destIface, Ipv4Address address);
   void SendData (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p);
   //void SetDetourRoute(Ipv4Address address, Ptr<InrppRoute> route);
   Ptr<InrppCache> GetCache();
@@ -127,8 +127,8 @@ private:
    * \param cache the ARP cache to use
    * \param to the destination IP
    */
-  void SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address address);
-
+  //void SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address address);
+  void SendInrppInfo (Ptr<InrppInterface> sourceIface, Ptr<InrppInterface> destIface, Ipv4Address infoAddress);
 
   uint32_t AddInterface (Ptr<NetDevice> device);
 

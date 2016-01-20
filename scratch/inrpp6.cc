@@ -87,7 +87,7 @@ CwndChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 }
 
 
-void StartLog(Ptr<Socket> socket);
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 
 int
 main (int argc, char *argv[])
@@ -266,7 +266,7 @@ main (int argc, char *argv[])
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  //ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);
@@ -377,7 +377,7 @@ main (int argc, char *argv[])
 
 }
 
-void StartLog(Ptr<Socket> socket)
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 {
 	  socket->GetObject<TcpInrpp>()->SetRate(9900000);
 	  AsciiTraceHelper asciiTraceHelper;

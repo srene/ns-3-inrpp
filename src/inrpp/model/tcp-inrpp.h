@@ -97,7 +97,6 @@ protected:
   uint8_t 				 m_flag;
   uint32_t 				 m_rate;
   uint32_t 				 m_initialRate;
-  uint32_t 				 m_tcpRate;
   bool m_back;
   uint32_t m_lastSeq;
 
@@ -107,6 +106,7 @@ protected:
   Time t1;
   uint32_t data;
   uint32_t m_slot;
+  uint32_t 				 m_tcpRate;
 
   //EventId m_ackEvent;       //!< Transmit cached packet event
   //Time t;

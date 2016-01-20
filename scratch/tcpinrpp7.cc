@@ -76,7 +76,7 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
-void StartLog(Ptr<Socket> socket);
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 void StopFlow(Ptr<PacketSink> p);
 
 int
@@ -363,7 +363,7 @@ main (int argc, char *argv[])
 
 }
 
-void StartLog(Ptr<Socket> socket)
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 {
 	active_flows++;
 	//NS_LOG_LOGIC("Start flow " << active_flows);

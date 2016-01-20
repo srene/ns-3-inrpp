@@ -21,7 +21,7 @@
 #define NS_LOG_APPEND_CONTEXT \
   if (m_node) { std::clog << Simulator::Now ().GetSeconds () << " [node " << m_node->GetId () << "] "; }
 
-#include "../../inrpp/model/tcp-inrpp.h"
+#include "tcp-inrpp.h"
 #include "ns3/log.h"
 #include "ns3/trace-source-accessor.h"
 #include "ns3/simulator.h"
@@ -30,6 +30,8 @@
 #include "ns3/packet.h"
 #include "ns3/tcp-option-inrpp.h"
 #include "ns3/tcp-option-inrpp-back.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/ipv4-end-point.h"
 
 namespace ns3 {
 
@@ -52,10 +54,10 @@ TcpInrpp::GetTypeId (void)
                    BooleanValue (false),
                    MakeBooleanAccessor (&TcpInrpp::m_limitedTx),
                    MakeBooleanChecker ())
-	.AddAttribute ("Rate", "Tcp rate",
-					UintegerValue (1400000),
-					MakeUintegerAccessor (&TcpInrpp::m_initialRate),
-					MakeUintegerChecker<uint32_t> ())
+//	.AddAttribute ("Rate", "Tcp rate",
+//					UintegerValue (1400000),
+//					MakeUintegerAccessor (&TcpInrpp::m_initialRate),
+//					MakeUintegerChecker<uint32_t> ())
     .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
@@ -84,12 +86,14 @@ TcpInrpp::TcpInrpp (void)
     m_lastSampleBW(0),
 	m_lastBW(0),
 	data(0),
-	m_slot(0)
+	m_slot(0),
+	m_tcpRate(1000000)
 	//m_ackInterval(0)
 {
-  NS_LOG_FUNCTION (this<<m_initialRate);
-  m_tcpRate = m_initialRate;
+  NS_LOG_FUNCTION (this);
+  //m_tcpRate = m_initialRate;
   t1 = Simulator::Now();
+  NS_LOG_LOGIC("Endpoint " << m_endPoint);
 
 }
 
@@ -132,7 +136,7 @@ TcpInrpp::Connect (const Address & address)
 {
   NS_LOG_FUNCTION (this << address);
   InitializeCwnd ();
-  m_tcpRate = m_initialRate;
+  //m_tcpRate = m_endPoint->GetBoundNetDevice()->GetObject<PointToPointNetDevice>()->GetDataRate().GetBitRate();
  // t = Simulator::Now();
   return TcpSocketBase::Connect (address);
 }
@@ -343,7 +347,7 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 		  m_cWnd = 0;
 		  NS_LOG_LOGIC("Full rate again");
 		  m_back = false;
-		  m_tcpRate = m_initialRate;
+		 // m_tcpRate = m_initialRate;
 	  }
 
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
@@ -353,6 +357,8 @@ int
 TcpInrpp::Send (Ptr<Packet> p, uint32_t flags)
 {
   NS_LOG_FUNCTION (this << p);
+  NS_LOG_LOGIC("Endpoint " << m_endPoint << " " << m_boundnetdevice->GetObject<PointToPointNetDevice>()->GetDataRate().GetBitRate());
+  m_tcpRate = m_boundnetdevice->GetObject<PointToPointNetDevice>()->GetDataRate().GetBitRate();
   NS_ABORT_MSG_IF (flags, "use of flags is not supported in TcpSocketBase::Send()");
   if (m_state == ESTABLISHED || m_state == SYN_SENT || m_state == CLOSE_WAIT)
     {
@@ -390,7 +396,7 @@ TcpInrpp::Send (Ptr<Packet> p, uint32_t flags)
 bool
 TcpInrpp::SendPendingData (bool withAck)
 {
-	  NS_LOG_FUNCTION (this << m_back << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate << m_initialRate);
+	  NS_LOG_FUNCTION (this << m_back << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate);
 	  if (m_txBuffer->Size () == 0)
 		{
 		  return false;                           // Nothing to send
@@ -517,8 +523,8 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 void
 TcpInrpp::SetRate(uint32_t rate)
 {
-	m_initialRate =  rate;
-	m_tcpRate = m_initialRate;
+	//m_initialRate =  rate;
+	m_tcpRate = rate;
 }
 
 

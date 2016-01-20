@@ -43,7 +43,7 @@
 #include "ns3/arp-header.h"
 #include "ns3/ipv4-raw-socket-impl.h"
 #include "inrpp-tag.h"
-#include <random>
+//#include <random>
 #include <iostream>
 
 namespace ns3 {
@@ -133,20 +133,27 @@ InrppL3Protocol::AddInterface (Ptr<NetDevice> device)
 
 
 void
-InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> iface, Ptr<NetDevice> device, Ipv4Address infoAddress)
+//InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> sourceIface, Ptr<NetDevice> destDevice, Ipv4Address infoAddress)
+InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> sourceIface, Ptr<InrppInterface> destIface, Ipv4Address infoAddress)
 {
-  NS_LOG_FUNCTION (this<<device<<iface->GetResidual());
+  //NS_LOG_FUNCTION (this<<destDevice<<sourceIface<<sourceIface->GetResidual()<<sourceIface->GetAddress(0).GetLocal());
 
+  NS_LOG_FUNCTION (this);
   Ptr<Packet> packet = Create<Packet> ();
-  Ptr<Ipv4> ipv4 = m_node->GetObject<Ipv4> ();
-  Ipv4InterfaceAddress address = ipv4->GetAddress(ipv4->GetInterfaceForDevice (device),0);
-  NS_LOG_LOGIC(address);
+  //Ptr<Ipv4> ipv4 = m_node->GetObject<Ipv4> ();
+  //Ipv4InterfaceAddress address = ipv4->GetAddress(ipv4->GetInterfaceForDevice (destDevice),0);
+  //NS_LOG_LOGIC(address);
+  Ptr<NetDevice> destDevice = destIface->GetDevice();
+  Ipv4InterfaceAddress address = destIface->GetAddress(0);
   InrppHeader inrpp;
-  inrpp.SetInrpp (device->GetAddress (), address.GetLocal(), device->GetBroadcast(), address.GetBroadcast(),infoAddress,iface->GetResidual());
-  packet->AddHeader(inrpp);
-  device->Send (packet, device->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
 
-  Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,iface,device,infoAddress);
+  NS_LOG_LOGIC("Local ad: " << address.GetLocal() << " info ad: " << infoAddress << " " << sourceIface->GetAddress(0).GetLocal() << " residual: " << sourceIface->GetResidual());
+  inrpp.SetInrpp (destDevice->GetAddress (), address.GetLocal(), destDevice->GetBroadcast(), address.GetBroadcast(),infoAddress,sourceIface->GetResidual());
+  packet->AddHeader(inrpp);
+  destDevice->Send (packet, destDevice->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
+
+  Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,sourceIface,destIface,infoAddress);
+  //Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,sourceIface,destDevice,infoAddress);
 
 }
 
@@ -159,9 +166,8 @@ InrppL3Protocol::InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint1
 	InrppHeader inrpp;
 	packet->RemoveHeader (inrpp);
 
-	NS_LOG_LOGIC("Inrpp header detour " << inrpp.GetAddress() << " " << inrpp.GetResidual());
-
 	Ptr<InrppInterface> inrppInface = GetInterface (GetInterfaceForDevice (device))->GetObject<InrppInterface>();
+	NS_LOG_LOGIC("Inrpp header detour " << inrppInface->GetAddress(0).GetLocal() << " " << inrpp.GetAddress() << " " << inrpp.GetResidual());
 
 	inrppInface->UpdateResidual(inrpp.GetAddress(),inrpp.GetResidual());
 }
@@ -169,7 +175,7 @@ InrppL3Protocol::InrppReceive (Ptr<NetDevice> device, Ptr<const Packet> p, uint1
 void
 InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const Ipv4Header &header)
 {
-	NS_LOG_FUNCTION (this << rtentry << p << header);
+	NS_LOG_FUNCTION (this << rtentry << p << p->GetSize() << header);
 	NS_LOG_LOGIC ("Forwarding logic for node: " << m_node->GetId ());
 	NS_LOG_LOGIC ("Route " << rtentry->GetDestination() << " " << rtentry->GetGateway()<< " " << rtentry->GetSource() << " " << rtentry->GetOutputDevice());
 
@@ -188,6 +194,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	if(packet->RemoveHeader(tcpHeader))
 	{
+		NS_LOG_FUNCTION(tcpHeader);
 //		if(m_mustCache)outInterface->SetInitCache(false);
 		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
 		/*if(tcpHeader.GetFlags () & TcpHeader::SYN)
@@ -291,7 +298,7 @@ void
 InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t protocol, const Address &from,
                           const Address &to, NetDevice::PacketType packetType)
 {
-  NS_LOG_FUNCTION (this << device << p << protocol << from << to << packetType);
+  NS_LOG_FUNCTION (this << device << p  << p->GetSize() << protocol << from << to << packetType);
 
  // NS_LOG_LOGIC ("Packet from " << from << " received on node " <<
  //               m_node->GetId ());
@@ -427,20 +434,61 @@ void
 InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 {
 
+	NS_LOG_LOGIC("NetDev " <<  m_node->GetId() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (netdevice),0).GetLocal());
+	NS_LOG_LOGIC("InrppRoute " <<  route->GetDestination() << " " << route->GetDetour() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (route->GetOutputDevice()),0).GetLocal());
+
+	/*int32_t interface = 0;
+    for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();
+	   i != m_interfaces.end ();
+	   i++, interface++)
+	{
+
+		  NS_LOG_LOGIC("Iface " << GetInterface(interface)->GetAddress(0).GetLocal()<< " " <<(*i)->GetDevice ());
+
+	}*/
+
 	Ptr<InrppInterface> iface = GetInterface(GetInterfaceForDevice (netdevice))->GetObject<InrppInterface>();
+
+	/*interface = 0;
+    for (Ipv4InterfaceList::const_iterator i = m_interfaces.begin ();
+	   i != m_interfaces.end ();
+	   i++, interface++)
+	{
+
+		  NS_LOG_LOGIC("Iface2 " << GetInterface(interface)->GetAddress(0).GetLocal() << " " << (*i)->GetDevice ());
+
+	}*/
+
 	Ptr<InrppInterface> iface2 = GetInterface(GetInterfaceForDevice (route->GetOutputDevice()))->GetObject<InrppInterface>();
+	if(iface2 == NULL || iface == NULL)
+	{
+		if(!iface)
+			NS_LOG_LOGIC("iface is NULL in SetDetourRoute()");
+		if(!iface2)
+			NS_LOG_LOGIC("iface2 is NULL in SetDetourRoute()");
+		return;
+	}
+	NS_LOG_LOGIC("Set detour route to " << route->GetDestination() << " of " << iface << " " << iface->GetAddress(0).GetLocal()<< " via " << iface2 << " " << iface2->GetAddress(0).GetLocal());
+
 	iface2->SetDetouredIface(iface,route->GetDestination());
 	iface2->SetDetour(route);
 
 }
 
 void
-InrppL3Protocol::SendDetourInfo(Ptr<NetDevice> devSource, Ptr<NetDevice> devDestination, Ipv4Address address)
+InrppL3Protocol::SendDetourInfo(uint32_t sourceIface, uint32_t destIface, Ipv4Address address)
 {
-	int32_t interface = GetInterfaceForDevice (devSource);
-	NS_ASSERT (interface >= 0);
-	Ptr<InrppInterface> inrppInface = GetInterface (interface)->GetObject<InrppInterface>();
-	Simulator::Schedule (Seconds (1.0),&InrppL3Protocol::SendInrppInfo,this,inrppInface,devDestination,address);
+	//int32_t interface = GetInterfaceForDevice (devSource);
+	//NS_ASSERT (interface >= 0);
+	NS_LOG_LOGIC("Interface "<<  GetInterface (sourceIface) << " destiface " << GetInterface (destIface));
+
+	//Ptr<InrppInterface> inrppInface = GetInterface (sourceIface)->GetObject<InrppInterface>();
+	Ptr<InrppInterface> sourceInterface = GetInterface (sourceIface)->GetObject<InrppInterface>();
+	Ptr<InrppInterface> destInterface = GetInterface (destIface)->GetObject<InrppInterface>();
+
+	NS_LOG_LOGIC("Interface "<< sourceInterface->GetAddress(0).GetLocal() << " " << destInterface->GetAddress(0).GetLocal() << " " << address);
+	Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,sourceInterface,destInterface,address);
+	//Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,inrppInface,m_node->GetDevice(destIface),address);
 
 }
 
@@ -669,20 +717,19 @@ void
 InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,Ptr<NetDevice> device)
 {
 	NS_LOG_FUNCTION(this<<packet->GetSize()<<iface<<device<<m_routeList.size());
-	 Ptr<Packet> p = packet->Copy();
-	 PppHeader ppp;
-	 p->RemoveHeader (ppp);
-	 TcpHeader tcpHeader;
-     Ipv4Header ipHeader;
-     p->RemoveHeader(ipHeader);
+	Ptr<Packet> p = packet->Copy();
+	PppHeader ppp;
+	p->RemoveHeader (ppp);
+	TcpHeader tcpHeader;
+    Ipv4Header ipHeader;
+    p->RemoveHeader(ipHeader);
 
-     Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
-
+    Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
     //NS_LOG_LOGIC("Detour State Cache " << iface->GetState() << " " << m_mustCache << " " << iface->GetInitCache() << " " << m_cache->GetSize() << " " << q->GetNBytes());
 
-     std::map <Ptr<const Packet>, Ptr<Ipv4Route> >::iterator it = m_routeList.find(packet);
-     //if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
-     NS_ASSERT_MSG(it!=m_routeList.end(),"Route not found");
+    std::map <Ptr<const Packet>, Ptr<Ipv4Route> >::iterator it = m_routeList.find(packet);
+    //if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
+    NS_ASSERT_MSG(it!=m_routeList.end(),"Route not found");
 
     if(p->RemoveHeader(tcpHeader))
 	{

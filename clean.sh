@@ -1,1 +1,1 @@
-	rm *.pcap *.tr *.bf *.cwnd *.bw *.out *.routes 
+	rm *.pcap *.tr *.bf *.cwnd *.bw *.out *.routes *.rtt 

@@ -94,7 +94,7 @@ RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
 }
 
 
-void StartLog(Ptr<Socket> socket);
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 
 int
 main (int argc, char *argv[])
@@ -214,7 +214,7 @@ main (int argc, char *argv[])
   ip->SetDetourRoute(devices2.Get(0),rtentry);
 
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
-  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  //ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
 
   PointerValue ptr;
   devices0.Get(0)->GetAttribute ("TxQueue", ptr);
@@ -414,7 +414,7 @@ main (int argc, char *argv[])
   std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
 }
 
-void StartLog(Ptr<Socket> socket)
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 {
 	  std::ostringstream oss1;
 	  oss1 << "node0.cwnd";

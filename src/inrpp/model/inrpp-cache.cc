@@ -115,7 +115,7 @@ InrppCache::Flush (void)
 bool
 InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
-	NS_LOG_FUNCTION(this<<m_size<<flag);
+	NS_LOG_FUNCTION(this<<m_size<<flag<<packet->GetSize());
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
@@ -149,7 +149,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 bool
 InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
-	NS_LOG_FUNCTION(this<<m_size);
+	NS_LOG_FUNCTION(this<<m_size<<packet->GetSize());
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 

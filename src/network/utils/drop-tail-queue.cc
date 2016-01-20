@@ -87,7 +87,7 @@ DropTailQueue::GetMode (void)
 bool 
 DropTailQueue::DoEnqueue (Ptr<Packet> p)
 {
-  NS_LOG_FUNCTION (this << p);
+  NS_LOG_FUNCTION (this << p <<m_maxBytes << m_bytesInQueue);
 
   if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_maxPackets))
     {

@@ -16,8 +16,11 @@ def build(bld):
         'model/inrpp-tail-queue.cc',  
         'model/inrpp-interface.cc',    
         'model/inrpp-tag.cc',          
-        'model/tcp-inrpp.cc',                                           
+        'model/tcp-inrpp.cc',      
+        'model/inrpp-global-route-manager.cc',         
+        'model/inrpp-global-route-manager-impl.cc',                                                                 
         'helper/inrpp-stack-helper.cc',
+        'helper/inrpp-global-routing-helper.cc',        
         ]
 
     module_test = bld.create_ns3_module_test_library('inrpp')
@@ -32,8 +35,11 @@ def build(bld):
         'model/inrpp-interface.h',    
         'model/inrpp-tail-queue.h',          
         'model/inrpp-tag.h',  
-        'model/tcp-inrpp.h',                                                                                                        
+        'model/tcp-inrpp.h',   
+        'model/inrpp-global-route-manager.h',         
+        'model/inrpp-global-route-manager-impl.h',                                                                                                       
         'helper/inrpp-stack-helper.h',
+        'helper/inrpp-global-routing-helper.h',                
         ]
 
     if bld.env.ENABLE_EXAMPLES:

@@ -151,7 +151,7 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
     }
 }
 
-void BulkSendApplication::SetCallback(Callback<void, Ptr<Socket> > cb)
+void BulkSendApplication::SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice> > cb)
 {
 	m_cb = cb;
 }
@@ -209,22 +209,25 @@ void BulkSendApplication::SendData (void)
     }
 }
 
-void BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
+void
+BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
   NS_LOG_LOGIC ("BulkSendApplication Connection succeeded");
   m_connected = true;
-  if(!m_cb.IsNull())m_cb(m_socket);
+  if(!m_cb.IsNull())m_cb(m_socket,m_netDevice);
   SendData ();
 }
 
-void BulkSendApplication::ConnectionFailed (Ptr<Socket> socket)
+void
+BulkSendApplication::ConnectionFailed (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
   NS_LOG_LOGIC ("BulkSendApplication, Connection Failed");
 }
 
-void BulkSendApplication::DataSend (Ptr<Socket>, uint32_t)
+void
+BulkSendApplication::DataSend (Ptr<Socket>, uint32_t)
 {
   NS_LOG_FUNCTION (this);
 
@@ -232,6 +235,12 @@ void BulkSendApplication::DataSend (Ptr<Socket>, uint32_t)
     { // Only send new data if the connection has completed
       SendData ();
     }
+}
+
+void
+BulkSendApplication::SetNetDevice (Ptr<NetDevice> netDev)
+{
+	m_netDevice = netDev;
 }
 
 

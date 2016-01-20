@@ -352,7 +352,7 @@ main (int argc, char *argv[])
 
 
   Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
-  bulk->SetCallback(MakeCallback(&StartLog));
+  void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 
 // Create a PacketSinkApplication and install it on node 1
 //
@@ -423,7 +423,7 @@ main (int argc, char *argv[])
   std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
 }
 
-void StartLog(Ptr<Socket> socket)
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 {
 	  std::ostringstream oss1;
 	  oss1 << "node0.cwnd";

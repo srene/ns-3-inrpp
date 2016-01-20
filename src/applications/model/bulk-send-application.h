@@ -99,7 +99,10 @@ public:
    */
   Ptr<Socket> GetSocket (void) const;
 
-  void SetCallback(Callback<void, Ptr<Socket> > cb);
+  void SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice> > cb);
+
+  void SetNetDevice (Ptr<NetDevice> netDev);
+
 protected:
   virtual void DoDispose (void);
 private:
@@ -123,7 +126,9 @@ private:
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
-  Callback<void, Ptr<Socket> > m_cb;
+  Callback<void, Ptr<Socket>, Ptr<NetDevice> > m_cb;
+
+  Ptr<NetDevice> m_netDevice;
 private:
   /**
    * \brief Connection Succeeded (called by Socket through a callback)
@@ -139,6 +144,7 @@ private:
    * \brief Send more data as soon as some has been transmitted.
    */
   void DataSend (Ptr<Socket>, uint32_t); // for socket's SetSendCallback
+
 };
 
 } // namespace ns3
