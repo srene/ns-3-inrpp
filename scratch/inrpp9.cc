@@ -116,9 +116,9 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1440));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RespondToInterfaceEvents", BooleanValue (true));
   Config::SetDefault ("ns3::Ipv4GlobalRouting::RandomEcmpRouting", BooleanValue(true));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (3000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (3000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (2000000));
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (500000));
   Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (800000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
@@ -180,6 +180,8 @@ main (int argc, char *argv[])
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
   devices6 = pointToPoint.Install (nodes.Get(6),nodes.Get(4));
   devices9 = pointToPoint.Install (nodes.Get(8),nodes.Get(2));
+
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("150Kbps"));
   devices10 = pointToPoint.Install (nodes.Get(8),nodes.Get(1));
 
 //
@@ -380,7 +382,7 @@ main (int argc, char *argv[])
   source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
   ApplicationContainer sourceApps = source.Install (nodes.Get (5));
   sourceApps.Start (Seconds (1.0)); //Onur
-  sourceApps.Stop (Seconds (90.0));
+  sourceApps.Stop (Seconds (50.0));
 
   std::ostringstream oss1;
   oss1 << "node0.cwnd";
@@ -404,7 +406,6 @@ main (int argc, char *argv[])
 
   BulkSendHelper source2 ("ns3::TcpSocketFactory",
                           InetSocketAddress (i3.GetAddress (1), port));
-   // Set the amount of data to send in bytes.  Zero is unlimited.
   source2.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
   ApplicationContainer sourceApps2 = source2.Install (nodes.Get (9));
   sourceApps2.Start (Seconds (10.0));
@@ -414,23 +415,20 @@ main (int argc, char *argv[])
   bulk2->SetCallback(MakeCallback(&StartLog));
   bulk2->SetNetDevice(devices8.Get(0));
 
- // Create a PacketSinkApplication and install it on node 1
- //
+
   PacketSinkHelper sink2 ("ns3::TcpSocketFactory",
                          InetSocketAddress (Ipv4Address::GetAny (), port));
   ApplicationContainer sinkApps2 = sink2.Install (nodes.Get (3));
   sinkApps2.Start (Seconds (0.0));
   sinkApps2.Stop (Seconds (100.0));
 
-//
-// Set up tracing if enabled
-//
+
   if (tracing)
     {
-     //AsciiTraceHelper ascii;
-    //  pointToPoint.EnableAsciiAll (ascii.CreateFileStream ("inrpp.tr"));
+
       pointToPoint.EnablePcapAll ("inrpp2", false);
     }
+
 
   Ptr<Ipv4L3Protocol> ipa = nodes.Get(0)->GetObject<Ipv4L3Protocol> ();
   ipa->TraceConnectWithoutContext ("UnicastForward", MakeCallback (&CwndTracer));

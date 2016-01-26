@@ -69,14 +69,15 @@ InrppInterface::InrppInterface ()
 	m_currentBW3(0),
 	m_lastSampleBW3(0),
 	m_lastBW3(0),
-	m_state(NO_DETOUR),
     data3(0),
+	m_state(NO_DETOUR),
 	m_nonce(rand()),
 	m_disable(false),
 	m_ackRate(0),
 	packetSize(0),
 	m_initCache(true),
-	m_slot(0)//,
+	m_slot(0),
+	m_nDetour(0)//,
 	//m_lastSlot(0)
 
 {
@@ -125,6 +126,7 @@ void
 InrppInterface::SetDetour(Ptr<InrppRoute> route)
 {
 	NS_LOG_LOGIC("Iface " << m_detouredIface->GetAddress(0).GetLocal() << " can detour using " << GetAddress(0).GetLocal());
+	m_adList.push_back( m_detouredIface->GetAddress(0).GetLocal());
 	m_detourRoute = route;
 }
 
@@ -221,6 +223,67 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 
 }
 
+
+void
+InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
+{
+  NS_LOG_LOGIC(this);
+
+
+ // std::map<Ipv4Address,uint32_t>::iterator it = data4.find(ip);
+
+
+
+  for(std::map<Ipv4Address,uint32_t>::iterator it = data4.begin();it!=data4.end();it++)
+  {
+		NS_LOG_LOGIC("Ip " << it->first << " data " << it->second << " ip " << ip);
+
+		uint32_t tdata = it->second;
+
+		if(it->first == ip)
+		{
+		  tdata+= p->GetSize() * 8;
+		  data4.erase(it);
+		  data4.insert(std::make_pair(it->first,tdata));
+		}
+
+
+        Time tt;
+		std::map<Ipv4Address,Time>::iterator it2 = t4.find(it->first);
+		if(it2!=t4.end())
+		{
+		  tt = it2->second;
+		  t4.erase(it2);
+		  t4.insert(std::make_pair(it->first,Simulator::Now()));
+		} else
+		{
+		  tt = Simulator::Now();
+		  t4.insert(std::make_pair(it->first,Simulator::Now()));
+		}
+
+		std::map<Ipv4Address,double>::iterator it3 = m_lastSampleBW4.find(it->first);
+		std::map<Ipv4Address,double>::iterator it4 = m_lastBW4.find(it->first);
+		if(Simulator::Now().GetSeconds()-tt.GetSeconds()>0.01)
+		{
+		  double t_currentBW = tdata / (Simulator::Now().GetSeconds()-tt.GetSeconds());
+		  tdata = 0;
+		  data4.erase(it);
+		  data4.insert(std::make_pair(it->first,tdata));
+		  double alpha = 0.6;
+		  double sample_bwe = t_currentBW;
+		  t_currentBW = (alpha * it4->second) + ((1 - alpha) * ((sample_bwe + it3->second) / 2));
+		  if(it!=data4.end())
+		  m_lastSampleBW4.erase(it3);
+		  m_lastSampleBW4.insert(std::make_pair(it->first,sample_bwe));
+		  m_lastBW4.erase(it4);
+		  m_lastBW4.insert(std::make_pair(it->first,t_currentBW));
+		  NS_LOG_LOGIC("Detoured data " << it->first << " "<< tdata << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-tt.GetSeconds()) << " " << t_currentBW);
+		}
+
+  }
+
+}
+
 uint32_t
 InrppInterface::GetFlow()
 {
@@ -243,13 +306,52 @@ uint32_t
 InrppInterface::GetResidual()
 {
 	uint32_t residual;
-	//NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
+	NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
 	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||GetState()!=0)
 		residual = 0;
 	else
 		residual = (uint32_t)m_bps.GetBitRate()-m_currentBW.Get();
 
 	return residual;
+}
+uint32_t
+InrppInterface::GetResidual(Ipv4Address address)
+{
+	NS_LOG_FUNCTION(this<<address);
+
+	uint32_t residual = (uint32_t)m_bps.GetBitRate();
+	int av=0;
+	for (std::map<Ipv4Address,double>::iterator it=m_lastBW4.begin(); it!=m_lastBW4.end(); ++it)
+	{
+	    av+=it->second;
+	}
+
+	NS_LOG_LOGIC("Joint Residual " << av);
+	uint32_t th=0;
+    av=residual-av;
+
+	NS_LOG_LOGIC("Available Residual " << av);
+
+	std::map<Ipv4Address,double>::iterator it=m_lastBW4.find(address);
+	if(it!=m_lastBW4.end())
+	{
+		th=it->second;
+		NS_LOG_LOGIC("Th " << th);
+	}
+
+	NS_LOG_LOGIC(this << " Available rate " << th << " " << (av/m_nDetour) << " " << (uint32_t)GetResidual()/m_nDetour << " " << address);
+
+
+	if(av<0)
+	{
+		NS_LOG_LOGIC(this << " Get residual " << (uint32_t)GetResidual()/m_nDetour << " " << address);
+		return (uint32_t)GetResidual()/m_nDetour;
+	}
+	else
+	{
+		NS_LOG_LOGIC(this << " Get residual " << (uint32_t)(th)+(av/m_nDetour) << " " << address);
+		return (uint32_t)(th)+(av/m_nDetour);
+	}
 }
 
 void
@@ -281,7 +383,7 @@ InrppInterface::GetDeltaRate(void)
 
 uint32_t
 InrppInterface::GetNonce(void)
-{
+ {
 	return m_nonce;
 }
 
@@ -425,8 +527,8 @@ InrppInterface::SendResidual()
 				m_inrpp->SendData(rtentry,packet);
 				if(m_residualMin>0)
 				{
-					Time t = Seconds(((double)(packet->GetSize()+100)*8)/m_residualMin);
-					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+100)*8 << " " << m_residualMin);
+					Time t = Seconds(((double)(packet->GetSize()+200)*8)/m_residualMin);
+					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+200)*8 << " " << m_residualMin);
 					m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
 				}
 			}
@@ -482,6 +584,19 @@ InrppInterface::SetNumSlot(uint32_t numSlot)
 	m_numSlot = numSlot;
 }
 
+void
+InrppInterface::OneMoreDetour(Ipv4Address ip)
+{
+	NS_LOG_FUNCTION(this<<ip);
+	//m_currentBW4.insert(std::make_pair(ip,0));
+	m_lastSampleBW4.insert(std::make_pair(ip,0));
+	m_lastBW4.insert(std::make_pair(ip,0));
+	t4.insert(std::make_pair(ip,0));
+	data4.insert(std::make_pair(ip,0));
+	m_nDetour++;
+	  for(std::map<Ipv4Address,uint32_t>::iterator it = data4.begin();it!=data4.end();it++)
+			NS_LOG_LOGIC("Ip " << it->first << " data " << it->second << " ip " << ip);
+}
 /*void
 InrppInterface::SetWeights(std::map<uint32_t,uint32_t> weights)
 {

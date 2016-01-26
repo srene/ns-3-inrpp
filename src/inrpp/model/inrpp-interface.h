@@ -120,6 +120,8 @@ public:
 
  uint32_t GetResidual();
 
+ uint32_t GetResidual(Ipv4Address address);
+
  uint32_t GetBW();
 
  uint32_t GetFlow();
@@ -157,6 +159,9 @@ public:
 
  void SetNumSlot(uint32_t numSlot);
 
+ void OneMoreDetour(Ipv4Address ip);
+
+ void CalculateDetour(Ipv4Address ip, Ptr<const Packet> p);
 // void SetWeights(std::map<uint32_t,uint32_t> weights);
 private:
 
@@ -180,10 +185,16 @@ private:
   double                 m_lastSampleBW3;           //!< Last bandwidth sample
   double                 m_lastBW3;                 //!< Last bandwidth sample after being filtered
   Time t3;
+  uint32_t data3;
+
+  //std::map<Ipv4Address,TracedValue<double> >    m_currentBW4;              //!< Current value of the estimated BW
+  std::map<Ipv4Address,double>                  m_lastSampleBW4;           //!< Last bandwidth sample
+  std::map<Ipv4Address,double>                  m_lastBW4;                 //!< Last bandwidth sample after being filtered
+  std::map<Ipv4Address,Time>                    t4;
+  std::map<Ipv4Address,uint32_t> data4;
 
   Ptr<InrppRoute> m_detourRoute;
   InrppState m_state;
-  uint32_t data3;
   uint32_t m_nonce;
   uint32_t m_deltaRate;
   Ptr<InrppCache> m_cache;
@@ -205,6 +216,9 @@ private:
   uint32_t m_numSlot;
   //std::map<uint32_t,uint32_t> m_weights;
 
+  uint32_t m_nDetour;
+
+  std::list<Ipv4Address> m_adList;
   //uint32_t m_lastSlot;
 };
 

@@ -147,8 +147,8 @@ InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> sourceIface, Ptr<InrppInterf
   Ipv4InterfaceAddress address = destIface->GetAddress(0);
   InrppHeader inrpp;
 
-  NS_LOG_LOGIC("Local ad: " << address.GetLocal() << " info ad: " << infoAddress << " " << sourceIface->GetAddress(0).GetLocal() << " residual: " << sourceIface->GetResidual());
-  inrpp.SetInrpp (destDevice->GetAddress (), address.GetLocal(), destDevice->GetBroadcast(), address.GetBroadcast(),infoAddress,sourceIface->GetResidual());
+  NS_LOG_LOGIC("Local ad: " << address.GetLocal() << " info ad: " << infoAddress << " " << sourceIface->GetAddress(0).GetLocal() << " residual: " << sourceIface->GetResidual(infoAddress));
+  inrpp.SetInrpp (destDevice->GetAddress (), address.GetLocal(), destDevice->GetBroadcast(), address.GetBroadcast(),infoAddress,sourceIface->GetResidual(infoAddress));
   packet->AddHeader(inrpp);
   destDevice->Send (packet, destDevice->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
 
@@ -195,6 +195,13 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 	if(packet->RemoveHeader(tcpHeader))
 	{
 		NS_LOG_FUNCTION(tcpHeader);
+
+		InrppTag tag;
+		if(packet->PeekPacketTag(tag))
+		{
+			NS_LOG_LOGIC("Detoured traffic from " << tag.GetAddress() << " through " << outInterface->GetAddress(0).GetLocal());
+			outInterface->CalculateDetour(tag.GetAddress(),p);
+		}
 //		if(m_mustCache)outInterface->SetInitCache(false);
 		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
 		/*if(tcpHeader.GetFlags () & TcpHeader::SYN)
@@ -486,6 +493,7 @@ InrppL3Protocol::SendDetourInfo(uint32_t sourceIface, uint32_t destIface, Ipv4Ad
 	Ptr<InrppInterface> sourceInterface = GetInterface (sourceIface)->GetObject<InrppInterface>();
 	Ptr<InrppInterface> destInterface = GetInterface (destIface)->GetObject<InrppInterface>();
 
+	sourceInterface->OneMoreDetour(address);
 	NS_LOG_LOGIC("Interface "<< sourceInterface->GetAddress(0).GetLocal() << " " << destInterface->GetAddress(0).GetLocal() << " " << address);
 	Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,sourceInterface,destInterface,address);
 	//Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,inrppInface,m_node->GetDevice(destIface),address);
