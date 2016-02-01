@@ -83,29 +83,29 @@ void LogState(Ptr<InrppInterface> iface,uint32_t state);
 int
 main (int argc, char *argv[])
 {
-	  t = Simulator::Now();
-	  i=0;
-	  tracing = true;
-	  tracing2 = true;
-	  uint32_t 		maxBytes = 10000000;
-	  uint32_t    	maxPackets = 8000;
-	  uint32_t      minTh = 5000;
-	  uint32_t      maxTh = 2500;
-	  uint32_t 		stop = 100;
-	  n = 30;
-	  double 		time = 0.1;
-	  bool 			detour=true;
+  t = Simulator::Now();
+  i=0;
+  tracing = true;
+  tracing2 = true;
+  uint32_t 		maxBytes = 10000000;
+  uint32_t    	maxPackets = 50;
+  uint32_t      minTh = 25;
+  uint32_t      maxTh = 40;
+  uint32_t 		stop = 100;
+  n = 30;
+  double 		time = 0.1;
+  bool 			detour=true;
 
-	  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
-	  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-	  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-	  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-	  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (4000000000));
-	  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (1250000000));
-	  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (620000000));
-	  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
-	  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-	  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (1000));
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
+  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (4000000000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (1250000000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (620000000));
+  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
+  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (100));
 
 //
 // Allow the user to override any of the defaults at
@@ -164,7 +164,7 @@ main (int argc, char *argv[])
   devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
 
 
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
@@ -304,7 +304,7 @@ main (int argc, char *argv[])
   ip3->SetCallback(MakeCallback(&LogState));
   ip4->SetCallback(MakeCallback(&LogState));
   ip5->SetCallback(MakeCallback(&LogState));
-  if(detour)
+  /*if(detour)
   {
 	  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
 	  rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
@@ -314,8 +314,8 @@ main (int argc, char *argv[])
 	  ip->SetDetourRoute(devices2.Get(0),rtentry);
 
 
-	 // ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
-  }
+	  ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
+  }*/
 
 
   if(tracing2)
@@ -365,11 +365,11 @@ main (int argc, char *argv[])
   uint32_t iface = ip->GetInterfaceForDevice(devices2.Get(0));
   ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr4));
 
-  std::ostringstream osstr6;
-  osstr6 << folder << "/netdevice_5.bw";
-  Ptr<OutputStreamWrapper> streamtr6 = asciiTraceHelper.CreateFileStream (osstr6.str());
-  uint32_t iface2 = ip->GetInterfaceForDevice(devices0.Get(0));
-  ip->GetInterface(iface2)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("DetouredFlow", MakeBoundCallback (&BwChange, streamtr6));
+  //std::ostringstream osstr6;
+  //osstr6 << folder << "/netdevice_5.bw";
+  //Ptr<OutputStreamWrapper> streamtr6 = asciiTraceHelper.CreateFileStream (osstr6.str());
+  //uint32_t iface2 = ip->GetInterfaceForDevice(devices0.Get(0));
+  //ip->GetInterface(iface2)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("DetouredFlow", MakeBoundCallback (&BwChange, streamtr6));
 
   std::ostringstream osstr7;
   osstr7 << folder << "/netdevice_3.bw";
@@ -432,8 +432,8 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 {
 	active_flows++;
 	NS_LOG_LOGIC("Start flow " << active_flows);
-
 	socket->BindToNetDevice(netDev);
+
 
 	if(active_flows==n)
 	{
@@ -445,7 +445,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 		}
 	}
-	  //socket->GetObject<TcpInrpp>()->SetRate(10000000);
+	  socket->GetObject<TcpInrpp>()->SetRate(10000000);
 	  if(tracing2)
 	  {
 		  AsciiTraceHelper asciiTraceHelper;

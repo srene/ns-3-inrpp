@@ -63,25 +63,10 @@ main (int argc, char *argv[])
 
   PointToPointHelper p2p;
 
-  Ipv4StaticRoutingHelper staticRouting;
-  Ipv4GlobalRoutingHelper globalRouting;
-  Ipv4ListRoutingHelper listRouting;
-  Ipv4NixVectorHelper nixRouting;
+
 
   InternetStackHelper stack;
 
-  if (nix)
-    {
-      listRouting.Add (staticRouting, 0);
-      listRouting.Add (nixRouting, 10);
-    }
-  else
-    {
-      listRouting.Add (staticRouting, 0);
-      listRouting.Add (globalRouting, 10);
-    }
-
-  stack.SetRoutingHelper (listRouting);
 
   Ipv4AddressHelper address;
   address.SetBase ("10.0.0.0", "255.255.255.252");
@@ -103,6 +88,11 @@ main (int argc, char *argv[])
   stack.Install (client);
 
   //install client node on last leaf node of AS 0
+  for(uint32_t i=0;i<bth.GetNAs();i++)
+  {
+	  NS_LOG_INFO ("Number of AS " << i << " num leaf nodes " << bth.GetNLeafNodesForAs (i));
+  }
+
   int numLeafNodesInAsZero = bth.GetNLeafNodesForAs (0);
   client.Add (bth.GetLeafNodeForAs (0, numLeafNodesInAsZero - 1));
 
