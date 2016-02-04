@@ -154,7 +154,7 @@ InrppInterface::SetState(InrppState state)
 void
 InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv)
 {
-	NS_LOG_FUNCTION(this<<p);
+	//NS_LOG_FUNCTION(this<<p);
 
 	if(GetDevice()!=dev1)return;
 	m_inrpp->Discard(p);
@@ -165,7 +165,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
   {
 	  data+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
-		  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
+	//	  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
 		  double alpha = 0.6;
@@ -180,7 +180,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 
 	  data3+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>0.01){
-		  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
+	//	  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
 		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
 		  data3 = 0;
 		  double alpha = 0.6;
@@ -198,13 +198,13 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 void
 InrppInterface::CalculateFlow(Ptr<const Packet> p)
 {
-  NS_LOG_LOGIC(this);
+ // NS_LOG_LOGIC(this);
 
   data2+= p->GetSize() * 8;
   if(Simulator::Now().GetSeconds()-t2.GetSeconds()>0.01)
   {
 	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
-	  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-t2.GetSeconds()) << " " << m_currentBW2);
+	//  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-t2.GetSeconds()) << " " << m_currentBW2);
 	  data2 = 0;
 	  double alpha = 0.6;
 	  double sample_bwe = m_currentBW2;
@@ -227,7 +227,7 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 void
 InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 {
-  NS_LOG_LOGIC(this);
+ // NS_LOG_LOGIC(this);
 
 
  // std::map<Ipv4Address,uint32_t>::iterator it = data4.find(ip);
@@ -443,13 +443,13 @@ InrppInterface::SendPacket()
 				m_inrpp->SendData(rtentry,p);
 				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)m_ackRate-=packetSize;
 					packetSize=p->GetSize();
-				Time t = Seconds((double)((p->GetSize()+100)*8)/(uint32_t)m_bps.GetBitRate());
+				Time t = Seconds((double)((p->GetSize()+4)*8)/(uint32_t)m_bps.GetBitRate());
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << m_bps.GetBitRate());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
 		{
-			Time t = Seconds((double)((packetSize+100)*8)/(uint32_t)m_bps.GetBitRate());
+			Time t = Seconds((double)((packetSize+4)*8)/(uint32_t)m_bps.GetBitRate());
 			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 		}
 	}
@@ -527,8 +527,8 @@ InrppInterface::SendResidual()
 				m_inrpp->SendData(rtentry,packet);
 				if(m_residualMin>0)
 				{
-					Time t = Seconds(((double)(packet->GetSize()+200)*8)/m_residualMin);
-					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+200)*8 << " " << m_residualMin);
+					Time t = Seconds(((double)(packet->GetSize()+100)*8)/m_residualMin);
+					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+100)*8 << " " << m_residualMin);
 					m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
 				}
 			}

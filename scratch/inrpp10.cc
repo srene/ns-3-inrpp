@@ -60,6 +60,8 @@ uint32_t n;
 std::vector<Ptr<PacketSink> > sink;
 std::map<Ptr<PacketSink> ,uint32_t> data;
 
+uint32_t cache=0;
+
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -74,11 +76,29 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 }
 
+static void
+RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
+{
+
+  *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newval.GetSeconds () << std::endl;
+}
+
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 void StopFlow(Ptr<PacketSink> p);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
+
+void LogCache(Ptr<InrppL3Protocol> inrpp)
+{
+	AsciiTraceHelper asciiTraceHelper;
+	std::ostringstream osstr21;
+	osstr21 << folder << "/netcache_"<<cache<<".bf";
+	Ptr<OutputStreamWrapper> streamtr21 = asciiTraceHelper.CreateFileStream (osstr21.str());
+   // inrpp->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BwChange, streamtr21));
+    cache++;
+
+}
 
 int
 main (int argc, char *argv[])
@@ -100,12 +120,12 @@ main (int argc, char *argv[])
 	  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
 	  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
 	  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-	  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (4000000000));
-	  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (1250000000));
-	  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (620000000));
+	  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1250000000));
+	  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (600000000));
+	  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (300000000));
 	  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 	  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-	  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (300));
+	  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
 
 //
 // Allow the user to override any of the defaults at
@@ -137,7 +157,7 @@ main (int argc, char *argv[])
 //
 // Explicitly create the nodes required by the topology (shown above).
 //
-  NS_LOG_INFO ("Create nodes.");
+  NS_LOG_INFO ("Create nodes " << n);
   NodeContainer nodes;
   nodes.Create ((2*n)+5);
 
@@ -299,23 +319,17 @@ main (int argc, char *argv[])
   Ptr<InrppL3Protocol> ip4 = nodes.Get(2)->GetObject<InrppL3Protocol> ();
   Ptr<InrppL3Protocol> ip5 = nodes.Get(3)->GetObject<InrppL3Protocol> ();
 
+  Simulator::Schedule(Seconds(1.0),&LogCache,ip);
+  Simulator::Schedule(Seconds(1.01),&LogCache,ip2);
+  Simulator::Schedule(Seconds(1.02),&LogCache,ip3);
+  Simulator::Schedule(Seconds(1.03),&LogCache,ip4);
+  Simulator::Schedule(Seconds(1.04),&LogCache,ip5);
+
   ip->SetCallback(MakeCallback(&LogState));
   ip2->SetCallback(MakeCallback(&LogState));
   ip3->SetCallback(MakeCallback(&LogState));
   ip4->SetCallback(MakeCallback(&LogState));
   ip5->SetCallback(MakeCallback(&LogState));
-  if(detour)
-  {
-	  Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
-	  rtentry->SetDestination (Ipv4Address ("10.0.0.2"));
-	  /// \todo handle multi-address case
-	  rtentry->SetDetour (Ipv4Address ("10.0.2.1"));
-	  rtentry->SetOutputDevice (devices0.Get(0));
-	  ip->SetDetourRoute(devices2.Get(0),rtentry);
-
-
-	 // ip2->SendDetourInfo(devices1.Get(0),devices0.Get(1),Ipv4Address ("10.0.0.2"));
-  }
 
 
   if(tracing2)
@@ -382,7 +396,6 @@ main (int argc, char *argv[])
   Ptr<InrppL3Protocol> ip3 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
   uint32_t iface3 = ip3->GetInterfaceForDevice(devices4.Get(0));
   ip3->GetInterface(iface3)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("EstimatedFlow", MakeBoundCallback (&BwChange, streamtr10));
-
 
   std::ostringstream osstr5;
   osstr5 << folder << "/netdevice_2.bw";
@@ -454,7 +467,12 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 		  socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
 		  i++;
-	  }
+
+		  std::ostringstream oss2;
+		  oss2 << folder << "/netdevice_"<<i<<".rtt";
+		  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (oss2.str());
+		  socket->TraceConnectWithoutContext("RTT", MakeBoundCallback (&RttTracer, stream2));
+  }
 
 
 }
@@ -482,6 +500,8 @@ void StopFlow(Ptr<PacketSink> p)
 	//}
 	active_flows--;
 	data.erase(p);
+
+
 
 
 }
