@@ -440,7 +440,7 @@ TcpInrpp::SendPendingData (bool withAck)
 		       uint32_t sz = SendDataPacket (m_nextTxSequence, s, withAck);
 
 		 	  data+= sz * 8;
-		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
 		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		 		  data = 0;
 		 		  double alpha = 0.4;
@@ -470,7 +470,7 @@ TcpInrpp::SendPendingData (bool withAck)
 			  m_nextTxSequence += sz;                     // Advance next tx sequence
 
 		 	  data+= sz * 8;
-		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
 		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		 		  data = 0;
 		 		  double alpha = 0.4;

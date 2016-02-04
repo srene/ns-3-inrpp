@@ -238,7 +238,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 			packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
-			NS_LOG_LOGIC("Insert at slot " << flag);
+			NS_LOG_LOGIC("Insert at slot " << flag << " " << m_numSlot);
 			if(!m_cache->Insert(outInterface,flag,rtentry,packet)){
 			//if(!m_cache->Insert(outInterface,m_cacheFlag,rtentry,packet)){
 				NS_LOG_LOGIC("CACHE FULL");

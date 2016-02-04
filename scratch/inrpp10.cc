@@ -76,12 +76,12 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 }
 
-static void
+/*static void
 RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
 {
 
   *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newval.GetSeconds () << std::endl;
-}
+}*/
 
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
@@ -95,7 +95,7 @@ void LogCache(Ptr<InrppL3Protocol> inrpp)
 	std::ostringstream osstr21;
 	osstr21 << folder << "/netcache_"<<cache<<".bf";
 	Ptr<OutputStreamWrapper> streamtr21 = asciiTraceHelper.CreateFileStream (osstr21.str());
-   // inrpp->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BwChange, streamtr21));
+    inrpp->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BufferChange, streamtr21));
     cache++;
 
 }
@@ -115,17 +115,6 @@ main (int argc, char *argv[])
 	  n = 30;
 	  double 		time = 0.1;
 	  bool 			detour=true;
-
-	  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
-	  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-	  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-	  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-	  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1250000000));
-	  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (600000000));
-	  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (300000000));
-	  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
-	  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-	  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
 
 //
 // Allow the user to override any of the defaults at
@@ -154,6 +143,17 @@ main (int argc, char *argv[])
 	  st << "test_nod_fl" <<n<<"_int"<<time;
 	  folder = st.str();
   }
+
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
+  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1000000000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (600000000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (300000000));
+  Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
+  Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
 //
 // Explicitly create the nodes required by the topology (shown above).
 //
@@ -308,11 +308,10 @@ main (int argc, char *argv[])
 
   }
 
-//
   //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
   InrppGlobalRoutingHelper::PopulateRoutingTables ();
 
-//Configure detour path at n0
+  //Configure detour path at n0
   Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
   Ptr<InrppL3Protocol> ip2 = nodes.Get(1)->GetObject<InrppL3Protocol> ();
   Ptr<InrppL3Protocol> ip3 = nodes.Get(4)->GetObject<InrppL3Protocol> ();
@@ -320,10 +319,10 @@ main (int argc, char *argv[])
   Ptr<InrppL3Protocol> ip5 = nodes.Get(3)->GetObject<InrppL3Protocol> ();
 
   Simulator::Schedule(Seconds(1.0),&LogCache,ip);
-  Simulator::Schedule(Seconds(1.01),&LogCache,ip2);
-  Simulator::Schedule(Seconds(1.02),&LogCache,ip3);
-  Simulator::Schedule(Seconds(1.03),&LogCache,ip4);
-  Simulator::Schedule(Seconds(1.04),&LogCache,ip5);
+  Simulator::Schedule(Seconds(1.0),&LogCache,ip2);
+  Simulator::Schedule(Seconds(1.0),&LogCache,ip3);
+  Simulator::Schedule(Seconds(1.0),&LogCache,ip4);
+  Simulator::Schedule(Seconds(1.0),&LogCache,ip5);
 
   ip->SetCallback(MakeCallback(&LogState));
   ip2->SetCallback(MakeCallback(&LogState));
@@ -459,7 +458,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 		}
 	}
 	  //socket->GetObject<TcpInrpp>()->SetRate(10000000);
-	  if(tracing2)
+	/*  if(tracing2)
 	  {
 		  AsciiTraceHelper asciiTraceHelper;
 		  std::ostringstream osstr;
@@ -472,7 +471,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 		  oss2 << folder << "/netdevice_"<<i<<".rtt";
 		  Ptr<OutputStreamWrapper> stream2 = asciiTraceHelper.CreateFileStream (oss2.str());
 		  socket->TraceConnectWithoutContext("RTT", MakeBoundCallback (&RttTracer, stream2));
-  }
+  }*/
 
 
 }
