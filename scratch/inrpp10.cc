@@ -367,6 +367,23 @@ main (int argc, char *argv[])
   Ptr<OutputStreamWrapper> streamtr13 = asciiTraceHelper.CreateFileStream (osstr13.str());
   txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr13));
 
+  PointerValue ptr5;
+  devices3.Get(1)->GetAttribute ("TxQueue", ptr5);
+  Ptr<Queue> txQueue5 = ptr5.Get<Queue> ();
+  std::ostringstream osstr14;
+  osstr14 << folder << "/netdevice_5.bf";
+  Ptr<OutputStreamWrapper> streamtr14 = asciiTraceHelper.CreateFileStream (osstr14.str());
+  txQueue5->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr14));
+
+  PointerValue ptr6;
+  devices4.Get(1)->GetAttribute ("TxQueue", ptr6);
+  Ptr<Queue> txQueue6 = ptr6.Get<Queue> ();
+  std::ostringstream osstr15;
+  osstr15 << folder << "/netdevice_6.bf";
+  Ptr<OutputStreamWrapper> streamtr15 = asciiTraceHelper.CreateFileStream (osstr15.str());
+  txQueue4->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr15));
+
+
 
   //txQueue2->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
   //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
