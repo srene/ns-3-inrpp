@@ -26,6 +26,9 @@
 #include "ns3/internet-stack-helper.h"
 #include "ns3/ipv4-address-helper.h"
 #include "ns3/ipv4-interface-container.h"
+#include <time.h>
+
+
 
 #ifdef NS3_MPI
 #include <mpi.h>
@@ -55,6 +58,8 @@ int
 main (int argc, char *argv[])
 {
 #ifdef NS3_MPI
+
+    clock_t tStart = clock();
 
   bool verbose = true;
   uint32_t nCsma = 3;
@@ -252,8 +257,13 @@ main (int argc, char *argv[])
 
   Simulator::Run ();
   Simulator::Destroy ();
+  std::cout << "Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC) << std::end;
+
   // Exit the MPI execution environment
   MpiInterface::Disable ();
+
+  printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+
   return 0;
 
 #else

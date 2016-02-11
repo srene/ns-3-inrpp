@@ -38,6 +38,7 @@ main (int argc, char *argv[])
   LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_ALL);
 
   LogComponentEnable ("BriteExample", LOG_LEVEL_ALL);
+  LogComponentEnable ("TcpSocketBase", LOG_LEVEL_INFO);
 
   // BRITE needs a configuration file to build its graph. By default, this
   // example will use the TD_ASBarabasi_RTWaxman.conf file. There are many others
@@ -105,7 +106,10 @@ main (int argc, char *argv[])
 
   p2p.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
   p2p.SetChannelAttribute ("Delay", StringValue ("2ms"));
-
+  p2p.SetQueue ("ns3::InrppTailQueue",
+                           "LowerThBytes", UintegerValue (minTh*1500),
+                           "HigherThBytes", UintegerValue (maxTh*1500),
+						   "MaxBytes", UintegerValue(maxPackets*1500));
   NetDeviceContainer p2pClientDevices;
   NetDeviceContainer p2pServerDevices;
 

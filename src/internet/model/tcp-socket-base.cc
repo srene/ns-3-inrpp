@@ -451,6 +451,7 @@ TcpSocketBase::Connect (const Address & address)
       InetSocketAddress transport = InetSocketAddress::ConvertFrom (address);
       m_endPoint->SetPeer (transport.GetIpv4 (), transport.GetPort ());
       m_endPoint6 = 0;
+      NS_LOG_LOGIC ("Address " << transport.GetIpv4 () << " port " << transport.GetPort ());
 
       // Get the appropriate local address and port number from the routing protocol and set up endpoint
       if (SetupEndpoint () != 0)

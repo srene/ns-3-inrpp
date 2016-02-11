@@ -174,6 +174,7 @@ private:
 
   uint32_t m_numSlot;
 
+  uint32_t m_packetSize;
   //std::map<uint32_t,uint32_t> m_weights;
 
 };

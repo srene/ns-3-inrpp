@@ -624,7 +624,7 @@ GlobalRouteManagerImpl::BuildGlobalRoutingDatabase ()
 {
   NS_LOG_FUNCTION (this);
 
-  std::cout << "BuildGlobalRoutingDatabase is called\n\n";
+  NS_LOG_LOGIC("BuildGlobalRoutingDatabase is called");
 //
 // Walk the list of nodes looking for the GlobalRouter Interface.  Nodes with
 // global router interfaces are, not too surprisingly, our routers.
@@ -654,7 +654,7 @@ GlobalRouteManagerImpl::BuildGlobalRoutingDatabase ()
       uint32_t numLSAs = rtr->DiscoverLSAs ();
       NS_LOG_LOGIC ("Found " << numLSAs << " LSAs");
 
-      std::cout << "Found " << numLSAs << " LSAs \n\n";
+      //std::cout << "Found " << numLSAs << " LSAs \n\n";
 
       for (uint32_t j = 0; j < numLSAs; ++j)
         {

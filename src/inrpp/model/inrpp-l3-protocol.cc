@@ -68,6 +68,11 @@ InrppL3Protocol::GetTypeId (void)
 					   UintegerValue (100),
 					   MakeUintegerAccessor (&InrppL3Protocol::m_numSlot),
 					   MakeUintegerChecker<uint32_t> ())
+	.AddAttribute ("PacketSize",
+					   "The size of the queue for packets pending an arp reply.",
+					   UintegerValue (1500),
+					   MakeUintegerAccessor (&InrppL3Protocol::m_packetSize),
+					   MakeUintegerChecker<uint32_t> ())
   ;
   return tid;
 }
@@ -84,7 +89,7 @@ m_mustCache(false)//,
   m_cache = CreateObject<InrppCache> ();
   m_cache->SetHighThCallback (MakeCallback (&InrppL3Protocol::HighTh,this));
   m_cache->SetLowThCallback (MakeCallback (&InrppL3Protocol::LowTh,this));
-  m_flagEvent = Simulator::Schedule(Seconds(0.1),&InrppL3Protocol::ChangeFlag,this);
+  //m_flagEvent = Simulator::Schedule(Seconds(0.1),&InrppL3Protocol::ChangeFlag,this);
 
 }
 
@@ -440,7 +445,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 void
 InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 {
-
+	return;
 	NS_LOG_LOGIC("NetDev " <<  m_node->GetId() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (netdevice),0).GetLocal());
 	NS_LOG_LOGIC("InrppRoute " <<  route->GetDestination() << " " << route->GetDetour() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (route->GetOutputDevice()),0).GetLocal());
 
@@ -485,6 +490,7 @@ InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 void
 InrppL3Protocol::SendDetourInfo(uint32_t sourceIface, uint32_t destIface, Ipv4Address address)
 {
+	return;
 	//int32_t interface = GetInterfaceForDevice (devSource);
 	//NS_ASSERT (interface >= 0);
 	NS_LOG_LOGIC("Interface "<<  GetInterface (sourceIface) << " destiface " << GetInterface (destIface));
@@ -614,13 +620,13 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 				   (uint32_t) ts->GetFlag()<< " and nonce="     << ts->GetNonce () << " cache="<<m_cache->GetSize());
 
 	  if(iface->GetState()==PROP_BACKPRESSURE||iface->GetState()==UP_BACKPRESSURE)
-		  iface->CalculatePacing(1496);
+		  iface->CalculatePacing(m_packetSize);
 	  if(ts->GetFlag()==1){
 
 		  if(iface->GetState()==NO_DETOUR&&m_cache->GetSize()<m_cache->GetThreshold())
 		  {
 			  iface->SetState(UP_BACKPRESSURE);
-		  } else if(iface->GetState()==NO_DETOUR)
+		  } else if(iface->GetState()==NO_DETOUR&&m_cache->GetSize()>=m_cache->GetThreshold())
 		  {
 			  iface->SetState(PROP_BACKPRESSURE);
 		  }

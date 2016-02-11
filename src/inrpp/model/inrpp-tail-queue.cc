@@ -105,6 +105,7 @@ InrppTailQueue::SetLowThCallback(LowThCallback cb)
 void
 InrppTailQueue::SetNetDevice(Ptr<NetDevice> dev)
 {
+	NS_LOG_FUNCTION (this << dev);
 	m_netDevice = dev;
 }
 

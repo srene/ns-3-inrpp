@@ -200,6 +200,8 @@ BriteTopologyHelper::BuildBriteEdgeInfoList (void)
         case brite::EdgeConf::RT_EDGE:
           edgeInfo.delay = ((brite::RouterEdgeConf*)((*el)->GetConf ()))->GetDelay ();
           edgeInfo.bandwidth = (*el)->GetConf ()->GetBW ();
+          NS_LOG_LOGIC("Link bw " << edgeInfo.bandwidth << " Mbps");
+
           //If there is only one AS, BRITE will use -1 as AS Number.  We want it to be 0 instead.
           edgeInfo.asFrom = (((brite::RouterNodeConf*)((*el)->GetSrc ()->GetNodeInfo ()))->GetASId () == -1) ? 0 : ((brite::RouterNodeConf*)((*el)->GetSrc ()->GetNodeInfo ()))->GetASId ();
           edgeInfo.asTo = (((brite::RouterNodeConf*)((*el)->GetDst ()->GetNodeInfo ()))->GetASId () == -1) ? 0 : ((brite::RouterNodeConf*)((*el)->GetDst ()->GetNodeInfo ()))->GetASId ();
@@ -208,6 +210,8 @@ BriteTopologyHelper::BuildBriteEdgeInfoList (void)
         case brite::EdgeConf::AS_EDGE:
           edgeInfo.delay =  -1;     /* No delay for AS Edges */
           edgeInfo.bandwidth = (*el)->GetConf ()->GetBW ();
+          NS_LOG_LOGIC("Link bw " << edgeInfo.bandwidth << " Mbps");
+
           edgeInfo.asFrom = ((brite::ASNodeConf*)((*el)->GetSrc ()->GetNodeInfo ()))->GetASId ();
           edgeInfo.asTo = ((brite::ASNodeConf*)((*el)->GetDst ()->GetNodeInfo ()))->GetASId ();
           break;

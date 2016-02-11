@@ -512,8 +512,10 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 
                //***Configure detour path at m_spfroot spfroot -> v has detour m_spfroot->cw->v***//
                Ptr<InrppL3Protocol> ip = spfroot_node->GetObject<InrppL3Protocol> ();
-				   if(ip == NULL)
+				   if(ip == NULL){
 					   NS_LOG_LOGIC("In InrppSPFNext, ip is null");
+					   return;
+				   }
                Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
                rtentry->SetDestination ( v->GetNextHop ()); //TODO add GetNextHop() to SPFVertex
                /// \todo handle multi-address case
@@ -528,8 +530,10 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 
 			   for(uint32_t i = 0; i< spfroot_node->GetNDevices();i++)
 			   {
-				//   NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
-				//		   << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
+					NS_LOG_LOGIC("NetDevice type " << spfroot_node->GetDevice(i)->GetInstanceTypeId());
+						NS_LOG_LOGIC("Device " << ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)));
+				NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
+					   << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
 				   	if ((uint32_t)ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) == outif)
 				   		root_to_cw_dev = spfroot_node->GetDevice(i);
 			   }

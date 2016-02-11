@@ -287,6 +287,8 @@ private:
 
   /// random variable stream for brite seed file
   Ptr<UniformRandomVariable> m_uv;
+
+
 };
 
 } // namespace ns3

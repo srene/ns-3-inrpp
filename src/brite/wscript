@@ -103,6 +103,8 @@ def build(bld):
 
     if bld.env['ENABLE_BRITE']:
         module.source.append ('helper/brite-topology-helper.cc')
+        module.source.append ('helper/brite-inrpp-topology-helper.cc')     
+        headers.source.append ('helper/brite-inrpp-topology-helper.h')
         headers.source.append ('helper/brite-topology-helper.h')
         module_test.source.append('test/brite-test-topology.cc')
 

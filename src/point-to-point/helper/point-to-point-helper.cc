@@ -38,6 +38,7 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("PointToPointHelper");
 
+
 PointToPointHelper::PointToPointHelper ()
 {
   m_queueFactory.SetTypeId ("ns3::DropTailQueue");

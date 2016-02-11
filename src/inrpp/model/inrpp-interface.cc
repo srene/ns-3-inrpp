@@ -143,6 +143,7 @@ InrppInterface::SetState(InrppState state)
 	NS_LOG_FUNCTION(this<<state);
 	m_state = state;
 	m_inrpp->NotifyState(this,state);
+	m_ackRate = 0;
 	if(m_state==NO_DETOUR)
 	{
 		m_disable=false;
@@ -253,16 +254,12 @@ InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 		if(it2!=t4.end())
 		{
 		  tt = it2->second;
-		  t4.erase(it2);
-		  t4.insert(std::make_pair(it->first,Simulator::Now()));
-		} else
-		{
-		  tt = Simulator::Now();
-		  t4.insert(std::make_pair(it->first,Simulator::Now()));
+
 		}
 
 		std::map<Ipv4Address,double>::iterator it3 = m_lastSampleBW4.find(it->first);
 		std::map<Ipv4Address,double>::iterator it4 = m_lastBW4.find(it->first);
+
 		if(Simulator::Now().GetSeconds()-tt.GetSeconds()>0.01)
 		{
 		  double t_currentBW = tdata / (Simulator::Now().GetSeconds()-tt.GetSeconds());
@@ -277,6 +274,8 @@ InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 		  m_lastSampleBW4.insert(std::make_pair(it->first,sample_bwe));
 		  m_lastBW4.erase(it4);
 		  m_lastBW4.insert(std::make_pair(it->first,t_currentBW));
+		  t4.erase(it2);
+		  t4.insert(std::make_pair(it->first,Simulator::Now()));
 		  NS_LOG_LOGIC("Detoured data " << it->first << " "<< tdata << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-tt.GetSeconds()) << " " << t_currentBW);
 		}
 
@@ -306,7 +305,7 @@ uint32_t
 InrppInterface::GetResidual()
 {
 	uint32_t residual;
-	NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
+	//NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
 	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||GetState()!=0)
 		residual = 0;
 	else
@@ -359,6 +358,7 @@ InrppInterface::SetDevice (Ptr<NetDevice> device)
 {
   NS_LOG_FUNCTION (this << device);
   Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
+  NS_LOG_FUNCTION (this << q);
   q->SetNetDevice(device);
   q->SetHighThCallback (MakeCallback (&InrppInterface::HighTh,this));
   q->SetLowThCallback (MakeCallback (&InrppInterface::LowTh,this));
@@ -412,6 +412,9 @@ InrppInterface::SendPacket()
 
 	if(!m_txEvent.IsRunning()){
 		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize(this,m_slot)<<m_cache->GetSize());
+
+		if((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate<packetSize)
+			NS_LOG_LOGIC("Ack rate not enough " << m_ackRate);
 		if(((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate>=packetSize)||(m_state!=UP_BACKPRESSURE&&m_state!=PROP_BACKPRESSURE))
 		{
 			uint32_t loop=0;
@@ -443,13 +446,14 @@ InrppInterface::SendPacket()
 				m_inrpp->SendData(rtentry,p);
 				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)m_ackRate-=packetSize;
 					packetSize=p->GetSize();
-				Time t = Seconds((double)((p->GetSize()+4)*8)/(uint32_t)m_bps.GetBitRate());
-				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << m_bps.GetBitRate());
+				Time t = Seconds((double)((p->GetSize()+10)*8)/m_bps.GetBitRate());
+
+				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << (double)((p->GetSize()+10)*8)/m_bps.GetBitRate() << " "<< m_bps.GetBitRate());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
 		{
-			Time t = Seconds((double)((packetSize+4)*8)/(uint32_t)m_bps.GetBitRate());
+			Time t = Seconds((double)((packetSize+10)*8)/(uint32_t)m_bps.GetBitRate());
 			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 		}
 	}
@@ -527,8 +531,8 @@ InrppInterface::SendResidual()
 				m_inrpp->SendData(rtentry,packet);
 				if(m_residualMin>0)
 				{
-					Time t = Seconds(((double)(packet->GetSize()+100)*8)/m_residualMin);
-					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+100)*8 << " " << m_residualMin);
+					Time t = Seconds(((double)(packet->GetSize()+10)*8)/m_residualMin);
+					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+10)*8 << " " << m_residualMin);
 					m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
 				}
 			}
