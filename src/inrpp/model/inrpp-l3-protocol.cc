@@ -445,7 +445,6 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 void
 InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 {
-	return;
 	NS_LOG_LOGIC("NetDev " <<  m_node->GetId() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (netdevice),0).GetLocal());
 	NS_LOG_LOGIC("InrppRoute " <<  route->GetDestination() << " " << route->GetDetour() << " " << m_node->GetObject<Ipv4> ()->GetAddress(m_node->GetObject<Ipv4> ()->GetInterfaceForDevice (route->GetOutputDevice()),0).GetLocal());
 
@@ -490,7 +489,6 @@ InrppL3Protocol::SetDetourRoute(Ptr<NetDevice> netdevice, Ptr<InrppRoute> route)
 void
 InrppL3Protocol::SendDetourInfo(uint32_t sourceIface, uint32_t destIface, Ipv4Address address)
 {
-	return;
 	//int32_t interface = GetInterfaceForDevice (devSource);
 	//NS_ASSERT (interface >= 0);
 	NS_LOG_LOGIC("Interface "<<  GetInterface (sourceIface) << " destiface " << GetInterface (destIface));
