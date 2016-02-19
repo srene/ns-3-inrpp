@@ -64,6 +64,9 @@ uint32_t n;
 uint32_t m;
 std::vector<Ptr<PacketSink> > sink;
 std::map<Ptr<PacketSink> ,uint32_t> data;
+std::map<Ptr<PacketSink> ,uint32_t> data2;
+
+uint32_t 		maxBytes;
 
 uint32_t cache=0;
 
@@ -71,7 +74,7 @@ uint32_t cache=0;
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
-void StopFlow(Ptr<PacketSink> p);
+void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 static void
@@ -95,11 +98,6 @@ RttTracer (Ptr<OutputStreamWrapper> stream,Time oldval, Time newval)
   *stream->GetStream () << Simulator::Now ().GetSeconds () << " " << newval.GetSeconds () << std::endl;
 }
 
-void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
-
-void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
-void StopFlow(Ptr<PacketSink> p);
-void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 void LogCache(Ptr<InrppL3Protocol> inrpp)
 {
@@ -120,8 +118,10 @@ main (int argc, char *argv[])
 	  i=0;
 	  tracing = true;
 	  tracing2 = true;
-	  uint32_t 		maxBytes = 10000000;
-	  uint32_t    	maxPackets = 5000;
+	  uint32_t 		maxBytes = 100000;
+	  uint32_t    	maxPackets = 100;
+	  uint32_t      minTh = 20;
+	  uint32_t      maxTh = 40;
 	  uint32_t 		stop = 100;
 	  n = 5;
 	  uint32_t as = 3;
@@ -148,7 +148,7 @@ main (int argc, char *argv[])
 
   if(detour){
   std::ostringstream st;
-  st << "tcptest_fl" <<n+m<<"_int"<<time;
+  st << "test_fl" <<n+m<<"_int"<<time;
   folder = st.str();
   }
   else{
@@ -157,12 +157,18 @@ main (int argc, char *argv[])
 	  folder = st.str();
   }
 
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1200000000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (60000000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (30000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (6*n));
+  Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
+
 //
 // Explicitly create the nodes required by the topology (shown above).
 //
@@ -170,11 +176,13 @@ main (int argc, char *argv[])
 
   NodeContainer core;
   NodeContainer edges;
-
+  NodeContainer routers;
   PointToPointHelper pointToPoint;
-  pointToPoint.SetQueue ("ns3::DropTailQueue",
+  pointToPoint.SetQueue ("ns3::InrppTailQueue",
+                           "LowerThBytes", UintegerValue (minTh*1500),
+                           "HigherThBytes", UintegerValue (maxTh*1500),
  						   "MaxBytes", UintegerValue(maxPackets*1500));
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("2Gbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("20Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
   uint32_t net1 = 0;
@@ -188,14 +196,14 @@ main (int argc, char *argv[])
 	  std::vector<NetDeviceContainer> devs;
 	  NetDeviceContainer devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 	  devs.push_back(devices0);
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
 	  NetDeviceContainer devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
 	  devs.push_back(devices1);
 	  NetDeviceContainer devices2 = pointToPoint.Install (nodes.Get(1),nodes.Get(3));
 	  devs.push_back(devices2);
 	  NetDeviceContainer devices3 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
 	  devs.push_back(devices3);
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("2Gbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("20Mbps"));
 	  NetDeviceContainer devices4 = pointToPoint.Install (nodes.Get(2),nodes.Get(4));
 	  devs.push_back(devices4);
 	  NetDeviceContainer devices5 = pointToPoint.Install (nodes.Get(3),nodes.Get(5));
@@ -205,8 +213,10 @@ main (int argc, char *argv[])
 	  edges.Add(nodes.Get(4));
 	  edges.Add(nodes.Get(5));
 
-	  InternetStackHelper inrpp;
+	  routers.Add(nodes);
+	  InrppStackHelper inrpp;
 	  inrpp.Install (nodes);
+
 
 	  uint32_t num1 = 0;
 	  for(uint32_t j=0;j<devs.size();j++)
@@ -220,6 +230,10 @@ main (int argc, char *argv[])
 			ipv4.SetBase(str.c_str(), "255.255.255.0");
 			Ipv4InterfaceContainer i0 = ipv4.Assign (devs[j]);
 			num1++;
+
+			  AsciiTraceHelper ascii;
+			  Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream ("inrpp15.tr");
+			  pointToPoint.EnableAscii (stream, devs[j].Get(0));
 		}
 	  net1++;
   }
@@ -228,24 +242,26 @@ main (int argc, char *argv[])
   servers.Create(2);
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
   NetDeviceContainer serversDev = pointToPoint.Install (servers.Get(0),servers.Get(1));
-  InternetStackHelper inrpp;
+  InrppStackHelper inrpp;
   inrpp.Install (servers);
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("12.0.0.0", "255.255.255.0");
   Ipv4InterfaceContainer i0 = ipv4.Assign (serversDev);
   core.Add(servers.Get(0));
 
+  routers.Add(servers);
+
   std::vector<NetDeviceContainer> cores;
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("2Gbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("20Mbps"));
   NetDeviceContainer coreDevice0 = pointToPoint.Install (core.Get(0),core.Get(1));
   cores.push_back(coreDevice0);
   NetDeviceContainer coreDevice1 = pointToPoint.Install (core.Get(1),core.Get(2));
   cores.push_back(coreDevice1);
-  NetDeviceContainer coreDevice2 = pointToPoint.Install (core.Get(2),core.Get(3));
+  NetDeviceContainer coreDevice2 = pointToPoint.Install (core.Get(2),servers.Get(0));
   cores.push_back(coreDevice2);
-  NetDeviceContainer coreDevice3 = pointToPoint.Install (core.Get(3),core.Get(0));
+  NetDeviceContainer coreDevice3 = pointToPoint.Install (servers.Get(0),core.Get(0));
   cores.push_back(coreDevice3);
-  NetDeviceContainer coreDevice4 = pointToPoint.Install (core.Get(1),core.Get(3));
+  NetDeviceContainer coreDevice4 = pointToPoint.Install (core.Get(1),servers.Get(0));
   cores.push_back(coreDevice4);
 
   uint32_t net2=0;
@@ -271,13 +287,28 @@ main (int argc, char *argv[])
   std::vector<NetDeviceContainer> clientDevs;
 
   NodeContainer clients;
+  NodeContainer allSenders;
 
-  for(uint32_t j=0;j<(n*edges.GetN());j++)
+  std::vector<NetDeviceContainer> sourceLinks;
+  for(uint32_t i=0;i<edges.GetN();i++)
+  {
+	NodeContainer senders;
+    uint32_t nclient = 0;
+//  if(i % 2== 0 )
+//  {
+	Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
+	Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
+	Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
+	nclient = urng->GetInteger();
+	//lastClients = nclient;
+	senders.Create(n);
+	 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << nclient);
+  for(uint32_t j=0;j<senders.GetN();j++)
 	{
 		Ptr<Node> client =  CreateObject<Node>();
 		InternetStackHelper inrpp;
 		inrpp.Install (client);
-		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Kbps"));
 		NetDeviceContainer clientDev = pointToPoint.Install (servers.Get(1),client);
 		clients.Add(client);
 		std::stringstream netAddr;
@@ -295,29 +326,24 @@ main (int argc, char *argv[])
 			  num2=0;
 			  net2++;
 		  }
+		  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Kbps"));
+		  NetDeviceContainer sourceLink = pointToPoint.Install (senders.Get(j),edges.Get(i));
+		  sourceLinks.push_back(sourceLink);
+
 	}
+     net2++;
+     num2=0;
+	  allSenders.Add(senders);
 
+  }
 
-  NodeContainer allSenders;
+  inrpp.Install (allSenders);
   uint32_t net = 0;
-  uint32_t nserv = 0;
+ // uint32_t nserv = 0;
   //uint32_t lastClients = 0 ;
 
-  for(uint32_t i=0;i<edges.GetN();i++)
-  {
+
 	  int num = 0;
-
-	  NodeContainer senders;
-
-	  uint32_t nclient = 0;
-	//  if(i % 2== 0 )
-	//  {
-		Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
-		Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
-		Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
-		nclient = urng->GetInteger();
-	//	lastClients = nclient;
-		senders.Create(nclient);
 
 	//  }
 	//  else{
@@ -325,18 +351,14 @@ main (int argc, char *argv[])
 	//	  senders.Create(nclient);
 	// }
 
+	 //
 
-	  NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << senders.GetN());
-
-	  for(uint32_t j=0;j<nclient;j++)
+	  for(uint32_t j=0;j<allSenders.GetN();j++)
 	  {
 
-		  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
-		  NetDeviceContainer sourceLink = pointToPoint.Install (senders.Get(j),edges.Get(i));
 		 // pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
 
-		  InternetStackHelper internet;
-		  internet.Install (senders.Get(j));
+
 
 		  std::stringstream netAddr;
 		  netAddr << "14." << net << "." << num++ << ".0";
@@ -344,7 +366,7 @@ main (int argc, char *argv[])
 		  std::string str = netAddr.str();
 		  NS_LOG_LOGIC("Set up address " << str);
 		  ipv4.SetBase(str.c_str(), "255.255.255.0");
-		  Ipv4InterfaceContainer iSource = ipv4.Assign (sourceLink);
+		  Ipv4InterfaceContainer iSource = ipv4.Assign (sourceLinks[j]);
 
 		  /*if(tracing2)
 		  {
@@ -360,30 +382,31 @@ main (int argc, char *argv[])
 		  //txQueue3->TraceConnectWithoutContext ("Drop", MakeCallback (&Drop));
 		  //NS_LOG_INFO ("Create Applications.");
 
-		  uint16_t port = 9000+nserv;  // well-known echo port number
+		  uint16_t port = 9000+j;  // well-known echo port number
 
 		  BulkSendHelper source ("ns3::TcpSocketFactory",
 								 InetSocketAddress (iSource.GetAddress (0), port));
 		  // Set the amount of data to send in bytes.  Zero is unlimited.
 		  source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
-		  ApplicationContainer sourceApps = source.Install (clients.Get(nserv));
+		  ApplicationContainer sourceApps = source.Install (clients.Get(j));
 		  sourceApps.Start (Seconds (1.0));
 		  sourceApps.Stop (Seconds (stop));
 
 		  Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
 		  bulk->SetCallback(MakeCallback(&StartLog));
-		  bulk->SetNetDevice(clientDevs[nserv].Get(1));
+		  bulk->SetNetDevice(clientDevs[j].Get(1));
 
 		  PacketSinkHelper sink1 ("ns3::TcpSocketFactory",
 							   InetSocketAddress (Ipv4Address::GetAny (), port));
-		  ApplicationContainer sinkApps = sink1.Install (senders.Get(j));
+		  ApplicationContainer sinkApps = sink1.Install (allSenders.Get(j));
 		  sinkApps.Start (Seconds (1.0));
 		  sinkApps.Stop (Seconds (stop));
 		  Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
-		  psink->SetCallback(MakeCallback(&StopFlow));
+		 // psink->SetCallback(MakeCallback(&StopFlow));
+		  psink->TraceConnectWithoutContext("Rx", MakeBoundCallback (&StopFlow, psink));
 		  sink.push_back(psink);
 
-		  nserv++;
+		//  nserv++;
 
 		 // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
 		 // std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;
@@ -392,7 +415,7 @@ main (int argc, char *argv[])
 		  {
 			  AsciiTraceHelper asciiTraceHelper;
 			  std::ostringstream osstr;
-			  osstr << folder << "/netdeviceRx_"<<nserv<<".tr";
+			  osstr << folder << "/netdeviceRx_"<<j<<".tr";
 			  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 			  DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
 		  }
@@ -404,8 +427,6 @@ main (int argc, char *argv[])
 			  }
 
 	   }
-	   net++;
-	   allSenders.Add(senders);
 
 
 		  if (tracing)
@@ -416,20 +437,80 @@ main (int argc, char *argv[])
 			  pointToPoint.EnablePcap(osstr.str(),allSenders, false);
 
 			}
-   }
+
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
   //InrppGlobalRoutingHelper::PopulateRoutingTables ();
+
+  if (tracing)
+ 	{
+ 	//  std::ostringstream osstr;
+ 	 // osstr << folder << "/inrpp12";
+ 	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
+ 	 // pointToPoint.EnablePcap(osstr.str(),routers, false);
+
+ 	}
+
+  for(uint32_t i=0;i<routers.GetN();i++)
+  {
+	  //Configure detour path at n0
+	  Ptr<InrppL3Protocol> ip = routers.Get(i)->GetObject<InrppL3Protocol> ();
+	  ip->SetCallback(MakeCallback(&LogState));
+
+
+	  if(tracing2)
+	  {
+		  Simulator::Schedule(Seconds(1.0),&LogCache,ip);
+		  for(uint32_t j=0;j<routers.Get(i)->GetNDevices();j++)
+		  {
+			  if(j>4)break;
+			  if(routers.Get(i)->GetDevice(j)->IsPointToPoint())
+			  {
+				  NS_LOG_LOGIC("Tracing node " << routers.Get(i)->GetId() << " " << routers.Get(i)->GetDevice(j)->GetIfIndex());
+				  AsciiTraceHelper asciiTraceHelper;
+				  std::ostringstream osstr4;
+				  osstr4 << folder << "/router" << i << "_" << j << ".itr";
+				  Ptr<OutputStreamWrapper> streamtr4 = asciiTraceHelper.CreateFileStream (osstr4.str());
+				  uint32_t iface = ip->GetInterfaceForDevice(routers.Get(i)->GetDevice(j));
+				  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("InputThroughput", MakeBoundCallback (&BwChange, streamtr4));
+
+				  std::ostringstream osstr6;
+				  osstr6 << folder << "/router" << i << "_" << j <<  ".dtr";
+				  Ptr<OutputStreamWrapper> streamtr6 = asciiTraceHelper.CreateFileStream (osstr6.str());
+				  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("DetouredThroughput", MakeBoundCallback (&BwChange, streamtr6));
+
+				  std::ostringstream osstr7;
+				  osstr7 << folder << "/router" << i << "_" << j << ".otr";
+				  Ptr<OutputStreamWrapper> streamtr7 = asciiTraceHelper.CreateFileStream (osstr7.str());
+				  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("OutputThroughput", MakeBoundCallback (&BwChange, streamtr7));
+
+
+				  std::ostringstream osstr8;
+				  osstr8 << folder << "/router" << i << "_" << j << ".res";
+				  Ptr<OutputStreamWrapper> streamtr8 = asciiTraceHelper.CreateFileStream (osstr8.str());
+				  ip->GetInterface(iface)->GetObject<InrppInterface>()->TraceConnectWithoutContext ("Residual", MakeBoundCallback (&BufferChange, streamtr8));
+
+				  PointerValue ptr3;
+				  routers.Get(i)->GetDevice(j)->GetAttribute ("TxQueue", ptr3);
+				  Ptr<Queue> txQueue3 = ptr3.Get<Queue> ();
+				  std::ostringstream osstr3;
+				  osstr3 << folder << "/router" << i << "_" << j << ".bf";
+				  Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
+				  txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
+			  }
+		  }
+	  }
+  }
 
   if (tracing)
 	{
 	  std::ostringstream osstr;
 	  osstr << folder << "/inrpp12-server";
-	  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
+	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
 	  pointToPoint.EnablePcap(osstr.str(),clients, false);
 
 	}
   //
-  // Now, 'do the actual simulation.
+  // Now, do the actual simulation.
   //
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Stop (Seconds (stop));
@@ -450,10 +531,9 @@ main (int argc, char *argv[])
     avg_ct+=ct;
   }
 
-  NS_LOG_LOGIC("Average flow completion time " << avg_ct/(n*as*2));
+  NS_LOG_LOGIC("Average flow completion time " << avg_ct/(allSenders.GetN()));
 
   return 0;
-
 
 }
 
@@ -465,7 +545,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 	socket->BindToNetDevice(netDev);
 
-	if(active_flows==n)
+	if(active_flows==n*6)
 	{
 		for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
 		{
@@ -482,7 +562,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 		  std::ostringstream osstr;
 		  osstr << folder << "/netdevice_"<<i<<".tr";
 		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-		 // socket->GetObject<TcpNewReno>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
+		  socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
 		  i++;
 
 		  std::ostringstream oss2;
@@ -494,8 +574,25 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 }
 
-void StopFlow(Ptr<PacketSink> p)
+void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 {
+	std::map<Ptr<PacketSink> ,uint32_t>::iterator it;
+	it = data2.find(p);
+	uint32_t size = 0;
+	if(it==data2.end())
+	{
+		data2.insert(std::make_pair(p,packet->GetSize()));
+		return;
+	} else {
+
+		size = it->second;
+		size+=packet->GetSize();
+		//NS_LOG_LOGIC("Packet sink " << p << " rx " << size << " " << maxBytes);
+		data2.erase(it);
+		data2.insert(std::make_pair(p,size));
+	}
+	if(size<200000)return;
+
 	NS_LOG_LOGIC("Flow ended " <<active_flows);
 	flows.insert(std::make_pair(p,active_flows));
 
@@ -528,8 +625,10 @@ void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad)
 	std::map<Ptr<PacketSink>,uint32_t>::iterator it = data.find(psink);
 	uint32_t rx = it->second;
 	rx+=p->GetSize();
-	data.erase(it);
-	data.insert(std::make_pair(psink,rx));
+	if(it!=data.end()){
+		data.erase(it);
+		data.insert(std::make_pair(psink,rx));
+	}
 
 }
 
@@ -537,4 +636,5 @@ void LogState(Ptr<InrppInterface> iface,uint32_t state){
 
 	NS_LOG_LOGIC("Inrpp state changed " << iface << " to state " << state);
 }
+
 

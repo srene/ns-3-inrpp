@@ -44,15 +44,23 @@ InrppInterface::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::InrppInterface")
     .SetParent<Ipv4Interface> ()
-    .AddTraceSource("EstimatedBW", "The estimated bandwidth",
+    .AddTraceSource("OutputThroughput", "The estimated bandwidth",
 	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW),
 				     "ns3::TracedValue::DoubleCallback")
-    .AddTraceSource("EstimatedFlow", "The estimated bandwidth",
+    .AddTraceSource("InputThroughput", "The estimated bandwidth",
 	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW2),
 				     "ns3::TracedValue::DoubleCallback")
-    .AddTraceSource("DetouredFlow", "The estimated bandwidth",
+    .AddTraceSource("DetouredThroughput", "The estimated bandwidth",
 	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW3),
-				     "ns3::TracedValue::DoubleCallback");
+				     "ns3::TracedValue::DoubleCallback")
+    .AddTraceSource("Residual", "The estimated bandwidth",
+	     			 MakeTraceSourceAccessor(&InrppInterface::m_residualMin),
+				     "ns3::TracedValue::Uint32Callback")
+	.AddAttribute ("Refresh",
+					   "Moving average refresh value.",
+					   DoubleValue (0.1),
+					   MakeDoubleAccessor (&InrppInterface::m_refresh),
+					   MakeDoubleChecker<double> ());
   ;
   return tid;
 }
@@ -165,7 +173,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
   if(!p->PeekPacketTag (tag))
   {
 	  data+= p->GetSize() * 8;
-	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>m_refresh){
 	//	  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
@@ -180,7 +188,7 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
   } else {
 
 	  data3+= p->GetSize() * 8;
-	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>0.01){
+	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>m_refresh){
 	//	  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
 		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
 		  data3 = 0;
@@ -202,7 +210,7 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
  // NS_LOG_LOGIC(this);
 
   data2+= p->GetSize() * 8;
-  if(Simulator::Now().GetSeconds()-t2.GetSeconds()>0.01)
+  if(Simulator::Now().GetSeconds()-t2.GetSeconds()>m_refresh)
   {
 	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
 	//  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-t2.GetSeconds()) << " " << m_currentBW2);
@@ -260,7 +268,7 @@ InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 		std::map<Ipv4Address,double>::iterator it3 = m_lastSampleBW4.find(it->first);
 		std::map<Ipv4Address,double>::iterator it4 = m_lastBW4.find(it->first);
 
-		if(Simulator::Now().GetSeconds()-tt.GetSeconds()>0.01)
+		if(Simulator::Now().GetSeconds()-tt.GetSeconds()>m_refresh)
 		{
 		  double t_currentBW = tdata / (Simulator::Now().GetSeconds()-tt.GetSeconds());
 		  tdata = 0;
@@ -446,14 +454,14 @@ InrppInterface::SendPacket()
 				m_inrpp->SendData(rtentry,p);
 				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)m_ackRate-=packetSize;
 					packetSize=p->GetSize();
-				Time t = Seconds((double)((p->GetSize()+10)*8)/m_bps.GetBitRate());
+				Time t = Seconds((double)((p->GetSize()+2)*8)/m_bps.GetBitRate());
 
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << (double)((p->GetSize()+10)*8)/m_bps.GetBitRate() << " "<< m_bps.GetBitRate());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
 		{
-			Time t = Seconds((double)((packetSize+10)*8)/(uint32_t)m_bps.GetBitRate());
+			Time t = Seconds((double)((packetSize+2)*8)/(uint32_t)m_bps.GetBitRate());
 			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 		}
 	}
@@ -478,9 +486,9 @@ void
 InrppInterface::UpdateResidual(Ipv4Address address, uint32_t residual)
 {
 	m_residualMin = std::min(GetResidual(),residual);
-	NS_LOG_LOGIC("Residual "<<  GetAddress(0).GetLocal() << " " << address << " "<< m_residualMin);
+	NS_LOG_LOGIC("Residual "<<  GetAddress(0).GetLocal() << " " << address << " "<< m_residualMin.Get());
 
-	if(!m_txResidualEvent.IsRunning()&&m_residualMin>0)
+	if(!m_txResidualEvent.IsRunning()&&m_residualMin.Get()>0)
 	{
 		NS_LOG_FUNCTION(this);
 		SendResidual();
@@ -529,10 +537,10 @@ InrppInterface::SendResidual()
 				rtentry->SetGateway(m_detourRoute->GetDetour());
 				rtentry->SetOutputDevice(m_detourRoute->GetOutputDevice());
 				m_inrpp->SendData(rtentry,packet);
-				if(m_residualMin>0)
+				if(m_residualMin.Get()>0)
 				{
-					Time t = Seconds(((double)(packet->GetSize()+10)*8)/m_residualMin);
-					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+10)*8 << " " << m_residualMin);
+					Time t = Seconds(((double)(packet->GetSize()+10)*8)/m_residualMin.Get());
+					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+10)*8 << " " << m_residualMin.Get());
 					m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
 				}
 			}
@@ -551,7 +559,7 @@ InrppInterface::PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route)
 void
 InrppInterface::CalculatePacing(uint32_t bytes)
 {
-	NS_LOG_FUNCTION(this);
+	//NS_LOG_FUNCTION(this);
 	m_ackRate+=bytes;
 
 }

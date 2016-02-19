@@ -206,7 +206,7 @@ private:
   std::map <Ptr<InrppInterface>, Ipv4Address> m_detouredIfaces;
   std::map <Ipv4Address, uint32_t> m_residualList;
   Ptr<InrppInterface> m_detouredIface;
-  uint32_t m_residualMin;
+  TracedValue<uint32_t>  m_residualMin;
   bool m_disable;
   uint32_t m_ackRate;
   uint32_t packetSize;
@@ -220,6 +220,8 @@ private:
 
   std::list<Ipv4Address> m_adList;
   //uint32_t m_lastSlot;
+
+  double m_refresh;
 };
 
 } // namespace ns3

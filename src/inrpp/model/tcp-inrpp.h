@@ -107,7 +107,7 @@ protected:
   uint32_t data;
   uint32_t m_slot;
   uint32_t 				 m_tcpRate;
-
+  double 				 m_refresh;
   //EventId m_ackEvent;       //!< Transmit cached packet event
   //Time t;
   //double m_ackInterval;

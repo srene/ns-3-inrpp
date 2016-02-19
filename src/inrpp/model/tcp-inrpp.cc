@@ -65,6 +65,11 @@ TcpInrpp::GetTypeId (void)
 	.AddTraceSource("Throughput", "The estimated bandwidth",
 					 MakeTraceSourceAccessor(&TcpInrpp::m_currentBW),
 					 "ns3::TracedValue::DoubleCallback")
+	.AddAttribute ("Refresh",
+					   "Moving average refresh value.",
+					   DoubleValue (0.1),
+					   MakeDoubleAccessor (&TcpInrpp::m_refresh),
+					   MakeDoubleChecker<double> ());
     /*.AddTraceSource ("SlowStartThreshold",
                      "TCP slow start threshold (bytes)",
                      MakeTraceSourceAccessor (&TcpInrpp::m_ssThresh),
@@ -440,7 +445,7 @@ TcpInrpp::SendPendingData (bool withAck)
 		       uint32_t sz = SendDataPacket (m_nextTxSequence, s, withAck);
 
 		 	  data+= sz * 8;
-		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>m_refresh){
 		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		 		  data = 0;
 		 		  double alpha = 0.4;
@@ -491,7 +496,7 @@ TcpInrpp::SendPendingData (bool withAck)
 		  // Try to send more data
 		  if (!m_sendPendingDataEvent.IsRunning ())
 		    {
-			 Time t = Seconds(((double)(m_segmentSize+60)*8)/m_tcpRate);
+			 Time t = Seconds(((double)(m_segmentSize+42)*8)/m_tcpRate);
 			 NS_LOG_LOGIC("Schedule next packet at " << Simulator::Now().GetSeconds()+t.GetSeconds());
 		      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
 		    }

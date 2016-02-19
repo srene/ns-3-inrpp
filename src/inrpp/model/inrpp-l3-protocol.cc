@@ -218,7 +218,9 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 		} else*/
 		if (outInterface->GetState()!=NO_DETOUR)
 		{
-		//	if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK)
+		//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK||
+		//		(outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache)||(outInterface->GetState()==PROP_BACKPRESSURE&&m_mustCache))
+		//{
 			//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
 		//	{
 			//	uint8_t rand;
@@ -640,6 +642,10 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 		  if(iface->GetState()==PROP_BACKPRESSURE)
 		  {
 			  NS_LOG_LOGIC("propagate backpressure");
+			  if(ts->GetNonce()!=0)
+			  {
+			  m_noncesList.push_back(ts->GetNonce());
+			  }
 
 		  }
 
