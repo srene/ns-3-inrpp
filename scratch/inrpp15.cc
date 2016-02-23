@@ -66,13 +66,19 @@ std::vector<Ptr<PacketSink> > sink;
 std::map<Ptr<PacketSink> ,uint32_t> data;
 std::map<Ptr<PacketSink> ,uint32_t> data2;
 
+std::map<Ptr<PacketSink> ,Ptr<OutputStreamWrapper> > jit1;
+std::map<Ptr<PacketSink> ,DelayJitterEstimation> jit2;
+
+std::map<Ptr<PacketSink> ,Time> arrival;
+
+
 uint32_t 		maxBytes;
 
 uint32_t cache=0;
 
 
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
-
+void TxPacket (Ptr<PacketSink> sink, Ptr<const Packet> p);
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
 void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
@@ -127,6 +133,7 @@ main (int argc, char *argv[])
 	  uint32_t as = 3;
 	  double 		time = 0.1;
 	  bool 			detour=true;
+
 
 //
 // Allow the user to override any of the defaults at
@@ -342,7 +349,6 @@ main (int argc, char *argv[])
  // uint32_t nserv = 0;
   //uint32_t lastClients = 0 ;
 
-
 	  int num = 0;
 
 	//  }
@@ -352,6 +358,8 @@ main (int argc, char *argv[])
 	// }
 
 	 //
+
+	  double lastTime = 0;
 
 	  for(uint32_t j=0;j<allSenders.GetN();j++)
 	  {
@@ -389,7 +397,10 @@ main (int argc, char *argv[])
 		  // Set the amount of data to send in bytes.  Zero is unlimited.
 		  source.SetAttribute ("MaxBytes", UintegerValue (maxBytes));
 		  ApplicationContainer sourceApps = source.Install (clients.Get(j));
-		  sourceApps.Start (Seconds (1.0));
+		  Ptr<ExponentialRandomVariable> exp = CreateObject<ExponentialRandomVariable> ();
+		  exp->SetAttribute ("Mean", DoubleValue (0.1));
+		  lastTime = lastTime + exp->GetValue();
+		  sourceApps.Start (Seconds(1.0+lastTime));
 		  sourceApps.Stop (Seconds (stop));
 
 		  Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
@@ -399,12 +410,16 @@ main (int argc, char *argv[])
 		  PacketSinkHelper sink1 ("ns3::TcpSocketFactory",
 							   InetSocketAddress (Ipv4Address::GetAny (), port));
 		  ApplicationContainer sinkApps = sink1.Install (allSenders.Get(j));
-		  sinkApps.Start (Seconds (1.0));
+		  sinkApps.Start (Seconds (0.0));
 		  sinkApps.Stop (Seconds (stop));
 		  Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
 		 // psink->SetCallback(MakeCallback(&StopFlow));
 		  psink->TraceConnectWithoutContext("Rx", MakeBoundCallback (&StopFlow, psink));
+
 		  sink.push_back(psink);
+
+		  bulk->TraceConnectWithoutContext ("Tx", MakeBoundCallback (&TxPacket,psink));
+		  DelayJitterEstimation jitter = DelayJitterEstimation();
 
 		//  nserv++;
 
@@ -418,6 +433,13 @@ main (int argc, char *argv[])
 			  osstr << folder << "/netdeviceRx_"<<j<<".tr";
 			  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 			  DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
+
+			  std::ostringstream osstr2;
+			  osstr2 << folder << "/jitter_"<<j<<".tr";
+			  Ptr<OutputStreamWrapper> streamjitter = asciiTraceHelper.CreateFileStream (osstr2.str());
+			  jit1.insert(std::make_pair(psink,streamjitter));
+			  jit2.insert(std::make_pair(psink,jitter));
+			  arrival.insert(std::make_pair(psink,Simulator::Now()));
 		  }
 
 			  if(num==255)
@@ -576,6 +598,21 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 {
+	std::map<Ptr<PacketSink>,DelayJitterEstimation>::iterator it2;
+	it2=jit2.find(p);
+	DelayJitterEstimation jitter = it2->second;
+	jitter.RecordRx(packet);
+	std::map<Ptr<PacketSink>,Ptr<OutputStreamWrapper> >::iterator it3;
+	it3=jit1.find(p);
+	//NS_LOG_LOGIC("Jitter " << jitter.GetLastDelay().GetMilliSeconds());
+	//*(it3->second)->GetStream () << Simulator::Now ().GetSeconds () << "\t" << jitter.GetLastDelta().GetMilliSeconds() << std::endl;
+	std::map<Ptr<PacketSink>,Time>::iterator it4;
+	it4=arrival.find(p);
+	Time t = Simulator::Now() - it4->second;
+	*(it3->second)->GetStream () << Simulator::Now ().GetSeconds () << "\t" << t.GetMilliSeconds() << std::endl;
+
+	arrival.erase(it4);
+	arrival.insert(std::make_pair(p,Simulator::Now()));
 	std::map<Ptr<PacketSink> ,uint32_t>::iterator it;
 	it = data2.find(p);
 	uint32_t size = 0;
@@ -635,6 +672,17 @@ void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad)
 void LogState(Ptr<InrppInterface> iface,uint32_t state){
 
 	NS_LOG_LOGIC("Inrpp state changed " << iface << " to state " << state);
+}
+
+void
+TxPacket (Ptr<PacketSink> sink, Ptr<const Packet> p)
+{
+	std::map<Ptr<PacketSink>,DelayJitterEstimation>::iterator it2;
+	it2=jit2.find(sink);
+	DelayJitterEstimation jitter = it2->second;
+	jitter.PrepareTx(p);
+	jit2.erase(it2);
+	jit2.insert(std::make_pair(sink,jitter));
 }
 
 

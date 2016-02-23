@@ -60,6 +60,11 @@ public:
    * \returns the updated delay.
    */
   Time GetLastDelay (void) const;
+
+  /**
+   * \returns the interarrival time
+   */
+  Time GetLastDelta(void) const;
   /**
    * The jitter is calculated using the \RFC{1889} (RTP) jitter
    * definition.
@@ -73,6 +78,7 @@ private:
   Time m_previousRxTx; //!< Previous Rx or Tx time
   int64x64_t m_jitter; //!< Jitter estimation
   Time m_delay;        //!< Delay estimation
+  Time m_lastDelta;
 };
 
 } // namespace ns3

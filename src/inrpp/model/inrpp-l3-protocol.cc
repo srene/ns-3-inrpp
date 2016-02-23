@@ -216,11 +216,12 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			NS_LOG_LOGIC("Send packet "<< rtentry->GetDestination());
 			SendData(rtentry,packet);
 		} else*/
-		if (outInterface->GetState()!=NO_DETOUR)
-		{
-		//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK||
-		//		(outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache)||(outInterface->GetState()==PROP_BACKPRESSURE&&m_mustCache))
+		//if (outInterface->GetState()!=NO_DETOUR&&m_mustCache)
+		//if (outInterface->GetState()!=NO_DETOUR)
 		//{
+		if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK||
+				(outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache)||(outInterface->GetState()==PROP_BACKPRESSURE&&m_mustCache))
+		{
 			//if(outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DISABLE_BACK)
 		//	{
 			//	uint8_t rand;
@@ -412,7 +413,6 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		ProcessInrppOption(tcpHeader,iface);
 		if(iface->GetState()==BACKPRESSURE)
 		{
-
 			if(AddOptionInrppBack(tcpHeader,1,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
@@ -622,7 +622,6 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 	  if(iface->GetState()==PROP_BACKPRESSURE||iface->GetState()==UP_BACKPRESSURE)
 		  iface->CalculatePacing(m_packetSize);
 	  if(ts->GetFlag()==1){
-
 		  if(iface->GetState()==NO_DETOUR&&m_cache->GetSize()<m_cache->GetThreshold())
 		  {
 			  iface->SetState(UP_BACKPRESSURE);
@@ -661,7 +660,9 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 
 	  }
 
-	  if(ts->GetFlag()==3)
+
+
+	/*  if(ts->GetFlag()==3)
 	  {
 
 		  if(std::find(m_noncesList.begin(), m_noncesList.end(), ts->GetNonce())!=m_noncesList.end())
@@ -677,10 +678,23 @@ InrppL3Protocol::ProcessInrppOption(TcpHeader& tcpHeader,Ptr<InrppInterface> ifa
 			  m_mustCache=true;
 		  }
 
-	  }
-	} else {
+	  }*/
+	} /*else {
 		  m_mustCache = false;
+	}*/
+	if (tcpHeader.HasOption (TcpOption::INRPP))
+	{
+		  Ptr<TcpOptionInrpp> ts = DynamicCast<TcpOptionInrpp> (tcpHeader.GetOption (TcpOption::INRPP));
+		  if(std::find(m_noncesList.begin(), m_noncesList.end(), ts->GetNonce())!=m_noncesList.end())
+		  {
+			  m_mustCache=true;
+		  } else {
+			  m_mustCache=false;
+		  }
+	} else {
+		m_mustCache=false;
 	}
+
 
 }
 

@@ -104,7 +104,8 @@ void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION (this<<m_state);
-	if(m_state==NO_DETOUR||m_state==DISABLE_BACK)
+	//if(m_state==NO_DETOUR||m_state==DISABLE_BACK)
+	if(m_state!=DETOUR||m_state!=BACKPRESSURE)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<m_state);
 		SetState(DETOUR);
@@ -118,7 +119,7 @@ InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate()<<m_cache->GetSize()<<m_cache->GetThreshold());
 
-	if(m_cache->GetSize()<m_cache->GetThreshold()){
+	if((m_state==DETOUR||m_state==BACKPRESSURE)&&m_cache->GetSize()<m_cache->GetThreshold()){
 		SetState(DISABLE_BACK);
 	}
 	m_disable = true;
@@ -452,7 +453,11 @@ InrppInterface::SendPacket()
 				if(p->PeekPacketTag(tag))
 					p->RemovePacketTag(tag);
 				m_inrpp->SendData(rtentry,p);
-				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)m_ackRate-=packetSize;
+				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)
+				{
+					(m_ackRate>=packetSize)?m_ackRate-=packetSize:0;
+
+				}
 					packetSize=p->GetSize();
 				Time t = Seconds((double)((p->GetSize()+2)*8)/m_bps.GetBitRate());
 

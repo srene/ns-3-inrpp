@@ -112,7 +112,8 @@ DelayJitterEstimation::DelayJitterEstimation ()
   : m_previousRx (Simulator::Now ()),
     m_previousRxTx (Simulator::Now ()),
     m_jitter (0),
-    m_delay (Seconds (0.0))
+    m_delay (Seconds (0.0)),
+	m_lastDelta(Seconds(0.0))
 {
 }
 void
@@ -135,16 +136,25 @@ DelayJitterEstimation::RecordRx (Ptr<const Packet> packet)
 
   Time delta = (Simulator::Now () - m_previousRx) - (tag.GetTxTime () - m_previousRxTx);
   m_jitter += (Abs (delta) - m_jitter) / 16;
+  m_lastDelta = Simulator::Now () - m_previousRx;
+  //std::cout << this << " " << m_lastDelta.GetSeconds() << " " << m_previousRx.GetSeconds() << " " << Simulator::Now().GetSeconds() << std::endl;
   m_previousRx = Simulator::Now ();
   m_previousRxTx = tag.GetTxTime ();
   m_delay = Simulator::Now () - tag.GetTxTime ();
 }
 
-Time 
+Time
 DelayJitterEstimation::GetLastDelay (void) const
 {
   return m_delay;
 }
+
+Time
+DelayJitterEstimation::GetLastDelta (void) const
+{
+  return m_lastDelta;
+}
+
 uint64_t
 DelayJitterEstimation::GetLastJitter (void) const
 {
