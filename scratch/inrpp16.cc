@@ -628,7 +628,7 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 		data2.erase(it);
 		data2.insert(std::make_pair(p,size));
 	}
-	if(size<10000000)return;
+	if(size<200000)return;
 
 	NS_LOG_LOGIC("Flow ended " <<active_flows);
 	flows.insert(std::make_pair(p,active_flows));

@@ -31,6 +31,7 @@
 #include "ns3/pointer.h"
 #include "ns3/string.h"
 #include "ns3/ppp-header.h"
+#include "ns3/udp-header.h"
 
 #include "ns3/loopback-net-device.h"
 #include "ns3/ipv4-interface.h"
@@ -755,17 +756,21 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 	TcpHeader tcpHeader;
     Ipv4Header ipHeader;
     p->RemoveHeader(ipHeader);
-
-    Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
+    UdpHeader udpHeader;
+    NS_LOG_LOGIC("IP " << ipHeader.GetSource() << " " << ipHeader.GetDestination());
+    //Ptr<InrppTailQueue> q = device->GetObject <PointToPointNetDevice>()->GetQueue()->GetObject<InrppTailQueue>();
     //NS_LOG_LOGIC("Detour State Cache " << iface->GetState() << " " << m_mustCache << " " << iface->GetInitCache() << " " << m_cache->GetSize() << " " << q->GetNBytes());
+    //if(!p->PeekHeader(tcpHeader))return;
+    if(p->PeekHeader(udpHeader))
+        NS_LOG_LOGIC("UDP " << udpHeader.GetSourcePort() << " " << udpHeader.GetDestinationPort());
 
     std::map <Ptr<const Packet>, Ptr<Ipv4Route> >::iterator it = m_routeList.find(packet);
     //if(it==m_routeList.end())NS_LOG_LOGIC("ROUTE NOT FOUND");
-    NS_ASSERT_MSG(it!=m_routeList.end(),"Route not found");
-
+    //NS_ASSERT_MSG(it!=m_routeList.end(),"Route not found");
+    if(it==m_routeList.end())return;
     if(p->RemoveHeader(tcpHeader))
 	{
-    	    //NS_LOG_LOGIC(tcpHeader);
+    	    NS_LOG_LOGIC(tcpHeader);
 			//if(AddOptionInrpp(tcpHeader,3,iface->GetNonce()))
 			//{
 			//	uint32_t size = ipHeader.GetPayloadSize();

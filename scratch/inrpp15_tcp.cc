@@ -74,6 +74,8 @@ std::map<Ptr<NetDevice>,double>                  m_lastBW4;                 //!<
 std::map<Ptr<NetDevice>,Time>                    t4;
 std::map<Ptr<NetDevice>,uint32_t> data4;
 
+Ptr<UdpServer> udp;
+
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
 {
@@ -257,6 +259,7 @@ main (int argc, char *argv[])
   cores.push_back(coreDevice3);
   NetDeviceContainer coreDevice4 = pointToPoint.Install (core.Get(1),servers.Get(0));
   cores.push_back(coreDevice4);
+  std::vector<Ipv4InterfaceContainer> coreIfaces;
 
   uint32_t net2=0;
   for(uint32_t j=0;j<cores.size();j++)
@@ -269,6 +272,8 @@ main (int argc, char *argv[])
 		ipv4.SetBase(str.c_str(), "255.255.255.0");
 		  NS_LOG_LOGIC("Set up address " << str);
 		Ipv4InterfaceContainer i0 = ipv4.Assign (cores[j]);
+		coreIfaces.push_back(i0);
+
 		net2++;
 	}
 
@@ -434,6 +439,32 @@ main (int argc, char *argv[])
 
 			}
 
+//
+// Create one udpServer applications on node one.
+//
+  uint16_t port = 9000+(n*6)+1;  // well-known echo port number
+  UdpServerHelper server (port);
+  ApplicationContainer apps = server.Install (core.Get (2));
+  apps.Start (Seconds (1.0));
+  apps.Stop (Seconds (100.0));
+
+//
+// Create one UdpClient application to send UDP datagrams from node zero to
+// node one.
+//
+  uint32_t MaxPacketSize = 1470;
+  Time interPacketInterval = Seconds (0.0007);
+  uint32_t maxPacketCount = 1000000;
+  UdpClientHelper client (coreIfaces[2].GetAddress(0), port);
+  client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
+  client.SetAttribute ("Interval", TimeValue (interPacketInterval));
+  client.SetAttribute ("PacketSize", UintegerValue (MaxPacketSize));
+  ApplicationContainer apps2 = client.Install (servers.Get (0));
+  apps2.Start (Seconds (5.0));
+  apps2.Stop (Seconds (20.0));
+
+  udp = DynamicCast<UdpServer> (apps.Get (0));
+
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
   //InrppGlobalRoutingHelper::PopulateRoutingTables ();
 
@@ -511,6 +542,7 @@ main (int argc, char *argv[])
     avg_ct+=ct;
   }
 
+  NS_LOG_LOGIC("UDP Lost packets " << udp->GetLost() << " received " << udp->GetReceived());
   NS_LOG_LOGIC("Average flow completion time " << avg_ct/(allSenders.GetN()));
 
   return 0;

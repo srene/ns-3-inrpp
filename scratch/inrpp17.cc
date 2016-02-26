@@ -73,9 +73,10 @@ std::map<Ptr<PacketSink> ,Time> arrival;
 
 
 uint32_t 		maxBytes;
-
+uint32_t users=0;
 uint32_t cache=0;
 
+Ptr<UdpServer> udp;
 
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 void TxPacket (Ptr<PacketSink> sink, Ptr<const Packet> p);
@@ -126,8 +127,8 @@ main (int argc, char *argv[])
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 100000;
 	  uint32_t    	maxPackets = 100;
-	  uint32_t      minTh = 20;
-	  uint32_t      maxTh = 40;
+	  uint32_t      minTh = 40;
+	  uint32_t      maxTh = 80;
 	  uint32_t 		stop = 100;
 	  n = 5;
 	  uint32_t as = 3;
@@ -173,8 +174,7 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (30000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (6*n));
-  Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
+  Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.1));
 
 //
 // Explicitly create the nodes required by the topology (shown above).
@@ -201,6 +201,7 @@ main (int argc, char *argv[])
 
 	  NS_LOG_LOGIC("AS " << i);
 	  std::vector<NetDeviceContainer> devs;
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("30Mbps"));
 	  NetDeviceContainer devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 	  devs.push_back(devices0);
 	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
@@ -238,9 +239,9 @@ main (int argc, char *argv[])
 			Ipv4InterfaceContainer i0 = ipv4.Assign (devs[j]);
 			num1++;
 
-			  AsciiTraceHelper ascii;
-			  Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream ("inrpp15.tr");
-			  pointToPoint.EnableAscii (stream, devs[j].Get(0));
+			 // AsciiTraceHelper ascii;
+			 // Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream ("inrpp15.tr");
+			 // pointToPoint.EnableAscii (stream, devs[j].Get(0));
 		}
 	  net1++;
   }
@@ -272,6 +273,8 @@ main (int argc, char *argv[])
   cores.push_back(coreDevice4);
 
   uint32_t net2=0;
+  std::vector<Ipv4InterfaceContainer> coreIfaces;
+
   for(uint32_t j=0;j<cores.size();j++)
 	{
 		NS_LOG_INFO ("Assign Core IP Addresses.");
@@ -282,6 +285,7 @@ main (int argc, char *argv[])
 		ipv4.SetBase(str.c_str(), "255.255.255.0");
 		  NS_LOG_LOGIC("Set up address " << str);
 		Ipv4InterfaceContainer i0 = ipv4.Assign (cores[j]);
+		coreIfaces.push_back(i0);
 		net2++;
 	}
 
@@ -300,16 +304,17 @@ main (int argc, char *argv[])
   for(uint32_t i=0;i<edges.GetN();i++)
   {
 	NodeContainer senders;
-    uint32_t nclient = 0;
+   // uint32_t nclient = 0;
 //  if(i % 2== 0 )
 //  {
-	Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
-	Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
-	Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
-	nclient = urng->GetInteger();
+	//Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
+	//Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
+	//Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
+	//nclient = urng->GetInteger();
 	//lastClients = nclient;
-	senders.Create(n);
-	 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << nclient);
+	if(i==5) senders.Create(160);
+	else senders.Create(n);
+	 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << senders.GetN());
   for(uint32_t j=0;j<senders.GetN();j++)
 	{
 		Ptr<Node> client =  CreateObject<Node>();
@@ -343,8 +348,10 @@ main (int argc, char *argv[])
 	  allSenders.Add(senders);
 
   }
-
+  users = allSenders.GetN();
   inrpp.Install (allSenders);
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (users));
+
   uint32_t net = 0;
  // uint32_t nserv = 0;
   //uint32_t lastClients = 0 ;
@@ -365,8 +372,6 @@ main (int argc, char *argv[])
 	  {
 
 		 // pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-
-
 
 		  std::stringstream netAddr;
 		  netAddr << "14." << net << "." << num++ << ".0";
@@ -400,6 +405,7 @@ main (int argc, char *argv[])
 		  Ptr<ExponentialRandomVariable> exp = CreateObject<ExponentialRandomVariable> ();
 		  exp->SetAttribute ("Mean", DoubleValue (0.1));
 		  lastTime = lastTime + exp->GetValue();
+
 		  sourceApps.Start (Seconds(1.0));
 		  sourceApps.Stop (Seconds (stop));
 
@@ -454,21 +460,48 @@ main (int argc, char *argv[])
 		  if (tracing)
 			{
 			  std::ostringstream osstr;
-			  osstr << folder << "/inrpp12-client";
+			  osstr << folder << "/inrpp17-client";
 			  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
 			  pointToPoint.EnablePcap(osstr.str(),allSenders, false);
 
+			 // pointToPoint.EnablePcapAll(osstr.str(),false);
 			}
 
-  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-  //InrppGlobalRoutingHelper::PopulateRoutingTables ();
+	  //
+	  // Create one udpServer applications on node one.
+	  //
+		uint16_t port = 9000+(users)+1;  // well-known echo port number
+		UdpServerHelper server (port);
+		ApplicationContainer apps = server.Install (core.Get (2));
+		apps.Start (Seconds (1.0));
+		apps.Stop (Seconds (100.0));
+		udp = DynamicCast<UdpServer> (apps.Get (0));
+
+	  //
+	  // Create one UdpClient application to send UDP datagrams from node zero to
+	  // node one.
+	  //
+		uint32_t MaxPacketSize = 1470;
+		Time interPacketInterval = Seconds (0.0007);
+		uint32_t maxPacketCount = 1000000;
+		UdpClientHelper client (coreIfaces[2].GetAddress(0), port);
+		client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
+		client.SetAttribute ("Interval", TimeValue (interPacketInterval));
+		client.SetAttribute ("PacketSize", UintegerValue (MaxPacketSize));
+		//ApplicationContainer apps2 = client.Install (servers.Get (0));
+		//apps2.Start (Seconds (5.0));
+		//apps2.Stop (Seconds (20.0));
+
+
+  //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+  InrppGlobalRoutingHelper::PopulateRoutingTables ();
 
   if (tracing)
  	{
- 	//  std::ostringstream osstr;
- 	 // osstr << folder << "/inrpp12";
+ 	  std::ostringstream osstr;
+ 	  osstr << folder << "/inrpp17-routers";
  	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
- 	 // pointToPoint.EnablePcap(osstr.str(),routers, false);
+ 	  pointToPoint.EnablePcap(osstr.str(),routers, false);
 
  	}
 
@@ -477,7 +510,6 @@ main (int argc, char *argv[])
 	  //Configure detour path at n0
 	  Ptr<InrppL3Protocol> ip = routers.Get(i)->GetObject<InrppL3Protocol> ();
 	  ip->SetCallback(MakeCallback(&LogState));
-
 
 	  if(tracing2)
 	  {
@@ -552,6 +584,7 @@ main (int argc, char *argv[])
     fl++;
     avg_ct+=ct;
   }
+  NS_LOG_LOGIC("UDP Lost packets " << udp->GetLost() << " received " << udp->GetReceived());
 
   NS_LOG_LOGIC("Average flow completion time " << avg_ct/(allSenders.GetN()));
 
@@ -567,7 +600,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 	socket->BindToNetDevice(netDev);
 
-	if(active_flows==n*6)
+	if(active_flows==users)
 	{
 		for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
 		{
@@ -651,8 +684,6 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 	//}
 	active_flows--;
 	data.erase(p);
-
-
 
 
 }

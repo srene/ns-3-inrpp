@@ -103,11 +103,11 @@ InrppInterface::~InrppInterface ()
 void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
-	NS_LOG_FUNCTION (this<<m_state);
+	NS_LOG_FUNCTION (this<<GetState());
 	//if(m_state==NO_DETOUR||m_state==DISABLE_BACK)
-	if(m_state!=DETOUR||m_state!=BACKPRESSURE)
+	if(GetState()!=DETOUR||GetState()!=BACKPRESSURE)
 	{
-		NS_LOG_FUNCTION(this<<packets<<dev<<m_state);
+		NS_LOG_FUNCTION(this<<packets<<dev<<GetState());
 		SetState(DETOUR);
 		SendPacket();
 	}
@@ -119,7 +119,7 @@ InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate()<<m_cache->GetSize()<<m_cache->GetThreshold());
 
-	if((m_state==DETOUR||m_state==BACKPRESSURE)&&m_cache->GetSize()<m_cache->GetThreshold()){
+	if((GetState()==DETOUR||GetState()==BACKPRESSURE)&&m_cache->GetSize()<m_cache->GetThreshold()){
 		SetState(DISABLE_BACK);
 	}
 	m_disable = true;
@@ -225,7 +225,7 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 
   }
 
-  if(m_state==DISABLE_BACK&&m_cache->GetSize()==0)
+  if(GetState()==DISABLE_BACK&&m_cache->GetSize()==0)
   {
 	  if(m_disable)SetState(NO_DETOUR);
 	  else SetState(DETOUR);
@@ -315,7 +315,7 @@ InrppInterface::GetResidual()
 {
 	uint32_t residual;
 	//NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
-	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||GetState()!=0)
+	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||(GetState()!=NO_DETOUR||GetState()!=DISABLE_BACK))
 		residual = 0;
 	else
 		residual = (uint32_t)m_bps.GetBitRate()-m_currentBW.Get();
@@ -420,11 +420,11 @@ InrppInterface::SendPacket()
 {
 
 	if(!m_txEvent.IsRunning()){
-		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize(this,m_slot)<<m_cache->GetSize());
+		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<GetState()<<m_cache->GetSize(this,m_slot)<<m_cache->GetSize());
 
-		if((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate<packetSize)
+		if((GetState()==UP_BACKPRESSURE||GetState()==PROP_BACKPRESSURE)&&m_ackRate<packetSize)
 			NS_LOG_LOGIC("Ack rate not enough " << m_ackRate);
-		if(((m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)&&m_ackRate>=packetSize)||(m_state!=UP_BACKPRESSURE&&m_state!=PROP_BACKPRESSURE))
+		if(((GetState()==UP_BACKPRESSURE||GetState()==PROP_BACKPRESSURE)&&m_ackRate>=packetSize)||(GetState()!=UP_BACKPRESSURE&&GetState()!=PROP_BACKPRESSURE))
 		{
 			uint32_t loop=0;
 			NS_LOG_FUNCTION(this<<m_slot);
@@ -453,7 +453,7 @@ InrppInterface::SendPacket()
 				if(p->PeekPacketTag(tag))
 					p->RemovePacketTag(tag);
 				m_inrpp->SendData(rtentry,p);
-				if(m_state==UP_BACKPRESSURE||m_state==PROP_BACKPRESSURE)
+				if(GetState()==UP_BACKPRESSURE||GetState()==PROP_BACKPRESSURE)
 				{
 					(m_ackRate>=packetSize)?m_ackRate-=packetSize:0;
 
@@ -507,7 +507,7 @@ InrppInterface::SendResidual()
 
 	if(!m_txResidualEvent.IsRunning())
 	{
-		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<m_state<<m_cache->GetSize(m_detouredIface,m_slot)<<m_residualMin);
+		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<GetState()<<m_cache->GetSize(m_detouredIface,m_slot)<<m_residualMin);
 
 		if(m_cache->GetSize()>0)
 		{
