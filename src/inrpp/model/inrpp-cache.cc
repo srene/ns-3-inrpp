@@ -147,7 +147,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 }
 
 bool
-InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
+InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
 	NS_LOG_FUNCTION(this<<m_size<<packet->GetSize());
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
@@ -163,7 +163,7 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<co
 		}
 
 		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry);
-		m_InrppCache.insert(m_InrppCache.begin(),PairCache(PairKey(iface,0),p));
+		m_InrppCache.insert(m_InrppCache.begin(),PairCache(PairKey(iface,flag),p));
 		m_size+=packet->GetSize();
 		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,0));
 		if(it!=m_ifaceSize.end())
@@ -171,7 +171,7 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<co
 		  NS_LOG_LOGIC("Size found " << it->second);
 		  it->second += packet->GetSize();
 		} else {
-			m_ifaceSize.insert(std::make_pair(PairKey(iface,0),packet->GetSize()));
+			m_ifaceSize.insert(std::make_pair(PairKey(iface,flag),packet->GetSize()));
 		}
 		return true;
 	} else {

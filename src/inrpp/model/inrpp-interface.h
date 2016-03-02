@@ -106,7 +106,7 @@ public:
 
   Ptr<InrppRoute> GetDetour(void);
 
-  void SetDetour(Ptr<InrppRoute> route);
+  //void SetDetour(Ptr<InrppRoute> route);
 
   /**
   * \brief Set the NetDevice.
@@ -142,9 +142,9 @@ public:
 
  void SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp);
 
- void SetDetouredIface(Ptr<InrppInterface> interface,Ipv4Address address);
+ void SetDetouredIface(Ptr<InrppInterface> interface,Ptr<InrppRoute> route);
 
- Ptr<InrppInterface> GetDetouredIface(void);
+ //Ptr<InrppInterface> GetDetouredIface(void);
 
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
@@ -163,6 +163,9 @@ public:
 
  void CalculateDetour(Ipv4Address ip, Ptr<const Packet> p);
 // void SetWeights(std::map<uint32_t,uint32_t> weights);
+
+ void SetEnabled(bool enable);
+ bool GetEnabled(void);
 private:
 
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
@@ -205,7 +208,7 @@ private:
   Ptr<InrppL3Protocol> m_inrpp;
   std::map <Ptr<InrppInterface>, Ipv4Address> m_detouredIfaces;
   std::map <Ipv4Address, uint32_t> m_residualList;
-  Ptr<InrppInterface> m_detouredIface;
+  std::vector<std::pair<Ptr<InrppInterface>,Ptr<InrppRoute> > > m_detouredIface;
   TracedValue<uint32_t>  m_residualMin;
   bool m_disable;
   uint32_t m_ackRate;
@@ -222,6 +225,10 @@ private:
   //uint32_t m_lastSlot;
 
   double m_refresh;
+
+  uint32_t m_lastDetoured;
+
+  bool m_enabled;
 };
 
 } // namespace ns3

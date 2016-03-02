@@ -92,7 +92,7 @@ public:
   void Flush ();
 
   bool Insert(Ptr<InrppInterface> iface, uint32_t flag,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
-  bool InsertFirst(Ptr<InrppInterface> iface,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
+  bool InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
 
   Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface,uint32_t flag);
 

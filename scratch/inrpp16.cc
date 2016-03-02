@@ -73,6 +73,7 @@ std::map<Ptr<PacketSink> ,Time> arrival;
 
 
 uint32_t 		maxBytes;
+uint32_t users=0;
 
 uint32_t cache=0;
 
@@ -155,7 +156,7 @@ main (int argc, char *argv[])
 
   if(detour){
   std::ostringstream st;
-  st << "test_fl" <<n+m<<"_int"<<time;
+  st << "inrpp16_test_fl" <<n+m<<"_int"<<time;
   folder = st.str();
   }
   else{
@@ -173,7 +174,7 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (300000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (6*n));
+  //Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (6*n));
   Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 
 //
@@ -201,9 +202,10 @@ main (int argc, char *argv[])
 
 	  NS_LOG_LOGIC("AS " << i);
 	  std::vector<NetDeviceContainer> devs;
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("3Gbps"));
 	  NetDeviceContainer devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 	  devs.push_back(devices0);
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("1.2Gbps"));
 	  NetDeviceContainer devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
 	  devs.push_back(devices1);
 	  NetDeviceContainer devices2 = pointToPoint.Install (nodes.Get(1),nodes.Get(3));
@@ -238,9 +240,9 @@ main (int argc, char *argv[])
 			Ipv4InterfaceContainer i0 = ipv4.Assign (devs[j]);
 			num1++;
 
-			  AsciiTraceHelper ascii;
-			  Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream ("inrpp15.tr");
-			  pointToPoint.EnableAscii (stream, devs[j].Get(0));
+			//  AsciiTraceHelper ascii;
+			//  Ptr<OutputStreamWrapper> stream = ascii.CreateFileStream ("inrpp15.tr");
+			//  pointToPoint.EnableAscii (stream, devs[j].Get(0));
 		}
 	  net1++;
   }
@@ -272,6 +274,8 @@ main (int argc, char *argv[])
   cores.push_back(coreDevice4);
 
   uint32_t net2=0;
+  std::vector<Ipv4InterfaceContainer> coreIfaces;
+
   for(uint32_t j=0;j<cores.size();j++)
 	{
 		NS_LOG_INFO ("Assign Core IP Addresses.");
@@ -282,6 +286,7 @@ main (int argc, char *argv[])
 		ipv4.SetBase(str.c_str(), "255.255.255.0");
 		  NS_LOG_LOGIC("Set up address " << str);
 		Ipv4InterfaceContainer i0 = ipv4.Assign (cores[j]);
+		coreIfaces.push_back(i0);
 		net2++;
 	}
 
@@ -299,17 +304,18 @@ main (int argc, char *argv[])
   std::vector<NetDeviceContainer> sourceLinks;
   for(uint32_t i=0;i<edges.GetN();i++)
   {
-	NodeContainer senders;
-    uint32_t nclient = 0;
-//  if(i % 2== 0 )
-//  {
-	Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
-	Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
-	Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
-	nclient = urng->GetInteger();
-	//lastClients = nclient;
-	senders.Create(n);
-	 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << nclient);
+		NodeContainer senders;
+	   // uint32_t nclient = 0;
+	//  if(i % 2== 0 )
+	//  {
+		//Config::SetDefault ("ns3::UniformRandomVariable::Min", DoubleValue (1));
+		//Config::SetDefault ("ns3::UniformRandomVariable::Max", DoubleValue (n));
+		//Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
+		//nclient = urng->GetInteger();
+		//lastClients = nclient;
+		if(i==5) senders.Create(160);
+		else senders.Create(n);
+		 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << senders.GetN());
   for(uint32_t j=0;j<senders.GetN();j++)
 	{
 		Ptr<Node> client =  CreateObject<Node>();
@@ -344,7 +350,9 @@ main (int argc, char *argv[])
 
   }
 
+  users = allSenders.GetN();
   inrpp.Install (allSenders);
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (users));
   uint32_t net = 0;
  // uint32_t nserv = 0;
   //uint32_t lastClients = 0 ;
@@ -451,24 +459,25 @@ main (int argc, char *argv[])
 	   }
 
 
-		  if (tracing)
-			{
-			  std::ostringstream osstr;
-			  osstr << folder << "/inrpp12-client";
-			  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
-			  pointToPoint.EnablePcap(osstr.str(),allSenders, false);
+	  if (tracing)
+		{
+		  std::ostringstream osstr;
+		  osstr << folder << "/inrpp16-client";
+		  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
+		  pointToPoint.EnablePcap(osstr.str(),allSenders, false);
 
-			}
+		 // pointToPoint.EnablePcapAll(osstr.str(),false);
+		}
 
-  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-  //InrppGlobalRoutingHelper::PopulateRoutingTables ();
+  //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+  InrppGlobalRoutingHelper::PopulateRoutingTables ();
 
   if (tracing)
  	{
- 	//  std::ostringstream osstr;
- 	 // osstr << folder << "/inrpp12";
+ 	  std::ostringstream osstr;
+ 	  osstr << folder << "/inrpp16-routers";
  	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
- 	 // pointToPoint.EnablePcap(osstr.str(),routers, false);
+ 	  pointToPoint.EnablePcap(osstr.str(),routers, false);
 
  	}
 
@@ -526,7 +535,7 @@ main (int argc, char *argv[])
   if (tracing)
 	{
 	  std::ostringstream osstr;
-	  osstr << folder << "/inrpp12-server";
+	  osstr << folder << "/inrpp16-server";
 	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
 	  pointToPoint.EnablePcap(osstr.str(),clients, false);
 
@@ -567,7 +576,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 
 	socket->BindToNetDevice(netDev);
 
-	if(active_flows==n*6)
+	if(active_flows==users)
 	{
 		for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
 		{
@@ -628,7 +637,7 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 		data2.erase(it);
 		data2.insert(std::make_pair(p,size));
 	}
-	if(size<200000)return;
+	if(size<20000000)return;
 
 	NS_LOG_LOGIC("Flow ended " <<active_flows);
 	flows.insert(std::make_pair(p,active_flows));
@@ -651,9 +660,6 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 	//}
 	active_flows--;
 	data.erase(p);
-
-
-
 
 }
 

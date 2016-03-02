@@ -147,7 +147,7 @@ private:
 
   void ProcessInrppOption(TcpHeader& header,Ptr<InrppInterface> iface);
 
-  Ptr<InrppInterface> FindDetourIface(Ptr<InrppInterface> iface);
+  //Ptr<InrppInterface> FindDetourIface(Ptr<InrppInterface> iface);
 
   bool IsNonceFromInterface(uint32_t nonce);
 
@@ -162,7 +162,7 @@ private:
   uint32_t m_initCache;
   uint32_t m_rate;
   uint32_t m_back;
-  Time t;
+  //Time t;
   //Ptr<Ipv4Route> m_route;
   std::map <Ptr<const Packet>, Ptr<Ipv4Route> > m_routeList;
 

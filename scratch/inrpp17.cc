@@ -126,9 +126,9 @@ main (int argc, char *argv[])
 	  tracing = true;
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 100000;
-	  uint32_t    	maxPackets = 100;
-	  uint32_t      minTh = 40;
-	  uint32_t      maxTh = 80;
+	  uint32_t    	maxPackets = 300;
+	  uint32_t      minTh = 125;
+	  uint32_t      maxTh = 250;
 	  uint32_t 		stop = 100;
 	  n = 5;
 	  uint32_t as = 3;
@@ -156,7 +156,7 @@ main (int argc, char *argv[])
 
   if(detour){
   std::ostringstream st;
-  st << "test_fl" <<n+m<<"_int"<<time;
+  st << "inrpp17_test_fl" <<n+m<<"_int"<<time;
   folder = st.str();
   }
   else{
@@ -169,9 +169,9 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (1200000000));
-  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (60000000));
-  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (30000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (120000000));
+  Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (6000000));
+  Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
   Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.1));
@@ -204,7 +204,7 @@ main (int argc, char *argv[])
 	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("30Mbps"));
 	  NetDeviceContainer devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 	  devs.push_back(devices0);
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("12Mbps"));
 	  NetDeviceContainer devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
 	  devs.push_back(devices1);
 	  NetDeviceContainer devices2 = pointToPoint.Install (nodes.Get(1),nodes.Get(3));
@@ -482,15 +482,15 @@ main (int argc, char *argv[])
 	  // node one.
 	  //
 		uint32_t MaxPacketSize = 1470;
-		Time interPacketInterval = Seconds (0.0007);
+		Time interPacketInterval = Seconds (0.0005);
 		uint32_t maxPacketCount = 1000000;
 		UdpClientHelper client (coreIfaces[2].GetAddress(0), port);
 		client.SetAttribute ("MaxPackets", UintegerValue (maxPacketCount));
 		client.SetAttribute ("Interval", TimeValue (interPacketInterval));
 		client.SetAttribute ("PacketSize", UintegerValue (MaxPacketSize));
-		//ApplicationContainer apps2 = client.Install (servers.Get (0));
-		//apps2.Start (Seconds (5.0));
-		//apps2.Stop (Seconds (20.0));
+		ApplicationContainer apps2 = client.Install (servers.Get (0));
+		apps2.Start (Seconds (5.0));
+		apps2.Stop (Seconds (30.0));
 
 
   //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
@@ -558,7 +558,7 @@ main (int argc, char *argv[])
   if (tracing)
 	{
 	  std::ostringstream osstr;
-	  osstr << folder << "/inrpp12-server";
+	  osstr << folder << "/inrpp17-server";
 	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
 	  pointToPoint.EnablePcap(osstr.str(),clients, false);
 
@@ -661,7 +661,7 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 		data2.erase(it);
 		data2.insert(std::make_pair(p,size));
 	}
-	if(size<200000)return;
+	if(size<2000000)return;
 
 	NS_LOG_LOGIC("Flow ended " <<active_flows);
 	flows.insert(std::make_pair(p,active_flows));

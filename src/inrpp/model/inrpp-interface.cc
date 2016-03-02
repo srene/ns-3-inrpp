@@ -85,9 +85,9 @@ InrppInterface::InrppInterface ()
 	packetSize(0),
 	m_initCache(true),
 	m_slot(0),
-	m_nDetour(0)//,
-	//m_lastSlot(0)
-
+	m_nDetour(0),
+	m_lastDetoured(0),
+	m_enabled(false)
 {
   NS_LOG_FUNCTION (this);
   t1 = Simulator::Now();
@@ -104,7 +104,6 @@ void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION (this<<GetState());
-	//if(m_state==NO_DETOUR||m_state==DISABLE_BACK)
 	if(GetState()!=DETOUR||GetState()!=BACKPRESSURE)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<GetState());
@@ -131,15 +130,6 @@ InrppInterface::GetDetour(void)
 	return m_detourRoute;
 }
 
-void
-InrppInterface::SetDetour(Ptr<InrppRoute> route)
-{
-	NS_LOG_LOGIC("Iface " << m_detouredIface->GetAddress(0).GetLocal() << " can detour using " << GetAddress(0).GetLocal());
-	m_adList.push_back( m_detouredIface->GetAddress(0).GetLocal());
-	m_detourRoute = route;
-}
-
-
 InrppState
 InrppInterface::GetState(void)
 {
@@ -158,24 +148,22 @@ InrppInterface::SetState(InrppState state)
 		m_disable=false;
 		m_initCache=true;
 	}
+	if(m_state==DETOUR)m_enabled=true;
+	if(m_state==DISABLE_BACK)m_enabled=false;
 
 }
 
 void
 InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv)
 {
-	//NS_LOG_FUNCTION(this<<p);
-
-	if(GetDevice()!=dev1)return;
-	m_inrpp->Discard(p);
-  // read the tag from the packet copy
+  if(GetDevice()!=dev1)return;
+  m_inrpp->Discard(p);
   InrppTag tag;
 
   if(!p->PeekPacketTag (tag))
   {
 	  data+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>m_refresh){
-	//	  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
 		  double alpha = 0.6;
@@ -190,7 +178,6 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 
 	  data3+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>m_refresh){
-	//	  NS_LOG_LOGIC("Data3 " << data3 << " "<< p->GetSize()*8);
 		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
 		  data3 = 0;
 		  double alpha = 0.6;
@@ -208,13 +195,10 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 void
 InrppInterface::CalculateFlow(Ptr<const Packet> p)
 {
- // NS_LOG_LOGIC(this);
-
   data2+= p->GetSize() * 8;
   if(Simulator::Now().GetSeconds()-t2.GetSeconds()>m_refresh)
   {
 	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
-	//  NS_LOG_LOGIC("Data2 " << data2 << " "<< p->GetSize()*8 << " "<< (Simulator::Now().GetSeconds()-t2.GetSeconds()) << " " << m_currentBW2);
 	  data2 = 0;
 	  double alpha = 0.6;
 	  double sample_bwe = m_currentBW2;
@@ -237,12 +221,6 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 void
 InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 {
- // NS_LOG_LOGIC(this);
-
-
- // std::map<Ipv4Address,uint32_t>::iterator it = data4.find(ip);
-
-
 
   for(std::map<Ipv4Address,uint32_t>::iterator it = data4.begin();it!=data4.end();it++)
   {
@@ -256,7 +234,6 @@ InrppInterface::CalculateDetour(Ipv4Address ip, Ptr<const Packet> p)
 		  data4.erase(it);
 		  data4.insert(std::make_pair(it->first,tdata));
 		}
-
 
         Time tt;
 		std::map<Ipv4Address,Time>::iterator it2 = t4.find(it->first);
@@ -314,14 +291,16 @@ uint32_t
 InrppInterface::GetResidual()
 {
 	uint32_t residual;
-	//NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get());
-	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||(GetState()!=NO_DETOUR||GetState()!=DISABLE_BACK))
+	if(((uint32_t)m_bps.GetBitRate()<m_currentBW.Get())||(GetState()!=NO_DETOUR&&GetState()!=DISABLE_BACK))
 		residual = 0;
 	else
 		residual = (uint32_t)m_bps.GetBitRate()-m_currentBW.Get();
 
+	NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get() << " " << GetState() << " " << residual);
+
 	return residual;
 }
+
 uint32_t
 InrppInterface::GetResidual(Ipv4Address address)
 {
@@ -430,22 +409,12 @@ InrppInterface::SendPacket()
 			NS_LOG_FUNCTION(this<<m_slot);
 			Ptr<CachedPacket> c;
 			do{
-				//NS_LOG_FUNCTION(this<<m_slot<<loop<<m_cache->GetSize(this,m_slot));
-				//std::map<uint32_t,uint32_t>::iterator it = m_weights.find(m_slot);
-				//if(it->second==m_lastSlot)
-				//{
-				//	m_slot++;
-				//	m_lastSlot=0;
-				//}
 				m_slot=m_slot%m_numSlot;
-			//	NS_LOG_FUNCTION(this<<m_slot<<it->second<<m_lastSlot);
 				c = m_cache->GetPacket(this,m_slot);
 				m_slot++;
-			//	NS_LOG_LOGIC("Packet " << c << " " << m_slot);
 				loop++;
 			}while(!c&&loop<=m_numSlot);
 			if(c){
-				//m_lastSlot++;
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
 				InrppTag tag;
@@ -461,7 +430,7 @@ InrppInterface::SendPacket()
 					packetSize=p->GetSize();
 				Time t = Seconds((double)((p->GetSize()+2)*8)/m_bps.GetBitRate());
 
-				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << (double)((p->GetSize()+10)*8)/m_bps.GetBitRate() << " "<< m_bps.GetBitRate());
+				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << (double)((p->GetSize()+2)*8)/m_bps.GetBitRate() << " "<< m_bps.GetBitRate());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
@@ -474,22 +443,16 @@ InrppInterface::SendPacket()
 }
 
 void
-InrppInterface::SetDetouredIface(Ptr<InrppInterface> interface,Ipv4Address address)
+InrppInterface::SetDetouredIface(Ptr<InrppInterface> interface,Ptr<InrppRoute> route)
 {
-	NS_LOG_FUNCTION(this<<interface << address);
-	m_detouredIface= interface;
+	NS_LOG_FUNCTION(this<<interface << route->GetDestination());
+	m_detouredIface.push_back(std::make_pair(interface,route));
 }
-
-Ptr<InrppInterface>
-InrppInterface::GetDetouredIface(void)
-{
-	return m_detouredIface;
-}
-
 
 void
 InrppInterface::UpdateResidual(Ipv4Address address, uint32_t residual)
 {
+	NS_LOG_LOGIC("Residual " << GetResidual() << " " << residual);
 	m_residualMin = std::min(GetResidual(),residual);
 	NS_LOG_LOGIC("Residual "<<  GetAddress(0).GetLocal() << " " << address << " "<< m_residualMin.Get());
 
@@ -507,7 +470,7 @@ InrppInterface::SendResidual()
 
 	if(!m_txResidualEvent.IsRunning())
 	{
-		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<GetState()<<m_cache->GetSize(m_detouredIface,m_slot)<<m_residualMin);
+		NS_LOG_FUNCTION(this<<m_ackRate<<packetSize<<GetState()<<m_cache->GetSize(m_detouredIface[m_lastDetoured].first,m_slot)<<m_residualMin);
 
 		if(m_cache->GetSize()>0)
 		{
@@ -515,33 +478,31 @@ InrppInterface::SendResidual()
 			uint32_t loop=0;
 			Ptr<CachedPacket> c;
 			do{
-				//NS_LOG_FUNCTION(this<<m_slot<<loop<<m_cache->GetSize(this,m_slot));
-			//	std::map<uint32_t,uint32_t>::iterator it = m_weights.find(m_slot);
-			//	if(it->second==m_lastSlot)
-			//	{
-		//			m_slot++;
-			//		m_lastSlot=0;
-			//	}
 				m_slot=m_slot%m_numSlot;
-				//NS_LOG_FUNCTION(this<<m_slot<<it->second<<m_lastSlot);
-				c = m_cache->GetPacket(m_detouredIface,m_slot);
+				uint32_t tries=0;
+				while(!m_detouredIface[m_lastDetoured].first->GetEnabled()&&tries<=m_detouredIface.size()){
+					m_lastDetoured++;
+					if(m_detouredIface.size()==m_lastDetoured)m_lastDetoured=0;
+					tries++;
+				}
+				c = m_cache->GetPacket(m_detouredIface[m_lastDetoured].first,m_slot);
 				m_slot++;
-			//	NS_LOG_LOGIC("Packet " << c << " " << m_slot);
 				loop++;
 			}while(!c&&loop<=m_numSlot);
 			if(c)
 			{
-				//m_lastSlot++;
-				NS_LOG_LOGIC(this << " Inteface " << m_detouredIface->GetAddress(0).GetLocal() << " is sending through " << GetAddress(0).GetLocal() << " " << m_detourRoute->GetDetour() << " " << m_inrpp->GetInterface(m_inrpp->GetInterfaceForDevice (m_detourRoute->GetOutputDevice()))->GetObject<InrppInterface>());
+				NS_LOG_LOGIC(this << " Inteface " << m_detouredIface[m_lastDetoured].first->GetAddress(0).GetLocal() << " is sending through " << GetAddress(0).GetLocal() << " " << m_detouredIface[m_lastDetoured].second->GetDetour() << " " << m_inrpp->GetInterface(m_inrpp->GetInterfaceForDevice (m_detouredIface[m_lastDetoured].second->GetOutputDevice()))->GetObject<InrppInterface>());
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
 				InrppTag tag;
 				tag.SetAddress (rtentry->GetGateway());
 				if(!packet->PeekPacketTag(tag))
 					packet->AddPacketTag (tag);
-				rtentry->SetGateway(m_detourRoute->GetDetour());
-				rtentry->SetOutputDevice(m_detourRoute->GetOutputDevice());
+				rtentry->SetGateway(m_detouredIface[m_lastDetoured].second->GetDetour());
+				rtentry->SetOutputDevice(m_detouredIface[m_lastDetoured].second->GetOutputDevice());
 				m_inrpp->SendData(rtentry,packet);
+				m_lastDetoured++;
+				if(m_detouredIface.size()==m_lastDetoured)m_lastDetoured=0;
 				if(m_residualMin.Get()>0)
 				{
 					Time t = Seconds(((double)(packet->GetSize()+10)*8)/m_residualMin.Get());
@@ -554,17 +515,9 @@ InrppInterface::SendResidual()
 
 }
 
-/*void
-InrppInterface::PushPacket(Ptr<Packet> p,Ptr<Ipv4Route> route)
-{
-	m_queue.push(std::make_pair(p,route));
-	m_cache->AddPacket();
-}*/
-
 void
 InrppInterface::CalculatePacing(uint32_t bytes)
 {
-	//NS_LOG_FUNCTION(this);
 	m_ackRate+=bytes;
 
 }
@@ -614,10 +567,18 @@ InrppInterface::OneMoreDetour(Ipv4Address ip)
 	  for(std::map<Ipv4Address,uint32_t>::iterator it = data4.begin();it!=data4.end();it++)
 			NS_LOG_LOGIC("Ip " << it->first << " data " << it->second << " ip " << ip);
 }
-/*void
-InrppInterface::SetWeights(std::map<uint32_t,uint32_t> weights)
+
+void
+InrppInterface::SetEnabled(bool enable)
 {
-	m_weights = weights;
-}*/
+	m_enabled = enable;
+}
+
+bool
+InrppInterface::GetEnabled(void)
+{
+	return m_enabled;
+}
+
 } // namespace ns3
 
