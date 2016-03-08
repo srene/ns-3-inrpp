@@ -194,10 +194,10 @@ void PacketSink::HandleRead (Ptr<Socket> socket)
 	  data+= packet->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
 		  //NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
-		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		  double sample_bwe = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
 		  double alpha = 0.4;
-		  double   sample_bwe = m_currentBW;
+		  //double   sample_bwe = m_currentBW;
 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
 		  m_lastSampleBW = sample_bwe;
 		  m_lastBW = m_currentBW;

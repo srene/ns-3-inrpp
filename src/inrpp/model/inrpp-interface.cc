@@ -164,10 +164,11 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
   {
 	  data+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>m_refresh){
-		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		  //m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		  double   sample_bwe = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
 		  double alpha = 0.6;
-		  double   sample_bwe = m_currentBW;
+		  //double   sample_bwe = m_currentBW;
 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
 		  m_lastSampleBW = sample_bwe;
 		  m_lastBW = m_currentBW;
@@ -178,10 +179,11 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 
 	  data3+= p->GetSize() * 8;
 	  if(Simulator::Now().GetSeconds()-t3.GetSeconds()>m_refresh){
-		  m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
+		 // m_currentBW3 = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
+		  double   sample_bwe = data3 / (Simulator::Now().GetSeconds()-t3.GetSeconds());
 		  data3 = 0;
 		  double alpha = 0.6;
-		  double   sample_bwe = m_currentBW3;
+		  //double   sample_bwe = m_currentBW3;
 		  m_currentBW3 = (alpha * m_lastBW3) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW3) / 2));
 		  m_lastSampleBW3 = sample_bwe;
 		  m_lastBW3 = m_currentBW3;
@@ -198,10 +200,11 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
   data2+= p->GetSize() * 8;
   if(Simulator::Now().GetSeconds()-t2.GetSeconds()>m_refresh)
   {
-	  m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
+	  //m_currentBW2 = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
+	  double sample_bwe = data2 / (Simulator::Now().GetSeconds()-t2.GetSeconds());
 	  data2 = 0;
 	  double alpha = 0.6;
-	  double sample_bwe = m_currentBW2;
+	 // double sample_bwe = m_currentBW2;
 	  m_currentBW2 = (alpha * m_lastBW2) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW2) / 2));
 	  m_lastSampleBW2 = sample_bwe;
 	  m_lastBW2 = m_currentBW2;

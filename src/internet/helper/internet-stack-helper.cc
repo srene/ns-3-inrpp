@@ -178,6 +178,7 @@
 #include "ns3/global-router-interface.h"
 #include <limits>
 #include <map>
+#include "ns3/inrpp-stack-helper.h"
 
 namespace ns3 {
 
@@ -231,17 +232,22 @@ static InterfaceFileMapIpv6 g_interfaceFileMapIpv6; /**< A mapping of Ipv6/inter
 static InterfaceStreamMapIpv6 g_interfaceStreamMapIpv6; /**< A mapping of Ipv6/interface pairs to pcap files */
 
 InternetStackHelper::InternetStackHelper ()
-  : m_routing (0),
-    m_routingv6 (0),
-    m_ipv4Enabled (true),
-    m_ipv6Enabled (true),
-    m_ipv4ArpJitterEnabled (true),
-    m_ipv6NsRsJitterEnabled (true)
-
 {
-  Initialize ();
+	Init();
+	Initialize ();
 }
 
+void
+InternetStackHelper::Init()
+{
+	  m_routing = 0;
+	  m_routingv6 = 0;
+	  m_ipv4Enabled = true;
+	  m_ipv6Enabled = true;
+	  m_ipv4ArpJitterEnabled = true;
+	  m_ipv6NsRsJitterEnabled = true;
+
+}
 // private method called by both constructor and Reset ()
 void
 InternetStackHelper::Initialize ()
@@ -385,6 +391,7 @@ InternetStackHelper::AssignStreams (NodeContainer c, int64_t stream)
 void
 InternetStackHelper::SetTcp (const std::string tid)
 {
+  NS_LOG_LOGIC("SetTCP");
   m_tcpFactory.SetTypeId (tid);
 }
 
@@ -422,7 +429,8 @@ InternetStackHelper::CreateAndAggregateObjectFromTypeId (Ptr<Node> node, const s
 void
 InternetStackHelper::Install (Ptr<Node> node) const
 {
-NS_LOG_INFO("Install");
+  NS_LOG_INFO("Install");
+
   if (m_ipv4Enabled)
     {
 	  NS_LOG_INFO("Install ipv4");

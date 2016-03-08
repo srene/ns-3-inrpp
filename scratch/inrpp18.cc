@@ -156,7 +156,7 @@ main (int argc, char *argv[])
 
   if(detour){
   std::ostringstream st;
-  st << "inrpp17_test_fl" <<n+m<<"_int"<<time;
+  st << "inrpp18_test_fl" <<n+m<<"_int"<<time;
   folder = st.str();
   }
   else{
@@ -165,17 +165,17 @@ main (int argc, char *argv[])
 	  folder = st.str();
   }
 
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
+  //Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (120000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (12000000));
   Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (6000000));
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
   Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.1));
-  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (510));
+  Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (6*n));
 
 //
 // Explicitly create the nodes required by the topology (shown above).
@@ -202,10 +202,10 @@ main (int argc, char *argv[])
 
 	  NS_LOG_LOGIC("AS " << i);
 	  std::vector<NetDeviceContainer> devs;
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("30Mbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("20Mbps"));
 	  NetDeviceContainer devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 	  devs.push_back(devices0);
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("12Mbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
 	  NetDeviceContainer devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
 	  devs.push_back(devices1);
 	  NetDeviceContainer devices2 = pointToPoint.Install (nodes.Get(1),nodes.Get(3));
@@ -224,6 +224,7 @@ main (int argc, char *argv[])
 
 	  routers.Add(nodes);
 	  InrppStackHelper inrpp;
+	  //InternetStackHelper inrpp;
 	  inrpp.Install (nodes);
 
 
@@ -252,6 +253,7 @@ main (int argc, char *argv[])
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
   NetDeviceContainer serversDev = pointToPoint.Install (servers.Get(0),servers.Get(1));
   InrppStackHelper inrpp;
+  //InternetStackHelper inrpp;
   inrpp.Install (servers);
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("12.0.0.0", "255.255.255.0");
@@ -313,8 +315,9 @@ main (int argc, char *argv[])
 	//Ptr<UniformRandomVariable> urng = CreateObject<UniformRandomVariable> ();
 	//nclient = urng->GetInteger();
 	//lastClients = nclient;
-	if(i==5) senders.Create(160);
-	else senders.Create(n);
+	//if(i==5) senders.Create(200);
+	//else senders.Create(n);
+	senders.Create(n);
 	 NS_LOG_LOGIC("Number of clients in edge " << i << " is: " << senders.GetN());
   for(uint32_t j=0;j<senders.GetN();j++)
 	{
@@ -350,7 +353,8 @@ main (int argc, char *argv[])
 
   }
   users = allSenders.GetN();
-  inrpp.Install (allSenders);
+  InternetStackHelper internet;
+  internet.Install (allSenders);
 
   uint32_t net = 0;
  // uint32_t nserv = 0;
@@ -416,7 +420,7 @@ main (int argc, char *argv[])
 		  PacketSinkHelper sink1 ("ns3::TcpSocketFactory",
 							   InetSocketAddress (Ipv4Address::GetAny (), port));
 		  ApplicationContainer sinkApps = sink1.Install (allSenders.Get(j));
-		  sinkApps.Start (Seconds (0.0));
+		  sinkApps.Start (Seconds (1.0));
 		  sinkApps.Stop (Seconds (stop));
 		  Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
 		 // psink->SetCallback(MakeCallback(&StopFlow));
@@ -468,7 +472,7 @@ main (int argc, char *argv[])
 			 // pointToPoint.EnablePcapAll(osstr.str(),false);
 			}
 
-		NodeContainer udpnode;
+/*		NodeContainer udpnode;
 		udpnode.Create(2);
 		  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("20Mbps"));
 
@@ -527,12 +531,12 @@ main (int argc, char *argv[])
  	  pointToPoint.EnablePcap(osstr.str(),udpnode, false);
 
  	}
+*/
 
+   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+   //InrppGlobalRoutingHelper::PopulateRoutingTables ();
 
-  //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-   InrppGlobalRoutingHelper::PopulateRoutingTables ();
-
-
+/*
   for(uint32_t i=0;i<routers.GetN();i++)
   {
 	  //Configure detour path at n0
@@ -582,6 +586,7 @@ main (int argc, char *argv[])
 		  }
 	  }
   }
+  */
 
   if (tracing)
 	{
@@ -612,7 +617,7 @@ main (int argc, char *argv[])
     fl++;
     avg_ct+=ct;
   }
-  NS_LOG_LOGIC("UDP Lost packets " << udp->GetLost() << " received " << udp->GetReceived());
+  //NS_LOG_LOGIC("UDP Lost packets " << udp->GetLost() << " received " << udp->GetReceived());
 
   NS_LOG_LOGIC("Average flow completion time " << avg_ct/(allSenders.GetN()));
 
@@ -645,7 +650,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
 		  std::ostringstream osstr;
 		  osstr << folder << "/netdevice_"<<i<<".tr";
 		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-		  socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
+		  if(socket->GetObject<TcpInrpp>())socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
 		  i++;
 
 		  std::ostringstream oss2;
@@ -706,7 +711,7 @@ void StopFlow(Ptr<PacketSink> p, Ptr<const Packet> packet, const Address &)
 		double powersum=0;
 		for (std::map<Ptr<PacketSink>,uint32_t>::iterator it=data.begin(); it!=data.end(); ++it)
 		{
-			NS_LOG_LOGIC("PacketSink " << it->first << " data rx " << (it->second/1000));
+			//NS_LOG_LOGIC("PacketSink " << it->first << " data rx " << (it->second/1000));
 			sum+=(it->second/1000);
 			uint32_t powsum = pow((it->second/1000),2);
 			powersum+=powsum;

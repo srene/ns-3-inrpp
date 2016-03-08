@@ -65,6 +65,7 @@ public:
   TcpL4Protocol ();
   virtual ~TcpL4Protocol ();
 
+  void SetTypeId(TypeId socketTypeId);
   /**
    * Set node associated with this stack
    * \param node the node

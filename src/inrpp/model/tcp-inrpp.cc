@@ -513,14 +513,14 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
 	 NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
 
-	 if(m_nonce!=0)
-	 {
+//	 if(m_nonce!=0)
+//	 {
 		 NS_LOG_FUNCTION (this << m_slot << m_nonce);
 		 Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
 		 option->SetFlag(m_slot);
 		 option->SetNonce (m_nonce);
 	     tcpHeader.AppendOption (option);
-	 }
+//	 }
 
 	 TcpSocketBase::AddOptions (tcpHeader);
 }

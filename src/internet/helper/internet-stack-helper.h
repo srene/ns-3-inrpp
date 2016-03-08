@@ -270,6 +270,7 @@ protected:
                                         uint32_t interface,
                                         bool explicitFilename);
 
+  void Init();
   /**
    * \brief Initialize the helper to its default values
    */

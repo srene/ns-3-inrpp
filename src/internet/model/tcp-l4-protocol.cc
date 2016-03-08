@@ -199,6 +199,11 @@ TcpL4Protocol::CreateSocket (void)
   return CreateSocket (m_socketTypeId);
 }
 
+void
+TcpL4Protocol::SetTypeId(TypeId socketTypeId)
+{
+	m_socketTypeId = socketTypeId;
+}
 Ipv4EndPoint *
 TcpL4Protocol::Allocate (void)
 {

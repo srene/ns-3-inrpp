@@ -448,6 +448,7 @@ TcpHeader::CalculateHeaderLength () const
 bool
 TcpHeader::AppendOption (Ptr<TcpOption> option)
 {
+	NS_LOG_FUNCTION(this);
   if (m_optionsLen + option->GetSerializedSize () <= m_maxOptionsLen)
     {
       if (!TcpOption::IsKindKnown (option->GetKind ()))

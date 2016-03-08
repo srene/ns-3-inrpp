@@ -77,6 +77,7 @@ public:
   virtual ~InrppStackHelper(void);
 
 
+  void Initialize ();
 
   /**
    * Aggregate implementations of the ns3::Ipv4, ns3::Ipv6, ns3::Udp, and ns3::Tcp classes

@@ -13,7 +13,9 @@ def build(bld):
         'model/inrpp-tag.cc',          
         'model/tcp-inrpp.cc',      
         'model/inrpp-global-route-manager.cc',         
-        'model/inrpp-global-route-manager-impl.cc',                                                                 
+        'model/inrpp-global-route-manager-impl.cc',  
+#        'model/tcpinrpp-socket-factory.cc',       
+#        'model/tcpinrpp-socket-factory-impl.cc',                                                                                                                          
         'helper/inrpp-stack-helper.cc',
         'helper/inrpp-global-routing-helper.cc',       
         ]
@@ -32,7 +34,9 @@ def build(bld):
         'model/inrpp-tag.h',  
         'model/tcp-inrpp.h',   
         'model/inrpp-global-route-manager.h',         
-        'model/inrpp-global-route-manager-impl.h',                                                                                                       
+        'model/inrpp-global-route-manager-impl.h',      
+#        'model/tcpinrpp-socket-factory.h',       
+#        'model/tcpinrpp-socket-factory-impl.h',                                                                                                            
         'helper/inrpp-stack-helper.h',
         'helper/inrpp-global-routing-helper.h',   
         ]
