@@ -151,6 +151,8 @@ private:
 
   bool IsNonceFromInterface(uint32_t nonce);
 
+  void Forward(Ptr<Packet> packet, const Ipv4Header &ipHeader, Ptr<NetDevice> netdevice, uint32_t interface);
+
   Ptr<InrppCache> m_cache; //!< ARP cache container
 
  // Ptr<InrppCache> m_secondCache; //!< ARP cache container

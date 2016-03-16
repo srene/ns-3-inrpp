@@ -70,7 +70,7 @@ InrppCache::GetTypeId (void)
     .SetParent<Object> ()
     .AddAttribute ("MaxCacheSize",
                    "The size of the queue for packets pending an arp reply.",
-                   UintegerValue (10000000),
+                   UintegerValue (12000000),
                    MakeUintegerAccessor (&InrppCache::GetMaxSize,
                            	   	   	   	 &InrppCache::SetMaxSize),
                    MakeUintegerChecker<uint32_t> ())
@@ -84,6 +84,11 @@ InrppCache::GetTypeId (void)
 				   UintegerValue (5000000),
 				   MakeUintegerAccessor (&InrppCache::m_lowSizeTh),
 				   MakeUintegerChecker<uint32_t> ())
+	.AddAttribute ("RedThresholdCacheSize",
+				   "The size of the queue for packets pending an arp reply.",
+				   UintegerValue (10000000),
+				   MakeUintegerAccessor (&InrppCache::m_redSizeTh),
+				   MakeUintegerChecker<uint32_t> ())
 	.AddTraceSource ("Size",
 					 "Remote side's flow control window",
 					 MakeTraceSourceAccessor (&InrppCache::m_size),
@@ -96,7 +101,8 @@ InrppCache::InrppCache ():
 m_size(0),
 m_packets(0),
 m_split(100),
-m_round(0)
+m_round(0),
+red(false)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -125,10 +131,9 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
 		  m_hTh = true;
 		  m_lTh = false;
-
 		}
 
-		Ptr<CachedPacket>p = CreateObject<CachedPacket> (packet,rtentry);
+		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry);
 		m_InrppCache.insert(PairCache(PairKey(iface,flag),p));
 		m_size+=packet->GetSize();
 		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
@@ -139,10 +144,28 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 		} else {
 			m_ifaceSize.insert(make_pair(PairKey(iface,flag),packet->GetSize()));
 		}
+
+		/*if(m_size.Get()>m_redSizeTh&&!red){
+			red = true;
+			for (Cache::iterator itr = m_InrppCache.begin(); itr != m_InrppCache.end(); ) {
+			    // ... process *itr ...
+				m_InrppCache.erase(itr);
+				m_size-=packet->GetSize();
+			    // Now, go skip to the first entry with a new key.
+				Cache::iterator curr = itr;
+			    while (itr != m_InrppCache.end() && itr->first == curr->first)
+			        ++itr;
+			}
+		}
+		if(m_size.Get()<m_highSizeTh&&red){
+			red = false;
+		}*/
 		return true;
 	} else {
 		return false;
 	}
+
+
 
 }
 

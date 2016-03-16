@@ -72,7 +72,7 @@ std::map<Ptr<PacketSink> ,DelayJitterEstimation> jit2;
 std::map<Ptr<PacketSink> ,Time> arrival;
 
 
-uint32_t 		maxBytes;
+uint32_t maxBytes;
 uint32_t users=0;
 uint32_t cache=0;
 
@@ -117,7 +117,6 @@ void LogCache(Ptr<InrppL3Protocol> inrpp)
     cache++;
 
 }
-
 
 int
 main (int argc, char *argv[])
@@ -170,8 +169,9 @@ main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (12000000));
+  Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (30000000));
   Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (6000000));
+  Config::SetDefault ("ns3::InrppCache::RedThresholdCacheSize", UintegerValue (9000000));
   Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (3000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
@@ -358,8 +358,8 @@ main (int argc, char *argv[])
 		  sourceLinks.push_back(sourceLink);
 
 	}
-     net2++;
-     num2=0;
+    net2++;
+    num2=0;
 
 	if(i%1==0)
 	{

@@ -121,6 +121,9 @@ private:
   uint32_t m_highSizeTh;
   uint32_t m_lowSizeTh;
 
+  uint32_t m_redSizeTh;
+
+
   HighThCallback m_highTh;
   LowThCallback m_lowTh;
   bool m_hTh;
@@ -129,6 +132,8 @@ private:
   uint32_t m_packets;
 
   uint32_t m_split,m_round;
+
+  bool red;
 };
 
 
