@@ -5,7 +5,8 @@ def build(bld):
     module = bld.create_ns3_module('rcp', ['core', 'network'])
     module.source = [
         'model/rcp-queue.cc',        
-        'model/tcp-rcp.cc',                
+        'model/tcp-rcp.cc',          
+        'model/tcp-option-rcp.cc',      
         ]
 
 #    module_test = bld.create_ns3_module_test_library('rcp')
@@ -14,7 +15,8 @@ def build(bld):
     headers.module = 'rcp'
     headers.source = [
         'model/rcp-queue.h',
-        'model/tcp-rcp.h',                        
+        'model/tcp-rcp.h', 
+        'model/tcp-option-rcp.h',                                     
         ]
 
 #    bld.ns3_python_bindings()

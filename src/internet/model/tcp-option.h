@@ -57,6 +57,7 @@ public:
     MSS = 2,      //!< MSS
     WINSCALE = 3, //!< WINSCALE
     TS = 8,       //!< TS
+	RCP = 251, 	  //!< RCP
 	INRPP_BACK = 252, //!< INRPP BACKPRESSURE
 	INRPP = 253, //!< INRPP CACHE FLAG
     UNKNOWN = 255 //!< not a standardized value; for unknown recv'd options

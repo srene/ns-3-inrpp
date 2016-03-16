@@ -64,7 +64,8 @@ public:
  // uint32_t GetNBytes();
 private:
   virtual bool DoEnqueue (Ptr<Packet> p);
-
+  double RunningAvg(double var_sample, double var_last_avg, double gain);
+  void Timeout();
   void DoOnPacketArrival(Ptr<Packet> p);
   void DoBeforePacketDeparture(Ptr<Packet> p);
   void FillInFeedback(const TcpHeader &header);
@@ -89,6 +90,42 @@ private:
   bool m_lTh;
 
   double m_linkCapacity;
+
+  unsigned int    routerId_;
+  // RCPQTimer        queue_timer_;
+   double          Tq_;
+
+   // Rui: link_capacity_ is set by tcl script.
+   // Rui: must call set-link-capacity after building topology and before running simulation
+   double link_capacity_;
+   double input_traffic_;       // traffic in Tq_
+   double act_input_traffic_;
+   double output_traffic_;
+   double traffic_spill_;  // parts of packets that should fall in next slot
+   double last_load_;
+   double end_slot_; // end time of the current time slot
+   int num_flows_;
+   double avg_rtt_;
+   double this_Tq_rtt_sum_;
+   double this_Tq_rtt_;
+   double this_Tq_rtt_numPkts_;
+   int input_traffic_rtt_;
+   double rtt_moving_gain_;
+   int Q_;
+   int Q_last;
+   double flow_rate_;
+   double alpha_;  // Masayoshi
+   double beta_;   // Masayoshi
+   double gamma_;
+   double min_pprtt_;   // Masayoshi minimum packet per rtt
+   double init_rate_fact_;    // Masayoshi
+   int    print_status_;      // Masayoshi
+   int    rate_fact_mode_;    // Masayoshi
+   double fixed_rate_fact_;   // Masayoshi
+   double propag_rtt_ ;       // Masayoshi (experimental, used with rate_fact_mode_ = 3)
+   double upd_timeslot_ ;       // Masayoshi
+
+  // Tcl_Channel   channel_;      // Masayoshi
 
 };
 
