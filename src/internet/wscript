@@ -250,7 +250,7 @@ def build(bld):
     privateheaders.module = 'internet'
     privateheaders.source = [
         'model/tcp-option-winscale.h',
-        'model/tcp-option-ts.h',
+#        'model/tcp-option-ts.h',
         'model/tcp-option-rfc793.h',        
         ]
     headers = bld(features='ns3header')
@@ -344,6 +344,7 @@ def build(bld):
         'helper/ripng-helper.h',
         'model/tcp-option-inrpp-back.h',     
         'model/tcp-option-inrpp.h',  
+		'model/tcp-option-ts.h',        
        ]
 
     if bld.env['NSC_ENABLED']:

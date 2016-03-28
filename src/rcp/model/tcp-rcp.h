@@ -36,6 +36,16 @@ namespace ns3 {
 class TcpRcp : public TcpSocketBase
 {
 public:
+
+	typedef enum
+	{RCP_INACT,
+	 RCP_SYNSENT,
+	 RCP_CONGEST,
+	 RCP_RUNNING,
+	 RCP_RUNNING_WREF,
+	 RCP_FINSENT,
+	 RCP_RETRANSMIT} States2_t;
+
   /**
    * \brief Get the type ID.
    * \return the object TypeId
@@ -56,7 +66,7 @@ public:
   virtual int Connect (const Address &address);
   virtual int Listen (void);
   void SetRate (uint32_t rate );
-  virtual int Send (Ptr<Packet> p, uint32_t flags);
+  //virtual int Send (Ptr<Packet> p, uint32_t flags);
 
 protected:
   virtual uint32_t Window (void); // Return the max possible number of unacked bytes
@@ -83,6 +93,10 @@ private:
    */
   void InitializeCwnd (void);
   //void SendAck(void);
+  double RCP_desired_rate();
+  void Timeout();
+  void RtxTimeout();
+  void RateChange();
 
 protected:
   TracedValue<uint32_t>  m_cWnd;         //!< Congestion window
@@ -111,6 +125,30 @@ protected:
   //EventId m_ackEvent;       //!< Transmit cached packet event
   //Time t;
   //double m_ackInterval;
+
+private:
+	double lastpkttime_;
+	double rtt_;
+	double min_rtt_;
+	int seqno_;
+	int ref_seqno_; /* Masayoshi */
+	int init_refintv_fix_; /* Masayoshi */
+	double interval_;
+	double numpkts_;
+	int num_sent_;
+	int RCP_state;
+	int numOutRefs_;
+
+	/* for retransmissions */
+	int num_dataPkts_acked_by_receiver_;   // number of packets acked by receiver
+	int num_dataPkts_received_;            // Receiver keeps track of number of packets it received
+	int num_Pkts_to_retransmit_;           // Number of data packets to retransmit
+	int num_pkts_resent_;                  // Number retransmitted since last RTO
+	int num_enter_retransmit_mode_;        // Number of times we are entering retransmission mode
+
+	EventId m_rcpTimeout;
+	EventId m_refTransmit;
+	EventId m_rxTimeout;
 
 };
 

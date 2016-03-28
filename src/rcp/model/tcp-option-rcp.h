@@ -39,14 +39,14 @@ public:
   typedef enum
   {
 	  RCP_OTHER = 0,   //!< No flags
-	  RCP_SYN  = 1,   //!< FIN
-	  RCP_SYNACK  = 2,   //!< SYN
-	  RCP_REF  = 4,   //!< Reset
-	  RCP_REFACK  = 8,   //!< Push
-	  RCP_DATA  = 16,  //!< Ack
-	  RCP_ACK  = 32,  //!< Urgent
-	  RCP_FIN  = 64,  //!< ECE
-	  RCP_FINACK  = 128  //!< CWR
+	  RCP_REF  = 1,   //!< Reset
+	  RCP_REFACK  = 2,   //!< Push
+	  RCP_DATA  = 4,  //!< Ack
+	  RCP_ACK  = 8,  //!< Urgent
+	  RCP_SYN = 16,
+	  RCP_SYNACK = 32,
+	  RCP_FIN = 64,
+	  RCP_FINACK = 128
   } Flags_t;
 
   /**

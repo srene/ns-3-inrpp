@@ -24,6 +24,10 @@
 #include "ns3/drop-tail-queue.h"
 #include "ns3/net-device.h"
 #include "ns3/tcp-header.h"
+#include "ns3/event-id.h"
+#include "ns3/data-rate.h"
+
+
 namespace ns3 {
 
 class TraceContainer;
@@ -63,6 +67,7 @@ public:
 
  // uint32_t GetNBytes();
 private:
+  void Init();
   virtual bool DoEnqueue (Ptr<Packet> p);
   double RunningAvg(double var_sample, double var_last_avg, double gain);
   void Timeout();
@@ -91,7 +96,6 @@ private:
 
   double m_linkCapacity;
 
-  unsigned int    routerId_;
   // RCPQTimer        queue_timer_;
    double          Tq_;
 
@@ -104,7 +108,6 @@ private:
    double traffic_spill_;  // parts of packets that should fall in next slot
    double last_load_;
    double end_slot_; // end time of the current time slot
-   int num_flows_;
    double avg_rtt_;
    double this_Tq_rtt_sum_;
    double this_Tq_rtt_;
@@ -114,9 +117,10 @@ private:
    int Q_;
    int Q_last;
    double flow_rate_;
-   double alpha_;  // Masayoshi
-   double beta_;   // Masayoshi
-   double gamma_;
+   bool m_init;
+   double m_alpha;  // Masayoshi
+   double m_beta;   // Masayoshi
+   double m_gamma;
    double min_pprtt_;   // Masayoshi minimum packet per rtt
    double init_rate_fact_;    // Masayoshi
    int    print_status_;      // Masayoshi
@@ -126,6 +130,13 @@ private:
    double upd_timeslot_ ;       // Masayoshi
 
   // Tcl_Channel   channel_;      // Masayoshi
+
+   double m_phi,m_rtt,m_rttGain;
+
+   EventId queue_timer_;
+
+   DataRate       m_bps;
+
 
 };
 
