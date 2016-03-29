@@ -276,13 +276,13 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
   if (v->GetVertexType () == SPFVertex::VertexRouter)
     {
       numRecordsInVertex = v->GetLSA ()->GetNLinkRecords (); 
-	  NS_LOG_LOGIC("VertexRouter " << numRecordsInVertex);
+     NS_LOG_LOGIC("VertexRouter " << numRecordsInVertex);
 
     }
   if (v->GetVertexType () == SPFVertex::VertexNetwork)
     {
       numRecordsInVertex = v->GetLSA ()->GetNAttachedRouters (); 
-	  NS_LOG_LOGIC("VertexNetwork " << numRecordsInVertex);
+     NS_LOG_LOGIC("VertexNetwork " << numRecordsInVertex);
 
     }
 
@@ -357,7 +357,7 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 // then we have it covered -- ignore it.
 //
 
-// Onur Remove this check as it skips longer paths to nodes that are on the sp tree //XXX
+// Onur Should I remove the following code? it may skip longer paths to nodes that are on the sp tree...
       if (w_lsa->GetStatus () == GlobalRoutingLSA::LSA_SPF_IN_SPFTREE) 
         {
           NS_LOG_LOGIC ("Skipping ->  LSA "<< 
@@ -428,242 +428,238 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 */
           SPFVertex* cw;
           cw = candidate.Find (w_lsa->GetLinkStateId ());
-          if (cw->GetDistanceFromRoot () < distance)
+
+          // Onur: if both v's and cw's parents are the root
+          // then we just found a 1-hop detour path for the root
+          // since we know v and cw are connected through a link (see GlobalRoutingLinkRecord *l above)
+          NS_LOG_LOGIC("Check parents " << v->GetParent()->GetVertexId() << " " << cw->GetParent()->GetVertexId() << " " << m_spfroot->GetVertexId());
+          if(v->GetParent() == m_spfroot && cw->GetParent() == m_spfroot)
             {
-//
-// This is not a shorter path, so don't do anything.
-//
-		// Onur: if both v's and cw's parents are the root
-		// then we just found a 1-hop detour path for the root
-		// since we know v and cw are connected through a link (see GlobalRoutingLinkRecord *l above)
-
-
-        	    NS_LOG_LOGIC("Check parents " << v->GetParent()->GetVertexId() << " " << v->GetParent()->GetVertexId() << " " << m_spfroot->GetVertexId());
-				if(v->GetParent() == m_spfroot && cw->GetParent() == m_spfroot)
-				  {
-					//1. Find the node corresponding to v. 
-					
-					// routerId is not a "real" IP address:
-					// it is just an identifier in the form of an IP address (e.g. 0.0.0.1)
-					// assigned to each router node
+               //1. Find the node corresponding to v. 
+               
+               // routerId is not a "real" IP address:
+               // it is just an identifier in the form of an IP address (e.g. 0.0.0.1)
+               // assigned to each router node
                Ipv4Address routerIdv = v->GetVertexId ();
                NodeList::Iterator i = NodeList::Begin (); 
                NodeList::Iterator listEnd = NodeList::End ();
-					Ptr<Node> v_node = NULL; 
-					for (; i != listEnd; i++)
-					  {
-						 v_node = *i;
-						 Ptr<GlobalRouter> rtr = v_node->GetObject<GlobalRouter> ();
-						 if (rtr == 0)
+               Ptr<Node> v_node = NULL; 
+               for (; i != listEnd; i++)
+                 {
+                   v_node = *i;
+                   Ptr<GlobalRouter> rtr = v_node->GetObject<GlobalRouter> ();
+                   if (rtr == 0)
                      {
                        NS_LOG_LOGIC ("No GlobalRouter interface on node " << 
                        v_node->GetId ());
                        continue;
                      }
                    if (rtr->GetRouterId () == routerIdv)
-						   {
-							  NS_LOG_LOGIC("Router v is found in the NodeList");
-						  	  break;
-							}
-					  }
-					//2. Find the node corresponding to cw
+                     {
+                       NS_LOG_LOGIC("Router v is found in the NodeList");
+                       break;
+                     }
+                 }
+               //2. Find the node corresponding to cw
                i = NodeList::Begin (); 
                Ipv4Address routerIdcw = cw->GetVertexId ();
-					Ptr<Node> cw_node = NULL; 
-					for (; i != listEnd; i++)
-					  {
-						cw_node = *i;
-						Ptr<GlobalRouter> rtr = cw_node->GetObject<GlobalRouter> ();
-						if (rtr == 0)
+               Ptr<Node> cw_node = NULL; 
+               for (; i != listEnd; i++)
+                 {
+                  cw_node = *i;
+                  Ptr<GlobalRouter> rtr = cw_node->GetObject<GlobalRouter> ();
+                  if (rtr == 0)
                     {
                       NS_LOG_LOGIC ("No GlobalRouter interface on node " << 
                       cw_node->GetId ());
                       continue;
                     }
                   if (rtr->GetRouterId () == routerIdcw)
-						  {
-							 NS_LOG_LOGIC("Router cw is found in the NodeList");
-						  	 break;
-						  }
-					  }
-				   
-				   //3. Find the node corresponding to m_spfroot
+                    {
+                      NS_LOG_LOGIC("Router cw is found in the NodeList");
+                      break;
+                    }
+                 }
+               
+               //3. Find the node corresponding to m_spfroot
                i = NodeList::Begin (); 
-					Ptr<Node> spfroot_node = NULL; 
+               Ptr<Node> spfroot_node = NULL; 
                Ipv4Address routerIdroot = m_spfroot->GetVertexId ();
-					for (; i != listEnd; i++)
-					  {
-						spfroot_node = *i;
-						Ptr<GlobalRouter> rtr = spfroot_node->GetObject<GlobalRouter> ();
-						if (rtr == 0)
+               for (; i != listEnd; i++)
+                 {
+                  spfroot_node = *i;
+                  Ptr<GlobalRouter> rtr = spfroot_node->GetObject<GlobalRouter> ();
+                  if (rtr == 0)
                     {
                       NS_LOG_LOGIC ("No GlobalRouter interface on node " << 
                       spfroot_node->GetId ());
                       continue;
                     }
                   if (rtr->GetRouterId () == routerIdroot)
-						  {
-                	  	  	 NS_LOG_LOGIC("Router root is found in the NodeList");
-						  	 break;
-						  }
-					  }
-					if(spfroot_node == NULL)
-						NS_LOG_LOGIC("In InrppSPFNext, spfrootnode is null");
+                    {
+                         NS_LOG_LOGIC("Router root is found in the NodeList");
+                      break;
+                    }
+                 }
+               if(spfroot_node == NULL)
+                  NS_LOG_LOGIC("In InrppSPFNext, spfrootnode is null");
 
                //***Configure detour path at m_spfroot spfroot -> v has detour m_spfroot->cw->v***//
                Ptr<InrppL3Protocol> ip = spfroot_node->GetObject<InrppL3Protocol> ();
-				   if(ip == NULL){
-					   NS_LOG_LOGIC("In InrppSPFNext, ip is null");
-					   return;
-				   }
+               if(ip == NULL){
+                  NS_LOG_LOGIC("In InrppSPFNext, ip is null");
+                  return;
+               }
                Ptr<InrppRoute> rtentry = Create<InrppRoute> ();
                rtentry->SetDestination ( v->GetNextHop ()); //TODO add GetNextHop() to SPFVertex
                /// \todo handle multi-address case
                rtentry->SetDetour (cw->GetNextHop());
-				   //Find the NetDevice connecting spfroot to cw 
+               //Find the NetDevice connecting spfroot to cw 
                NS_LOG_LOGIC("Outif " << cw->GetRootExitDirection().first << " " << cw->GetRootExitDirection().second << " " << cw->GetNRootExitDirections());
                uint32_t outif = cw->GetRootExitDirection().second;
-			   //Ptr<NetDevice> root_to_cw_dev = spfroot_node->GetDevice(outif);
+            //Ptr<NetDevice> root_to_cw_dev = spfroot_node->GetDevice(outif);
                Ptr<NetDevice> root_to_cw_dev;
                NS_LOG_LOGIC("Outif " << cw->GetRootExitDirection().first << " " << cw->GetRootExitDirection().second << " " << cw->GetNRootExitDirections()
-            		   << " " << spfroot_node->GetDevice(outif));
+                     << " " << spfroot_node->GetDevice(outif));
 
-			   for(uint32_t i = 0; i< spfroot_node->GetNDevices();i++)
-			   {
-					NS_LOG_LOGIC("NetDevice type " << spfroot_node->GetDevice(i)->GetInstanceTypeId());
-						NS_LOG_LOGIC("Device " << ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)));
-				NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
-					   << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
-				   	if ((uint32_t)ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) == outif)
-				   		root_to_cw_dev = spfroot_node->GetDevice(i);
-			   }
-				if(root_to_cw_dev == NULL)
-					NS_LOG_LOGIC("root_to_cw_dev is null");
+               for(uint32_t i = 0; i< spfroot_node->GetNDevices();i++)
+                 {
+                   NS_LOG_LOGIC("NetDevice type " << spfroot_node->GetDevice(i)->GetInstanceTypeId());
+                   NS_LOG_LOGIC("Device " << ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)));
+                   NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
+                              << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
+                   if ((uint32_t)ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) == outif)
+                     root_to_cw_dev = spfroot_node->GetDevice(i);
+                 }   
+               if(root_to_cw_dev == NULL)
+                  NS_LOG_LOGIC("root_to_cw_dev is null");
                rtentry->SetOutputDevice (root_to_cw_dev); //find the device which connects to cw
 
                //outif = cw->GetRootExitDirection().second;
                outif = v->GetRootExitDirection().second;
-			   //Ptr<NetDevice> root_to_v_dev = spfroot_node->GetDevice(outif);
+               //Ptr<NetDevice> root_to_v_dev = spfroot_node->GetDevice(outif);
                Ptr<NetDevice> root_to_v_dev;
-			   for(uint32_t i = 0; i< spfroot_node->GetNDevices();i++)
-			   {
-				//   NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
-				//		   << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
-				   	if ((uint32_t)ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) == outif)
-				   		root_to_v_dev = spfroot_node->GetDevice(i);
-			   }
-				if(root_to_v_dev == NULL)
-					NS_LOG_LOGIC("root_to_v_dev is null");
+               for(uint32_t i = 0; i< spfroot_node->GetNDevices();i++)
+                 {
+                 // NS_LOG_LOGIC("Device " << ip->GetInterface(ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)))->GetAddress(0).GetLocal()
+                 //      << " "<< ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) << " " << spfroot_node->GetDevice(i));
+                   if ((uint32_t)ip->GetInterfaceForDevice (spfroot_node->GetDevice(i)) == outif)
+                     root_to_v_dev = spfroot_node->GetDevice(i);
+                 }
+               if(root_to_v_dev == NULL)
+                  NS_LOG_LOGIC("root_to_v_dev is null");
 
-				NS_LOG_LOGIC("Setting Detour Route: through root interface: " <<
-				cw->GetRootExitDirection ().first <<
-				" in: " <<
-				spfroot_node->GetId() <<
-				" to v: " <<
-				v->GetNextHop () <<
-				" through cw: " <<
-				cw->GetNextHop ());
-			   //NS_LOG_LOGIC("Setting Detour Route: " << root_to_v_dev << " " << rtentry->GetOutputDevice());
+               NS_LOG_LOGIC("Setting Detour Route: through root interface: " <<
+               cw->GetRootExitDirection ().first <<" in: " << spfroot_node->GetId() << " to v: " << v->GetNextHop () << " through cw: " <<
+                                cw->GetNextHop ());
+               //NS_LOG_LOGIC("Setting Detour Route: " << root_to_v_dev << " " << rtentry->GetOutputDevice());
                ip->SetDetourRoute(root_to_v_dev, rtentry); //find the device which connects to v
                   
-				   //Setup detour info message sending from the detour node (cw)
+               //Setup detour info message sending from the detour node (cw)
                Ptr<InrppL3Protocol> ip2 = cw_node->GetObject<InrppL3Protocol> ();
-				   //Send the detour information of cw's interface (facing v) through cw's 
-				   //interface facing root. The IP nexthop address of the primary interface 
-				   //corresponding to the detour interface (cw's interface facing v) is also 
-				   //passed as a parameter 
+               //Send the detour information of cw's interface (facing v) through cw's 
+               //interface facing root. The IP nexthop address of the primary interface 
+               //corresponding to the detour interface (cw's interface facing v) is also 
+               //passed as a parameter 
 
-				     //1. Get the NetDevice of cw adjacent to v 
-				   GlobalRoutingLinkRecord *linkRemote = 0;
-				   //linkRemote is the link from cw's perspective to v
-				   linkRemote = SPFGetNextLink(cw, v, linkRemote);
+                 //1. Get the NetDevice of cw adjacent to v 
+               GlobalRoutingLinkRecord *linkRemote = 0;
+               //linkRemote is the link from cw's perspective to v
+               linkRemote = SPFGetNextLink(cw, v, linkRemote);
                Ptr<Ipv4> ipv4 = cw_node->GetObject<Ipv4> ();
                NS_ASSERT_MSG (ipv4, 
                          "GlobalRouteManagerImpl::FindOutgoingInterfaceId (): "
                          "GetObject for <Ipv4> interface failed");
-				   Ipv4Mask amask = Ipv4Mask ("255.255.255.0");
+               Ipv4Mask amask = Ipv4Mask ("255.255.255.0");
                int32_t interface = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
-			   NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
+               NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
 
-			       NS_LOG_LOGIC("Setting Detour Src interface: " << linkRemote->GetLinkData());
-					
-				   //Ptr<NetDevice> cw_to_v_dev = cw_node->GetDevice(interface);
-				   //2. Get the NetDevice of cw adjacent to the root
-				   linkRemote = 0;
-				   linkRemote = SPFGetNextLink(cw, m_spfroot, linkRemote);
-				   int32_t interface2 = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
-				   NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface
-				   << " and Dst interface: " << linkRemote->GetLinkData());
+               NS_LOG_LOGIC("Setting Detour Src interface: " << linkRemote->GetLinkData());
+               
+               //Ptr<NetDevice> cw_to_v_dev = cw_node->GetDevice(interface);
+               //2. Get the NetDevice of cw adjacent to the root
+               linkRemote = 0;
+               linkRemote = SPFGetNextLink(cw, m_spfroot, linkRemote);
+               int32_t interface2 = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
+               NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface
+               << " and Dst interface: " << linkRemote->GetLinkData());
 
-					
-				   ip2->SendDetourInfo(interface, interface2, v->GetNextHop () );
-					
-					//* **Configure detour path at m_spfroot spfroot -> cw has detour m_spfroot->v->cw
+               
+               ip2->SendDetourInfo(interface, interface2, v->GetNextHop () );
+               
+               //* **Configure detour path at m_spfroot spfroot -> cw has detour m_spfroot->v->cw
                //ip = spfroot_node->GetObject<InrppL3Protocol> ();
-				   //if(ip == NULL)
-					//  std::cout << "In InrppSPFNext, ip is null\n\n";
+               //if(ip == NULL)
+               //  std::cout << "In InrppSPFNext, ip is null\n\n";
                rtentry = Create<InrppRoute> ();
                rtentry->SetDestination ( cw->GetNextHop ()); //TODO add GetNextHop() to SPFVertex
                /// \todo handle multi-address case
                rtentry->SetDetour (v->GetNextHop());
-				   //Find the NetDevice connecting spfroot to cw 
+               //Find the NetDevice connecting spfroot to cw 
                //outif = v->GetRootExitDirection().second;
-				   //root_to_v_dev = spfroot_node->GetDevice(outif);
-					//if(root_to_v_dev == NULL)
-					//  std::cout << "root_to_v_dev is null\n\n";
+               //root_to_v_dev = spfroot_node->GetDevice(outif);
+               //if(root_to_v_dev == NULL)
+               //  std::cout << "root_to_v_dev is null\n\n";
                rtentry->SetOutputDevice (root_to_v_dev); //find the device which connects to cw
 /*
-					Ipv4Address addr = Ipv4Address::ConvertFrom(root_to_v_dev->GetAddress ());
-					if(addr !=NULL)
-					{
-						std::cout << "Root to v dev IP addr is: ";
-						addr.Print (std::cout);
-					}
+               Ipv4Address addr = Ipv4Address::ConvertFrom(root_to_v_dev->GetAddress ());
+               if(addr !=NULL)
+               {
+                  std::cout << "Root to v dev IP addr is: ";
+                  addr.Print (std::cout);
+               }
 */
                //outif = cw->GetRootExitDirection().second;
-				   //root_to_cw_dev = spfroot_node->GetDevice(outif);
-					//if(root_to_cw_dev == NULL)
-					//	std::cout << "root_to_v_dev is null\n\n";
-					
-                    NS_LOG_LOGIC("Setting Detour Route: through root interface2: " <<
-					v->GetRootExitDirection ().first << " in: " << spfroot_node->GetId() << " to cw: " <<
-					cw->GetNextHop () << " through v: " << v->GetNextHop ());
+               //root_to_cw_dev = spfroot_node->GetDevice(outif);
+               //if(root_to_cw_dev == NULL)
+               // std::cout << "root_to_v_dev is null\n\n";
+               
+               NS_LOG_LOGIC("Setting Detour Route: through root interface2: " <<
+               v->GetRootExitDirection ().first << " in: " << spfroot_node->GetId() << " to cw: " <<
+               cw->GetNextHop () << " through v: " << v->GetNextHop ());
 
                ip->SetDetourRoute(root_to_cw_dev, rtentry); //find the device which connects to v
                   
-				   //Setup detour info message sending from the detour node (v)
+               //Setup detour info message sending from the detour node (v)
                ip2 = v_node->GetObject<InrppL3Protocol> ();
-				   //Send the detour information of v's interface (facing cw) through v's 
-				   //interface facing root. The IP nexthop address of the primary interface 
-				   //corresponding to the detour interface (v's interface facing cw) is also 
-				   //passed as a parameter 
+               //Send the detour information of v's interface (facing cw) through v's 
+               //interface facing root. The IP nexthop address of the primary interface 
+               //corresponding to the detour interface (v's interface facing cw) is also 
+               //passed as a parameter 
 
-				     //1. Get the NetDevice of v adjacent to cw 
-				   linkRemote = 0;
-				   linkRemote = SPFGetNextLink(v, cw, linkRemote);
+                 //1. Get the NetDevice of v adjacent to cw 
+               linkRemote = 0;
+               linkRemote = SPFGetNextLink(v, cw, linkRemote);
                ipv4 = v_node->GetObject<Ipv4> ();
                NS_ASSERT_MSG (ipv4, 
                          "GlobalRouteManagerImpl::FindOutgoingInterfaceId (): "
                          "GetObject for <Ipv4> interface failed");
-				   amask = Ipv4Mask ("255.255.255.0");
+               amask = Ipv4Mask ("255.255.255.0");
                interface = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
-			      NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
+               NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
 
-			        NS_LOG_LOGIC("Setting Detour Src interface: " << linkRemote->GetLinkData());
+                 NS_LOG_LOGIC("Setting Detour Src interface: " << linkRemote->GetLinkData());
 
-				   //Ptr<NetDevice> v_to_cw_dev = v_node->GetDevice(interface);
-				   //2. Get the NetDevice of v adjacent to the root
-				   linkRemote = 0;
-				   linkRemote = SPFGetNextLink(v, m_spfroot, linkRemote);
-				   interface2 = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
-				   NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
+               //Ptr<NetDevice> v_to_cw_dev = v_node->GetDevice(interface);
+               //2. Get the NetDevice of v adjacent to the root
+               linkRemote = 0;
+               linkRemote = SPFGetNextLink(v, m_spfroot, linkRemote);
+               interface2 = ipv4->GetInterfaceForPrefix (linkRemote->GetLinkData(), amask);
+               NS_LOG_LOGIC("Linkdata "<< linkRemote->GetLinkData() << " interface " << interface);
 
-				   NS_LOG_LOGIC(" and Dst interface: " << linkRemote->GetLinkData());
+               NS_LOG_LOGIC(" and Dst interface: " << linkRemote->GetLinkData());
 
-				   ip2->SendDetourInfo(interface, interface2, cw->GetNextHop () ); //*/
-					
-				  }	
-				  continue;
+               ip2->SendDetourInfo(interface, interface2, cw->GetNextHop () ); //*/
+               
+            } //Onur: end of checking if w and v have the same parents
+
+
+          if (cw->GetDistanceFromRoot () < distance)
+            {
+//
+// This is not a shorter path, so don't do anything.
+//
+              continue;
             }
           else if (cw->GetDistanceFromRoot () == distance)
             {
@@ -687,6 +683,8 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 // is very different from quagga (blame ns3::GlobalRouteManagerImpl)
 
 // prepare vertex w
+
+
               w = new SPFVertex (w_lsa);
               SPFNexthopCalculation (v, w, l, distance);
               cw->MergeRootExitDirections (w);
@@ -696,6 +694,7 @@ InrppGlobalRouteManagerImpl::InrppSPFNext (SPFVertex* v, CandidateQueue& candida
 // bidirectionally
               SPFVertexAddParent (w);
               delete w;
+
             }
           else // cw->GetDistanceFromRoot () > w->GetDistanceFromRoot ()
             {
@@ -1115,7 +1114,7 @@ InrppGlobalRouteManagerImpl::InrppSPFCalculate (Ipv4Address root)
 //
 
   if(!m_lsdb)
-	  NS_LOG_LOGIC("m_lsdb null!");
+     NS_LOG_LOGIC("m_lsdb null!");
   v = new SPFVertex (m_lsdb->GetLSA (root));
 // 
 // This vertex is the root of the SPF tree and it is distance 0 from the root.
