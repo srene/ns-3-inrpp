@@ -523,7 +523,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 	case TcpOptionRcp::RCP_REFACK:
 		//		if ( rh->seqno() < ref_seqno_ && RCP_state != RCP_INACT) /* Added  by Masayoshi */
 		// if ( rh->seqno() < seqno_ && RCP_state != RCP_INACT) /* Added  by Masayoshi */
-		if ( (rh->seqno() <= seqno_)  && RCP_state != RCP_INACT){ /* Added  by Masayoshi */
+		if ( (header.GetSequenceNumber() <= m_nextTxSequence)  && RCP_state != RCP_INACT){ /* Added  by Masayoshi */
 			numOutRefs_--;
 			if (numOutRefs_ < 0) {
 				fprintf(stderr, "Extra REF_ACK received! \n");
@@ -542,9 +542,9 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 				exit(1);
 			}
 
-			if (tcpHeader.HasOption (TcpOption::TS))
+			if (header.HasOption (TcpOption::TS))
 			{
-				Ptr<TcpOptionTS> ts = DynamicCast<TcpOptionTS> (tcpHeader.GetOption (TcpOption::TS));
+				Ptr<TcpOptionTS> ts = DynamicCast<TcpOptionTS> (header.GetOption (TcpOption::TS));
 				rtt_ = TcpOptionTS::ElapsedTimeFromTsValue (ts->GetEcho ()).GetSeconds();
 			}
 
@@ -552,7 +552,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 				min_rtt_ = rtt_;
 
 			if (rcp->GetRate()> 0) {
-				double new_interval = (m_segmentSize+RCP_HDR_BYTES)/(rh->RCP_request_rate());
+				double new_interval = (m_segmentSize+RCP_HDR_BYTES)/(rcp->GetRate());
 				if( new_interval != interval_ ){
 					interval_ = new_interval;
 					if (RCP_state == RCP_CONGEST){
@@ -564,8 +564,11 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 			}
 			else {
 				if (rcp->GetRate() < 0)
-				fprintf(stderr, "Error: RCP rate < 0: %f\n",rh->RCP_request_rate());
-				rcp_timer_.force_cancel();
+					NS_LOG_LOGIC("Error: RCP rate < 0: "<<rcp->GetRate());
+				//fprintf(stderr, "Error: RCP rate < 0: %f\n",rcp->GetRate());
+				//rcp_timer_.force_cancel();
+				m_rcpTimeout.Cancel();
+
 				RCP_state = RCP_CONGEST; //can do exponential backoff or probalistic stopping here.
 			}
 		}
@@ -573,13 +576,18 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 
 	case TcpOptionRcp::RCP_ACK:
 
-         num_dataPkts_acked_by_receiver_ = rh->num_dataPkts_received;
+         num_dataPkts_acked_by_receiver_ = rcp->GetReceivedPackets();
         if (num_dataPkts_acked_by_receiver_ == numpkts_) {
             // fprintf(stdout, "%lf %d RCP_ACK: Time to stop \n", Scheduler::instance().clock(), rh->flowIden());
-            stop();
+            Stop();
         }
 
-		rtt_ = Scheduler::instance().clock() - rh->ts();
+		if (header.HasOption (TcpOption::TS))
+		{
+			Ptr<TcpOptionTS> ts = DynamicCast<TcpOptionTS> (header.GetOption (TcpOption::TS));
+			rtt_ = TcpOptionTS::ElapsedTimeFromTsValue (ts->GetEcho ()).GetSeconds();
+		}
+
 		if (min_rtt_ > rtt_)
 			min_rtt_ = rtt_;
 
@@ -594,7 +602,8 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 			}
 		}
 		else {
-			fprintf(stderr, "Error: RCP rate < 0: %f\n",rcp->GetRate());
+			NS_LOG_LOGIC("Error: RCP rate < 0: "<< rcp->GetRate());
+			//fprintf(stderr, "Error: RCP rate < 0: %f\n",rcp->GetRate());
 			RCP_state = RCP_CONGEST; //can do exponential backoff or probalistic stopping here.
 		}
 		break;
@@ -643,7 +652,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 
 	    if (num_dataPkts_acked_by_receiver_ == numpkts_){
            // fprintf(stdout, "%lf %d RCP_FINACK: Time to stop \n", Scheduler::instance().clock(), rh->flowIden());
-            stop();
+            Stop();
         }
 		break;
 
@@ -706,24 +715,20 @@ void
 TcpRcp::RateChange()
 {
 	if (RCP_state == RCP_RUNNING || RCP_state == RCP_RUNNING_WREF) {
-		rcp_timer_.force_cancel();
-
+		//rcp_timer_.force_cancel();
+		m_rcpTimeout.Cancel();
 		double t = lastpkttime_ + interval_;
 
-		double now = Scheduler::instance().clock();
+		Time now = Simulator::Now();
 
 		if ( t > now) {
-#ifdef MASAYOSHI_DEBUG
-			fprintf(stdout,"%lf rate_change %s %lf %lf\n",now,this->name(),interval_,((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
-#endif
+			NS_LOG_LOGIC("rate_change " << interval_ << " " << ((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
 			rcp_timer_.resched(t - now);
 
 			if( (t - lastpkttime_) > REF_INTVAL * min_rtt_ && RCP_state != RCP_RUNNING_WREF ){
 			// the inter-packet time > min_rtt and not in REF mode. Enter REF MODE.
 				RCP_state = RCP_RUNNING_WREF;
-#ifdef MASAYOSHI_DEBUG
-				fprintf(stdout,"MASA %lf RCP_RUNNING -> RCP_RUNNING_WREF at start %s\n",now,this->name());
-#endif
+				NS_LOG_LOGIC("RCP_RUNNING -> RCP_RUNNING_WREF at start");
 				if( lastpkttime_ + REF_INTVAL * min_rtt_ > now ){
 					ref_timer_.resched(lastpkttime_ + REF_INTVAL * min_rtt_ - now);
 				} else {
@@ -733,39 +738,38 @@ TcpRcp::RateChange()
 				  RCP_state == RCP_RUNNING_WREF ){
 			// the inter-packet time <= min_rtt and in REF mode.  Exit REF MODE
 				RCP_state = RCP_RUNNING;
-#ifdef MASAYOSHI_DEBUG
-				fprintf(stdout,"MASA %lf RCP_RUNNING_WREF -> RCP_RUNNING at start %s\n",now,this->name());
-#endif
-				ref_timer_.force_cancel();
+				NS_LOG_LOGIC("RCP_RUNNING_WREF -> RCP_RUNNING at start");
+				m_refTransmit.Cancel();
 			}
 
 		} else {
-#ifdef MASAYOSHI_DEBUG
 			fprintf(stdout,"%lf rate_change_sync %s %lf %lf\n",now,this->name(),interval_,((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
-#endif
 
 			// sendpkt();
 			// rcp_timer_.resched(interval_);
-            timeout(); // send a packet immediately and reschedule timer
+            RateChange(); // send a packet immediately and reschedule timer
 
 
 			if( interval_ > REF_INTVAL * min_rtt_ && RCP_state != RCP_RUNNING_WREF ){
 			// the next packet sendingtime > min_rtt and not in REF mode. Enter REF MODE.
 				RCP_state = RCP_RUNNING_WREF;
-#ifdef MASAYOSHI_DEBUG
-				fprintf(stdout,"MASA %lf RCP_RUNNINGF -> RCP_RUNNING_WREF at start %s\n",now,this->name());
-#endif
+				NS_LOG_LOGIC("RCP_RUNNINGF -> RCP_RUNNING_WREF at start");
 				ref_timer_.resched(REF_INTVAL * min_rtt_);
 			}else if ( interval_ <= REF_INTVAL * min_rtt_ && RCP_state == RCP_RUNNING_WREF ){
 			// the next packet sending time <= min_rtt and in REF mode.  Exit REF MODE
 				RCP_state = RCP_RUNNING;
-#ifdef MASAYOSHI_DEBUG
-				fprintf(stdout,"MASA %lf RCP_RUNNINGF_WREF -> RCP_RUNNING at start %s\n",now,this->name());
-#endif
+				NS_LOG_LOGIC("RCP_RUNNINGF_WREF -> RCP_RUNNING at start");
 				ref_timer_.force_cancel();
 			}
 		}
 	}
+
+}
+
+void
+TcpRcp::Stop()
+{
+
 }
 
 

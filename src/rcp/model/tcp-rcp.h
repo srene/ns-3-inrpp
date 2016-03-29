@@ -97,6 +97,7 @@ private:
   void Timeout();
   void RtxTimeout();
   void RateChange();
+  void Stop();
 
 protected:
   TracedValue<uint32_t>  m_cWnd;         //!< Congestion window
