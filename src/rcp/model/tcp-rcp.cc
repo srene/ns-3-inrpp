@@ -35,7 +35,9 @@
 #include "tcp-option-rcp.h"
 #include "ns3/tcp-option-ts.h"
 
-#define RCP_HDR_BYTES 62
+#define RCP_HDR_BYTES 66
+#define REF_INTVAL 2.0 //
+#define SYN_DELAY 0.5
 
 namespace ns3 {
 
@@ -86,8 +88,6 @@ TcpRcp::TcpRcp (void)
   : m_retxThresh (3), // mute valgrind, actual value set by the attribute system
     m_inFastRec (false),
     m_limitedTx (false), // mute valgrind, actual value set by the attribute system
-	m_nonce(0),
-	m_flag(2),
 	m_rate(0),
 	m_back(false),
 	m_lastSeq(0),
@@ -96,13 +96,17 @@ TcpRcp::TcpRcp (void)
 	m_lastBW(0),
 	data(0),
 	m_slot(0),
-	m_tcpRate(1000000)
+	m_tcpRate(100000),
+	rtt_(1.0),
+	min_rtt_(1.0),
+	m_pktsRx(0)
 	//m_ackInterval(0)
 {
   NS_LOG_FUNCTION (this);
   //m_tcpRate = m_initialRate;
   t1 = Simulator::Now();
   NS_LOG_LOGIC("Endpoint " << m_endPoint);
+
 
 }
 
@@ -115,11 +119,12 @@ TcpRcp::TcpRcp (const TcpRcp& sock)
     m_retxThresh (sock.m_retxThresh),
     m_inFastRec (false),
     m_limitedTx (sock.m_limitedTx),
-	m_nonce(sock.m_nonce),
-//	m_rate(sock.m_rate),
-	m_flag(sock.m_flag),
 	m_back(sock.m_back),
-	m_slot(sock.m_slot)
+	m_slot(sock.m_slot),
+	m_tcpRate(sock.m_tcpRate),
+	rtt_(sock.rtt_),
+	min_rtt_(sock.min_rtt_),
+	m_pktsRx(sock.m_pktsRx)
 
 {
   NS_LOG_FUNCTION (this);
@@ -147,6 +152,9 @@ TcpRcp::Connect (const Address & address)
   InitializeCwnd ();
   //m_tcpRate = m_endPoint->GetBoundNetDevice()->GetObject<PointToPointNetDevice>()->GetDataRate().GetBitRate();
  // t = Simulator::Now();
+
+  interval_ = (double)(m_segmentSize+RCP_HDR_BYTES)/(m_tcpRate);
+  NS_LOG_LOGIC("Endpoint " << interval_ << " " << m_segmentSize << " " << m_tcpRate);
   return TcpSocketBase::Connect (address);
 }
 
@@ -167,56 +175,56 @@ TcpRcp::Fork (void)
 
 /* New ACK (up to seqnum seq) received. Increase cwnd and call TcpSocketBase::NewAck() */
 void
-TcpRcp::NewAck (const SequenceNumber32& seq)
+TcpRcp::NewAck (const SequenceNumber32& ack)
 {
 
-	m_lastSeq = seq.GetValue();
+  NS_LOG_FUNCTION (this);
 
+  if (m_state != SYN_RCVD)
+    { // Set RTO unless the ACK is received in SYN_RCVD state
+      NS_LOG_LOGIC (this << " Cancelled ReTxTimeout event which was set to expire at " <<
+                    (Simulator::Now () + Simulator::GetDelayLeft (m_retxEvent)).GetSeconds ());
+      m_retxEvent.Cancel ();
+      // On receiving a "New" ack we restart retransmission timer .. RFC 6298
+      // RFC 6298, clause 2.4
+      m_rto = Max (m_rtt->GetEstimate () + Max (m_clockGranularity, m_rtt->GetVariation ()*4), m_minRto);
 
-  NS_LOG_FUNCTION (this << seq);
- // NS_LOG_LOGIC ("TcpRcp received ACK for seq " << seq <<
-  //    /          " cwnd " << m_cWnd <<
-    //            " ssthresh " << m_ssThresh);
-
-  // Check for exit condition of fast recovery
-  if (m_inFastRec && seq < m_recover)
-    { // Partial ACK, partial window deflation (RFC2582 sec.3 bullet #5 paragraph 3)
-    //  m_cWnd += m_segmentSize - (seq - m_txBuffer->HeadSequence ());
-    //  NS_LOG_INFO ("Partial ACK for seq " << seq << " in fast recovery: cwnd set to " << m_cWnd);
-      m_txBuffer->DiscardUpTo(seq);  //Bug 1850:  retransmit before newack
-      DoRetransmit (); // Assume the next seq is lost. Retransmit lost packet
-      TcpSocketBase::NewAck (seq); // update m_nextTxSequence and send new data if allowed by window
-      return;
+      NS_LOG_LOGIC (this << " Schedule ReTxTimeout at time " <<
+                    Simulator::Now ().GetSeconds () << " to expire at time " <<
+                    (Simulator::Now () + m_rto.Get ()).GetSeconds ());
+      m_retxEvent = Simulator::Schedule (m_rto, &TcpSocketBase::ReTxTimeout, this);
     }
-  else if (m_inFastRec && seq >= m_recover)
-    { // Full ACK (RFC2582 sec.3 bullet #5 paragraph 2, option 1)
-    //  m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
-      m_inFastRec = false;
-  //    NS_LOG_INFO ("Received full ACK for seq " << seq <<". Leaving fast recovery with cwnd set to " << m_cWnd);
+  if (m_rWnd.Get () == 0 && m_persistEvent.IsExpired ())
+    { // Zero window: Enter persist state to send 1 byte to probe
+      NS_LOG_LOGIC (this << "Enter zerowindow persist state");
+      NS_LOG_LOGIC (this << "Cancelled ReTxTimeout event which was set to expire at " <<
+                    (Simulator::Now () + Simulator::GetDelayLeft (m_retxEvent)).GetSeconds ());
+      m_retxEvent.Cancel ();
+      NS_LOG_LOGIC ("Schedule persist timeout at time " <<
+                    Simulator::Now ().GetSeconds () << " to expire at time " <<
+                    (Simulator::Now () + m_persistTimeout).GetSeconds ());
+      m_persistEvent = Simulator::Schedule (m_persistTimeout, &TcpSocketBase::PersistTimeout, this);
+      NS_ASSERT (m_persistTimeout == Simulator::GetDelayLeft (m_persistEvent));
+    }
+  // Note the highest ACK and tell app to send more
+  NS_LOG_LOGIC ("TCP " << this << " NewAck " << ack <<
+                " numberAck " << (ack - m_txBuffer->HeadSequence ())); // Number bytes ack'ed
+  m_txBuffer->DiscardUpTo (ack);
+  if (GetTxAvailable () > 0)
+    {
+      NotifySend (GetTxAvailable ());
+    }
+  if (ack > m_nextTxSequence)
+    {
+      m_nextTxSequence = ack; // If advanced
+    }
+  if (m_txBuffer->Size () == 0 && m_state != FIN_WAIT_1 && m_state != CLOSING)
+    { // No retransmit timer if no data to retransmit
+      NS_LOG_LOGIC (this << " Cancelled ReTxTimeout event which was set to expire at " <<
+                    (Simulator::Now () + Simulator::GetDelayLeft (m_retxEvent)).GetSeconds ());
+      m_retxEvent.Cancel ();
     }
 
-  // Increase of cwnd based on current phase (slow start or congestion avoidance)
-//  if (m_cWnd < m_ssThresh)
- //   { // Slow start mode, add one segSize to cWnd. Default m_ssThresh is 65535. (RFC2001, sec.1)
-   //   m_cWnd += m_segmentSize;
- //     NS_LOG_INFO ("In SlowStart, ACK of seq " << seq << "; update cwnd to " << m_cWnd << "; ssthresh " << m_ssThresh);
-//    }
- // else
- //   { // Congestion avoidance mode, increase by (segSize*segSize)/cwnd. (RFC2581, sec.3.1)
-      // To increase cwnd for one segSize per RTT, it should be (ackBytes*segSize)/cwnd
- //     double adder = static_cast<double> (m_segmentSize * m_segmentSize) / m_cWnd.Get ();
-  //    adder = std::max (1.0, adder);
-    //  m_cWnd += static_cast<uint32_t> (adder);
- //     NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
- //   }
-
-  // Complete newAck processing
-  // Try to send more data
- // if (!m_sendPendingDataEvent.IsRunning ())
- //   {
- //     m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
- //   }
-  TcpSocketBase::NewAck (seq);
 }
 
 /* Cut cwnd and enter fast recovery mode upon triple dupack */
@@ -224,17 +232,17 @@ void
 TcpRcp::DupAck (const TcpHeader& t, uint32_t count)
 {
   NS_LOG_FUNCTION (this << count);
-/*	m_cWnd += m_segmentSize;
-	  if (!m_sendPendingDataEvent.IsRunning ())
-	    {
-	      m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
-	    }
-*/
+  if (count == m_retxThresh )
+    { // triple duplicate ack triggers fast retransmit (RFC2582 sec.3 bullet #1)
+
+      DoRetransmit ();
+    }
+
 }
 
-/* Retransmit timeout */
+/* Retransmit timeout
 void
-TcpRcp::Retransmit (void)
+TcpRcp::Retransmit ()
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
@@ -254,7 +262,7 @@ TcpRcp::Retransmit (void)
  // NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
   //             ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
  // DoRetransmit ();                          // Retransmit the packet
-}
+}*/
 
 void
 TcpRcp::SetSegSize (uint32_t size)
@@ -313,23 +321,10 @@ TcpRcp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 {
 	NS_LOG_FUNCTION(this);
 
-	  NS_LOG_LOGIC("INRPP_BACK Flag " << (uint32_t)m_flag << " received");
-
-	  if(m_flag==1){
-		  m_back = true;
-		  NS_LOG_LOGIC("Start backpressure");
-
-	  }else if(m_flag==0||m_flag==2){
-		  m_cWnd = 0;
-		  NS_LOG_LOGIC("Full rate again");
-		  m_back = false;
-		 // m_tcpRate = m_initialRate;
-	  }
-
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
 }
 
-
+/*
 bool
 TcpRcp::SendPendingData (bool withAck)
 {
@@ -375,27 +370,43 @@ TcpRcp::SendPendingData (bool withAck)
 		  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets " << m_tcpRate << " " << " rate");
 		  return (nPacketsSent > 0);
 
-}
+}*/
 
 void
 TcpRcp::AddOptions (TcpHeader& tcpHeader)
 {
-	 NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
+	 NS_LOG_FUNCTION (this << tcpHeader);
+	 if(m_shutdownSend)m_slot = TcpOptionRcp::RCP_ACK;
 
 	 Ptr<TcpOptionRcp> option = CreateObject<TcpOptionRcp> ();
 	 option->SetFlag(m_slot);
-	 //option->SetNonce (m_nonce);
+	 if(m_slot==TcpOptionRcp::RCP_ACK)option->SetRate(m_tcpRate);
+	 else option->SetRate(RCP_desired_rate());
+	 option->SetReceivedPackets(m_pktsRx);
 	 tcpHeader.AppendOption (option);
+
+	 //option->SetNonce (m_nonce);
+//	 if(!tcpHeader.AppendOption (option))
+//		 NS_LOG_FUNCTION ("NO RCP header");
+
+//	 if (tcpHeader.HasOption (TcpOption::RCP))
+//		 NS_LOG_FUNCTION ("RCP header");
+
+
+	 /* Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
+	 option->SetFlag(13);
+	 option->SetNonce (15);
+     tcpHeader.AppendOption (option); */
 
 	 TcpSocketBase::AddOptions (tcpHeader);
 }
 
-void
+/*void
 TcpRcp::SetRate(uint32_t rate)
 {
 	//m_initialRate =  rate;
 	m_tcpRate = rate;
-}
+}*/
 
 double
 TcpRcp::RCP_desired_rate()
@@ -403,16 +414,119 @@ TcpRcp::RCP_desired_rate()
 	return -1;
 }
 
+int
+TcpRcp::Send (Ptr<Packet> p, uint32_t flags)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (m_state == ESTABLISHED || m_state == SYN_SENT || m_state == CLOSE_WAIT)
+	{
+		// Store the packet into Tx buffer
+		if (!m_txBuffer->Add (p))
+		{ // TxBuffer overflow, send failed
+			m_errno = ERROR_MSGSIZE;
+			return -1;
+		}
+		if (m_shutdownSend)
+		{
+			m_errno = ERROR_SHUTDOWN;
+			return -1;
+		}
+		// Submit the data to lower layers
+		NS_LOG_LOGIC ("txBufSize=" << m_txBuffer->Size () << " state " << TcpStateName[m_state]);
+		if (m_state == ESTABLISHED || m_state == CLOSE_WAIT)
+		{ // Try to send the data out
+			if (!m_sendPendingDataEvent.IsRunning ())
+			{
+				m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
+				//SendPendingData(m_connected);
+			}
+		}
+		return p->GetSize ();
+	}
+	else
+	{ // Connection not established yet
+		m_errno = ERROR_NOTCONN;
+		return -1; // Send failure
+	}
+}
+
+bool
+TcpRcp::SendPendingData (bool withAck)
+{
+	  m_slot = TcpOptionRcp::RCP_DATA;
+	  m_refTransmit.Cancel();
+	  m_sendPendingDataEvent.Cancel();
+	  NS_LOG_FUNCTION (this << m_back << withAck << m_txBuffer->SizeFromSequence (m_nextTxSequence) << m_tcpRate);
+	  if (m_txBuffer->Size () == 0)
+		{
+		  return false;                           // Nothing to send
+		}
+	  if (m_endPoint == 0 && m_endPoint6 == 0)
+		{
+		  NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
+		  return false; // Is this the right way to handle this condition?
+		}
+	  uint32_t nPacketsSent = 0;
+
+
+
+		  NS_LOG_LOGIC("Full rate at "<< m_tcpRate);
+
+		  if(m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
+		  {
+			  NS_LOG_LOGIC("NextSeq " << m_nextTxSequence);
+			  uint32_t sz = SendDataPacket (m_nextTxSequence, m_segmentSize, withAck);
+			  nPacketsSent++;                             // Count sent this loop
+			  m_nextTxSequence += sz;                     // Advance next tx sequence
+
+		 	  data+= sz * 8;
+		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+		 		  data = 0;
+		 		  double alpha = 0.4;
+		 		  double   sample_bwe = m_currentBW;
+		 		  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+		 		  m_lastSampleBW = sample_bwe;
+		 		  m_lastBW = m_currentBW;
+		 		  t1 = Simulator::Now();
+
+		 	  }
+
+			  NS_LOG_LOGIC("Sent " << sz << " bytes");
+		  } else if(m_closeOnEmpty)
+		  {
+			  return false;
+		  }
+
+		  // Try to send more data
+		  if (!m_sendPendingDataEvent.IsRunning ())
+		    {
+			// Time t = Seconds(((double)(m_segmentSize+RCP_HDR_BYTES)*8)/m_tcpRate);
+			  NS_LOG_LOGIC("Schedule next packet at " << Simulator::Now().GetSeconds()+interval_ << " " << interval_ << " " << min_rtt_);
+		      m_sendPendingDataEvent = Simulator::Schedule (Seconds(interval_), &TcpRcp::SendPendingData, this, m_connected);
+		    }
+
+		  double refTime = std::min(SYN_DELAY, REF_INTVAL * min_rtt_);
+		  if( interval_ > refTime)  // At this momoent min_rtt_ has been set (by SYNACK)
+			  m_refTransmit = Simulator::Schedule (Seconds(refTime), &TcpRcp::RefTimeout, this,m_connected);
+
+
+		  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets " << m_tcpRate << " " << " rate");
+		  return (nPacketsSent > 0);
+
+}
 
 void
 TcpRcp::Timeout()
 {
+	NS_LOG_FUNCTION(this);
 	if (RCP_state == RCP_RUNNING || RCP_state == RCP_RUNNING_WREF) {
-		if (num_sent_ < numpkts_ - 1) {
-		    m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
-		    m_rcpTimeout = Simulator::Schedule (Seconds(interval_), &TcpRcp::Timeout, this);
+		//if (num_sent_ < numpkts_ - 1) {
+		//    m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
+		//    m_rcpTimeout = Simulator::Schedule (Seconds(interval_), &TcpRcp::Timeout, this);
 
-		} else {
+		/*} else {
 
 			//sendlast();
 		    m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpRcp::SendPendingData, this, m_connected);
@@ -425,7 +539,7 @@ TcpRcp::Timeout()
 				m_refTransmit.Cancel();
 			if(m_rxTimeout.IsRunning())
 				m_rxTimeout.Cancel();
-		}
+		}*/
 
 	} else if (RCP_state == RCP_RETRANSMIT) {
 
@@ -446,6 +560,41 @@ TcpRcp::Timeout()
           }
     }
 }
+
+
+bool
+TcpRcp::RefTimeout(bool withAck)
+{
+	  m_slot = TcpOptionRcp::RCP_REF;
+	  NS_LOG_FUNCTION (this);
+
+	  if (m_endPoint == 0 && m_endPoint6 == 0)
+		{
+		  NS_LOG_INFO ("TcpSocketBase::SendPendingData: No endpoint; m_shutdownSend=" << m_shutdownSend);
+		  return false; // Is this the right way to handle this condition?
+		}
+	  uint32_t nPacketsSent = 0;
+
+		  NS_LOG_LOGIC("Full rate at "<< m_tcpRate);
+
+		  SendEmptyPacket (TcpHeader::ACK);
+
+		  double refTime = std::min(SYN_DELAY, REF_INTVAL * min_rtt_);
+
+
+		  // Try to send more data
+		  if (!m_refTransmit.IsRunning ())
+		    {
+			// Time t = Seconds(((double)(m_segmentSize+RCP_HDR_BYTES)*8)/m_tcpRate);
+			  NS_LOG_LOGIC("Schedule next packet at " << Simulator::Now().GetSeconds()+refTime << " " << refTime);
+			  if(m_txBuffer->SizeFromSequence (m_nextTxSequence) > 0)
+				  m_refTransmit = Simulator::Schedule (Seconds(refTime), &TcpRcp::RefTimeout, this, m_connected);
+		    }
+
+		  NS_LOG_LOGIC ("SendPendingData sent " << nPacketsSent << " packets " << m_tcpRate << " " << " rate");
+		  return (nPacketsSent > 0);
+}
+
 
 void
 TcpRcp::RtxTimeout()
@@ -474,11 +623,43 @@ void
 TcpRcp::ReadOptions (const TcpHeader& header)
 {
 
+	/*if (header.HasOption (TcpOption::INRPP))
+		{
+			  Ptr<TcpOptionInrpp> inrpp = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
+
+			  NS_LOG_LOGIC (this << m_node->GetId () << " Got Inrpp slot=" <<
+			 				    inrpp->GetFlag()<< " " << m_slot << " and nonce="     << inrpp->GetNonce());
+		}
+ */
+  	if (header.HasOption (TcpOption::RCP))
+		{
+			  Ptr<TcpOptionRcp> inrpp = DynamicCast<TcpOptionRcp> (header.GetOption (TcpOption::RCP));
+
+			  NS_LOG_LOGIC (this << m_node->GetId () << " Got Inrpp slot=" <<
+			 				    (uint32_t)inrpp->GetFlag()<< " " << m_slot << " and nonce="     << inrpp->GetReceivedPackets() << " " << inrpp->GetRate());
+		}
+
+
+
+	NS_LOG_FUNCTION(this);
 	if (header.HasOption (TcpOption::RCP))
 	{
+		NS_LOG_LOGIC("Rcp option received");
 		Ptr<TcpOptionRcp> rcp = DynamicCast<TcpOptionRcp> (header.GetOption (TcpOption::RCP));
+		if (header.HasOption (TcpOption::TS))
+		  {
+			Ptr<TcpOptionTS> ts = DynamicCast<TcpOptionTS> (header.GetOption (TcpOption::TS));
+			rtt_ = TcpOptionTS::ElapsedTimeFromTsValue (ts->GetEcho ()).GetSeconds();
+		  }
 
-		if((rcp->GetFlag()==TcpOptionRcp::RCP_SYN)||(RCP_state != RCP_INACT)) {
+		if (min_rtt_ > rtt_)
+			min_rtt_ = rtt_;
+
+		if (rcp->GetRate() > 0){
+			interval_ = (double)(m_segmentSize+RCP_HDR_BYTES)/(rcp->GetRate());
+			m_tcpRate = rcp->GetRate();
+		}
+	/*	if((rcp->GetFlag()==TcpOptionRcp::RCP_SYN)||(RCP_state != RCP_INACT)) {
 
 			switch (rcp->GetFlag()) {
 
@@ -521,9 +702,9 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 				break;
 
 	case TcpOptionRcp::RCP_REFACK:
-		//		if ( rh->seqno() < ref_seqno_ && RCP_state != RCP_INACT) /* Added  by Masayoshi */
-		// if ( rh->seqno() < seqno_ && RCP_state != RCP_INACT) /* Added  by Masayoshi */
-		if ( (header.GetSequenceNumber() <= m_nextTxSequence)  && RCP_state != RCP_INACT){ /* Added  by Masayoshi */
+		//		if ( rh->seqno() < ref_seqno_ && RCP_state != RCP_INACT)
+		// if ( rh->seqno() < seqno_ && RCP_state != RCP_INACT)
+		if ( (header.GetSequenceNumber() <= m_nextTxSequence)  && RCP_state != RCP_INACT){
 			numOutRefs_--;
 			if (numOutRefs_ < 0) {
 				fprintf(stderr, "Extra REF_ACK received! \n");
@@ -592,7 +773,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 			min_rtt_ = rtt_;
 
 		if (rcp->GetRate() > 0) {
-			double new_interval = (m_segmentSize+62+RCP_HDR_BYTES)/(rcp->GetRate());
+			double new_interval = (m_segmentSize+RCP_HDR_BYTES)/(rcp->GetRate());
 			if( new_interval != interval_ ){
 				interval_ = new_interval;
 				if (RCP_state == RCP_CONGEST){
@@ -609,42 +790,22 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 		break;
 
 	case TcpOptionRcp::RCP_FIN:
-		{double copy_rate;
-        num_dataPkts_received_++; // because RCP_FIN is piggybacked on the last packet of flow
+		{//double copy_rate;
+		m_pktsRx++; // because RCP_FIN is piggybacked on the last packet of flow
 
-		copy_rate = rcp->GetRate();
+		m_tcpRate = rcp->GetRate();
 		// Can modify the rate here.
-		/*send_rh->seqno() = rh->seqno();
-		send_rh->ts() = rh->ts();
-		send_rh->rtt() = rh->rtt();
-		send_rh->set_RCP_pkt_type(RCP_FINACK);
-		send_rh->set_RCP_rate(copy_rate);
-        send_rh->set_RCP_numPkts_rcvd(num_dataPkts_received_);
-        send_rh->flowIden() = rh->flowIden();
 
-		target_->recv(send_pkt, (Handler*)0);
-		Tcl::instance().evalf("%s fin-received", this->name()); */
-		/* Added by Masayoshi */
 		break;
 		}
 
 
 	case TcpOptionRcp::RCP_SYN:
-		{double copy_rate;
+		{//double copy_rate;
 
-		copy_rate = rcp->GetRate();
+		m_tcpRate = rcp->GetRate();
 		// Can modify the rate here.
-		/*send_rh->seqno() = rh->seqno();
-		send_rh->ts() = rh->ts();
-		send_rh->rtt() = rh->rtt();
-		send_rh->set_RCP_pkt_type(RCP_SYNACK);
-		send_rh->set_RCP_rate(copy_rate);
-        send_rh->set_RCP_numPkts_rcvd(num_dataPkts_received_);
-        send_rh->flowIden() = rh->flowIden();
 
-		target_->recv(send_pkt, (Handler*)0);
-        RCP_state = RCP_RUNNING; // Only the receiver changes state here
-		*/
 		break;}
 
 	case TcpOptionRcp::RCP_FINACK:
@@ -658,40 +819,22 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 
 	case TcpOptionRcp::RCP_REF:
 		{
-		double copy_rate;
+		//double copy_rate;
 
-		copy_rate = rcp->GetRate();
+		m_pktsRx = rcp->GetRate();
 		// Can modify the rate here.
-		/*send_rh->seqno() = rh->seqno();
-		send_rh->ts() = rh->ts();
-		send_rh->rtt() = rh->rtt();
-		send_rh->set_RCP_pkt_type(RCP_REFACK);
-		send_rh->set_RCP_rate(copy_rate);
-        send_rh->set_RCP_numPkts_rcvd(num_dataPkts_received_);
-        send_rh->flowIden() = rh->flowIden();
 
-		target_->recv(send_pkt, (Handler*)0);
-		*/
 		break;}
 
 	case TcpOptionRcp::RCP_DATA:
 		{
-		double copy_rate;
-        num_dataPkts_received_++;
+		//double copy_rate;
+		m_pktsRx++;
 
 
-		copy_rate = rcp->GetRate();
+		m_tcpRate = rcp->GetRate();
 		// Can modify the rate here.
-		/*send_rh->seqno() = rh->seqno();
-		send_rh->ts() = rh->ts();
-		send_rh->rtt() = rh->rtt();
-		send_rh->set_RCP_pkt_type(RCP_ACK);
-		send_rh->set_RCP_rate(copy_rate);
-        send_rh->set_RCP_numPkts_rcvd(num_dataPkts_received_);
-        send_rh->flowIden() = rh->flowIden();
 
-		target_->recv(send_pkt, (Handler*)0);
-		*/
 		break;}
 
 	case TcpOptionRcp::RCP_OTHER:
@@ -704,7 +847,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 		exit(1);
 		break;
     }
-		}
+		}*/
 
 	}
 	TcpSocketBase::ReadOptions (header);
@@ -714,7 +857,7 @@ TcpRcp::ReadOptions (const TcpHeader& header)
 void
 TcpRcp::RateChange()
 {
-	if (RCP_state == RCP_RUNNING || RCP_state == RCP_RUNNING_WREF) {
+/*	if (RCP_state == RCP_RUNNING || RCP_state == RCP_RUNNING_WREF) {
 		//rcp_timer_.force_cancel();
 		m_rcpTimeout.Cancel();
 		double t = lastpkttime_ + interval_;
@@ -722,7 +865,7 @@ TcpRcp::RateChange()
 		Time now = Simulator::Now();
 
 		if ( t > now) {
-			NS_LOG_LOGIC("rate_change " << interval_ << " " << ((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
+			NS_LOG_LOGIC("rate_change " << interval_ << " " << ((m_segmentSize+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
 			rcp_timer_.resched(t - now);
 
 			if( (t - lastpkttime_) > REF_INTVAL * min_rtt_ && RCP_state != RCP_RUNNING_WREF ){
@@ -743,7 +886,8 @@ TcpRcp::RateChange()
 			}
 
 		} else {
-			fprintf(stdout,"%lf rate_change_sync %s %lf %lf\n",now,this->name(),interval_,((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
+			//fprintf(stdout,"%lf rate_change_sync %s %lf %lf\n",now,this->name(),interval_,((size_+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
+			NS_LOG_LOGIC("rate_change_sync " << interval_ << " "<< ((m_segmentSize+RCP_HDR_BYTES)/interval_)/(150000000.0 / 8.0));
 
 			// sendpkt();
 			// rcp_timer_.resched(interval_);
@@ -763,7 +907,7 @@ TcpRcp::RateChange()
 			}
 		}
 	}
-
+*/
 }
 
 void

@@ -24,6 +24,7 @@
 #include "tcp-option-ts.h"
 #include "tcp-option-inrpp-back.h"
 #include "tcp-option-inrpp.h"
+#include "ns3/tcp-option-rcp.h"
 #include "ns3/type-id.h"
 #include "ns3/log.h"
 
@@ -77,6 +78,7 @@ TcpOption::CreateOption (uint8_t kind)
     { TcpOption::NOP,       TcpOptionNOP::GetTypeId () },
     { TcpOption::WINSCALE,  TcpOptionWinScale::GetTypeId () },
     { TcpOption::TS,        TcpOptionTS::GetTypeId () },
+    { TcpOption::RCP,        TcpOptionRcp::GetTypeId () },
     { TcpOption::INRPP_BACK,TcpOptionInrppBack::GetTypeId () },
     { TcpOption::INRPP,TcpOptionInrpp::GetTypeId () },
     { TcpOption::UNKNOWN,  TcpOptionUnknown::GetTypeId () }
@@ -104,6 +106,7 @@ TcpOption::IsKindKnown (uint8_t kind)
     case MSS:
     case WINSCALE:
     case TS:
+    case RCP:
     case INRPP_BACK:
     case INRPP:
 

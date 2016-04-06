@@ -65,7 +65,7 @@ public:
   // From TcpSocketBase
   virtual int Connect (const Address &address);
   virtual int Listen (void);
-  void SetRate (uint32_t rate );
+  //void SetRate (uint32_t rate );
   //virtual int Send (Ptr<Packet> p, uint32_t flags);
 
 protected:
@@ -73,7 +73,7 @@ protected:
   virtual Ptr<TcpSocketBase> Fork (void); // Call CopyObject<TcpRcp> to clone me
   virtual void NewAck (SequenceNumber32 const& seq); // Inc cwnd and call NewAck() of parent
   virtual void DupAck (const TcpHeader& t, uint32_t count);  // Halving cwnd and reset nextTxSequence
-  virtual void Retransmit (void); // Exit fast recovery upon retransmit timeout
+  //virtual void Retransmit (void); // Exit fast recovery upon retransmit timeout
   virtual void ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader);
   // Implementing ns3::TcpSocket -- Attribute get/set
   virtual void     SetSegSize (uint32_t size);
@@ -85,8 +85,9 @@ protected:
   bool SendPendingData (bool withAck);
   void AddOptions (TcpHeader& tcpHeader);
   virtual void ReadOptions (const TcpHeader& tcpHeader);
+  int Send (Ptr<Packet> p, uint32_t flags);
   //void UpdateRate();
- // void ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader);
+  //void ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader);
 private:
   /**
    * \brief Set the congestion window when connection starts
@@ -98,7 +99,7 @@ private:
   void RtxTimeout();
   void RateChange();
   void Stop();
-
+  bool RefTimeout(bool withAck);
 protected:
   TracedValue<uint32_t>  m_cWnd;         //!< Congestion window
   //TracedValue<uint32_t>  m_ssThresh;     //!< Slow Start Threshold
@@ -108,8 +109,6 @@ protected:
   uint32_t               m_retxThresh;   //!< Fast Retransmit threshold
   bool                   m_inFastRec;    //!< currently in fast recovery
   bool                   m_limitedTx;    //!< perform limited transmit
-  uint32_t 				 m_nonce;
-  uint8_t 				 m_flag;
   uint32_t 				 m_rate;
   uint32_t 				 m_initialRate;
   bool m_back;
@@ -142,7 +141,7 @@ private:
 
 	/* for retransmissions */
 	int num_dataPkts_acked_by_receiver_;   // number of packets acked by receiver
-	int num_dataPkts_received_;            // Receiver keeps track of number of packets it received
+	//int num_dataPkts_received_;            // Receiver keeps track of number of packets it received
 	int num_Pkts_to_retransmit_;           // Number of data packets to retransmit
 	int num_pkts_resent_;                  // Number retransmitted since last RTO
 	int num_enter_retransmit_mode_;        // Number of times we are entering retransmission mode
@@ -151,6 +150,7 @@ private:
 	EventId m_refTransmit;
 	EventId m_rxTimeout;
 
+	int m_pktsRx;
 };
 
 } // namespace ns3

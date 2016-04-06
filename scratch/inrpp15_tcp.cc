@@ -504,7 +504,7 @@ main (int argc, char *argv[])
 				  data4.insert(std::make_pair(routers.Get(i)->GetDevice(j),0));
 				  m_lastSampleBW4.insert(std::make_pair(routers.Get(i)->GetDevice(j),0));
 				  m_lastBW4.insert(std::make_pair(routers.Get(i)->GetDevice(j),0));
-				  t4.insert(std::make_pair(routers.Get(i)->GetDevice(j),0));
+				  t4.insert(std::make_pair(routers.Get(i)->GetDevice(j),Seconds(0)));
 				  Ptr<PointToPointChannel> ch = routers.Get(i)->GetDevice(j)->GetChannel()->GetObject<PointToPointChannel>();
 				  ch->TraceConnectWithoutContext ("TxRxPointToPoint", MakeBoundCallback (&TxRx,streamtr4));
 

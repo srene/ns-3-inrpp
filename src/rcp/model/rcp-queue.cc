@@ -29,8 +29,7 @@
 #include "ns3/tcp-header.h"
 #include "tcp-option-rcp.h"
 #include "ns3/tcp-option-ts.h"
-
-//#include <random>
+#include "ns3/random-variable-stream.h"
 //#include <iostream>
 
 namespace ns3 {
@@ -93,12 +92,12 @@ TypeId RcpQueue::GetTypeId (void)
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("Alpha",
 				   "The lower threshold number of bytes accepted by this RcpQueue.",
-				   DoubleValue (0.4),
+				   DoubleValue (0.1),
 				   MakeDoubleAccessor (&RcpQueue::m_alpha),
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("Beta",
 				   "The lower threshold number of bytes accepted by this RcpQueue.",
-				   DoubleValue (0.4),
+				   DoubleValue (1.0),
 				   MakeDoubleAccessor (&RcpQueue::m_beta),
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("Gamma",
@@ -128,7 +127,7 @@ TypeId RcpQueue::GetTypeId (void)
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("upd_timeslot_",
 				   "The lower threshold number of bytes accepted by this RcpQueue.",
-				   DoubleValue (0.01),
+				   DoubleValue (0.05),
 				   MakeDoubleAccessor (&RcpQueue::upd_timeslot_),
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("rate_fact_mode_",
@@ -207,9 +206,16 @@ RcpQueue::Init()
 	//NS_LOG_LOGIC("Timeout at " << m_rtt << " " << upd_timeslot_);
 	//Tq_ = std::min(m_rtt, upd_timeslot_);  // Tq_ has to be initialized  after binding of upd_timeslot_
 	Tq_ = 0.01;
-	T = Tq_;
+	//std::default_random_engine generator;
+	//std::normal_distribution<double> distribution(Tq_, 0.2*Tq_);
+	//T = distribution(generator);
+	Ptr<NormalRandomVariable> x = CreateObject<NormalRandomVariable> ();
+	x->SetAttribute ("Mean", DoubleValue (Tq_));
+	x->SetAttribute ("Variance", DoubleValue (0.2*Tq_));
+	T = x->GetValue();
+	if(T<=0)T=Tq_;
 	end_slot_ = T;
-	//NS_LOG_LOGIC("Timeout at " << T << " " << flow_rate_ << " " << m_bps.GetBitRate());
+	NS_LOG_LOGIC("Timeout at " << T);
 	queue_timer_ = Simulator::Schedule (Seconds(T), &RcpQueue::Timeout, this);
 
 }
@@ -240,29 +246,33 @@ RcpQueue::DoBeforePacketDeparture(Ptr<Packet> p)
 {
 	NS_LOG_FUNCTION (this<<m_rtt);
 	output_traffic_ += p->GetSize();
-	Ptr<Packet> packet = p->Copy();
+	//Ptr<Packet> packet = p->Copy();
 	PppHeader ppp;
-	packet->RemoveHeader (ppp);
+	p->RemoveHeader (ppp);
 	TcpHeader tcpHeader;
 	Ipv4Header ipHeader;
-	packet->RemoveHeader(ipHeader);
+	p->RemoveHeader(ipHeader);
 	//UdpHeader udpHeader;
 	// NS_LOG_LOGIC("IP " << ipHeader.GetSource() << " " << ipHeader.GetDestination());
-	packet->PeekHeader(tcpHeader);
+	p->RemoveHeader(tcpHeader);
 
 	if (tcpHeader.HasOption (TcpOption::RCP))
 	{
 		Ptr<TcpOptionRcp> ts = DynamicCast<TcpOptionRcp> (tcpHeader.GetOption (TcpOption::RCP));
 
-		if (tcpHeader.GetFlags () & TcpHeader::SYN)
-		{
+	//	if (tcpHeader.GetFlags () & TcpHeader::SYN)
+	//	{
 			FillInFeedback(tcpHeader);
 
-		} else if (ts->GetFlag() & TcpOptionRcp::RCP_REF || ts->GetFlag() == TcpOptionRcp::RCP_DATA )
-		{
-			FillInFeedback(tcpHeader);
-		}
+	//	} else if (ts->GetFlag() & TcpOptionRcp::RCP_REF || ts->GetFlag() == TcpOptionRcp::RCP_DATA )
+	//	{
+	//		FillInFeedback(tcpHeader);
+	//	}
+
 	}
+	p->AddHeader(tcpHeader);
+	p->AddHeader(ipHeader);
+	p->AddHeader(ppp);
 }
 
 void
@@ -275,8 +285,12 @@ RcpQueue::FillInFeedback(const TcpHeader &header)
 
 	  uint32_t request = ts->GetRate();
 
+	  NS_LOG_LOGIC("Rcp request " << request << " flow rate " << flow_rate_);
 	  if (request < 0 || request > flow_rate_)
 		  ts->SetRate(flow_rate_);
+
+	  NS_LOG_LOGIC("Rcp request " << ts->GetRate() << " flow rate " << flow_rate_);
+
   }
 }
 
@@ -286,19 +300,18 @@ RcpQueue::DoOnPacketArrival(Ptr<Packet> p)
   NS_LOG_FUNCTION (this<<m_rtt);
   // Taking input traffic statistics
   uint32_t size = p->GetSize();
-  double pkt_time_ = (double)size/m_bps.GetBitRate();
+  double pkt_time_ = (double)size/(m_bps.GetBitRate()/8);
   double end_time = Simulator::Now().GetSeconds()+pkt_time_;
   double part1, part2;
-  NS_LOG_LOGIC("Packet time " << pkt_time_ << " end time " << end_time);
+  NS_LOG_LOGIC("Packet time " << pkt_time_ << " end time " << end_time << " size " << size);
 
-  NS_LOG_LOGIC("Packet time " << pkt_time_ << " end time " << end_time);
   Ptr<Packet> packet = p->Copy();
   PppHeader ppp;
   packet->RemoveHeader (ppp);
   TcpHeader tcpHeader;
   Ipv4Header ipHeader;
   packet->RemoveHeader(ipHeader);
-  packet->PeekHeader(tcpHeader);
+  packet->RemoveHeader(tcpHeader);
 
   double this_rtt=0;
   if (tcpHeader.HasOption (TcpOption::TS))
@@ -308,11 +321,12 @@ RcpQueue::DoOnPacketArrival(Ptr<Packet> p)
 	this_rtt = TcpOptionTS::ElapsedTimeFromTsValue (ts->GetEcho ()).GetSeconds();
   }
 
+  NS_LOG_LOGIC("This_rtt " << this_rtt);
   if (this_rtt > 0) {
        this_Tq_rtt_sum_ += (this_rtt * size);
        input_traffic_rtt_ += size;
-       NS_LOG_LOGIC("Rtt " << this_Tq_rtt_sum_ << " " << input_traffic_rtt_<< " " << this_rtt << " " << flow_rate_ << " " << m_bps.GetBitRate());
-       this_Tq_rtt_ = RunningAvg(this_rtt, this_Tq_rtt_, flow_rate_/m_bps.GetBitRate());
+       NS_LOG_LOGIC("Rtt " << this_Tq_rtt_sum_ << " " << input_traffic_rtt_<< " " << this_rtt << " " << flow_rate_ << " " << (m_bps.GetBitRate()/8));
+       this_Tq_rtt_ = RunningAvg(this_rtt, this_Tq_rtt_, flow_rate_/(m_bps.GetBitRate()/8));
   }
 
   if (end_time <= end_slot_)
@@ -324,7 +338,7 @@ RcpQueue::DoOnPacketArrival(Ptr<Packet> p)
     traffic_spill_ += part2;
   }
 
-  NS_LOG_LOGIC("Input traffic " << act_input_traffic_);
+  NS_LOG_LOGIC("Input traffic " << act_input_traffic_ << " traffic_spill " << traffic_spill_);
 
 }
 
@@ -333,10 +347,11 @@ void RcpQueue::Timeout()
   NS_LOG_FUNCTION (this<<m_rtt);
   if(m_init)
   {
-	  flow_rate_ = m_bps.GetBitRate() * 0.05;
+	  flow_rate_ = (m_bps.GetBitRate()/8) * 0.05;
 	  m_init = false;
   }
-  NS_LOG_LOGIC ("Flowrate " << flow_rate_ << " " << (flow_rate_/m_bps.GetBitRate()));
+
+  NS_LOG_LOGIC (this <<" << Flowrate " << flow_rate_ << " " << (flow_rate_/(m_bps.GetBitRate()/8)));
 
   double temp;
   double datarate_fact;
@@ -347,7 +362,7 @@ void RcpQueue::Timeout()
   //int Q_target_;
 
   double ratio;
-  double input_traffic_devider_;
+  //double input_traffic_devider_;
   //double queueing_delay_;
 
   double virtual_link_capacity; // bytes per second
@@ -357,6 +372,7 @@ void RcpQueue::Timeout()
   Q_ = GetNBytes();
   Q_pkts = GetNPackets();
 
+  NS_LOG_LOGIC(this << " Queue packets " << Q_pkts << " queue bytes " << Q_);
   input_traffic_ = last_load_;
   if (input_traffic_rtt_ > 0)
     this_Tq_rtt_numPkts_ = this_Tq_rtt_sum_/input_traffic_rtt_;
@@ -370,7 +386,7 @@ void RcpQueue::Timeout()
    if (this_Tq_rtt_numPkts_ >= avg_rtt_)
         rtt_moving_gain_ = (Tq_/avg_rtt_);
    else
-        rtt_moving_gain_ = (flow_rate_/m_bps.GetBitRate())*(this_Tq_rtt_numPkts_/avg_rtt_)*(Tq_/avg_rtt_);
+        rtt_moving_gain_ = (flow_rate_/(m_bps.GetBitRate()/8))*(this_Tq_rtt_numPkts_/avg_rtt_)*(Tq_/avg_rtt_);
 
   avg_rtt_ = RunningAvg(this_Tq_rtt_numPkts_, avg_rtt_, rtt_moving_gain_);
 
@@ -386,25 +402,27 @@ void RcpQueue::Timeout()
 //    propag_rtt_ = avg_rtt_;
 //  }
 
-
   estN1 = input_traffic_ / flow_rate_;
-  estN2 = m_bps.GetBitRate() / flow_rate_;
+  estN2 = (m_bps.GetBitRate()/8) / flow_rate_;
 
   if ( rate_fact_mode_ == 0) { // Masayoshi .. for Nandita's RCP
 
-   virtual_link_capacity = m_gamma * m_bps.GetBitRate();
+   virtual_link_capacity = m_gamma * (m_bps.GetBitRate()/8);
 
+   NS_LOG_FUNCTION(this<<"Parameters"<<Tq_<<avg_rtt_<<m_alpha<<virtual_link_capacity<<input_traffic_<<m_beta<<Q_<<avg_rtt_);
     /* Estimate # of active flows with  estN2 = (m_bps.GetBitRate()/flow_rate_) */
     ratio = (1 + ((Tq_/avg_rtt_)*(m_alpha*(virtual_link_capacity - input_traffic_) - m_beta*(Q_/avg_rtt_)))/virtual_link_capacity);
     temp = flow_rate_ * ratio;
 
-  } else if ( rate_fact_mode_ == 1) { // Masayoshi .. for fixed rate fact
-    /* Fixed Rate Mode */
+    NS_LOG_LOGIC(this << " Estimate " << estN1 << " " << estN2 << " " << ratio << " " << Tq_<< " " << avg_rtt_ << " " << flow_rate_);
+
+  } /*else if ( rate_fact_mode_ == 1) { // Masayoshi .. for fixed rate fact
+    // Fixed Rate Mode
     temp = m_bps.GetBitRate() * fixed_rate_fact_;
 
   } else if ( rate_fact_mode_ == 2) {
 
-    /* Estimate # of active flows with  estN1 = (input_traffic_/flow_rate_) */
+    // Estimate # of active flows with  estN1 = (input_traffic_/flow_rate_)
 
     if (input_traffic_ == 0.0 ){
       input_traffic_devider_ = m_bps.GetBitRate()/1000000.0;
@@ -437,7 +455,7 @@ void RcpQueue::Timeout()
   } else  if ( rate_fact_mode_ == 8) {
     temp = flow_rate_ +  m_bps.GetBitRate() * (m_alpha * (1.0 - input_traffic_/m_bps.GetBitRate()) - m_beta/avg_rtt_ * ( Q_/(propag_rtt_*m_bps.GetBitRate()) - 0.8 )) * Tq_;
   }
-
+*/
 
   if ( rate_fact_mode_ != 4) { // Masayoshi .. Experimental
     if (temp < min_pprtt_ * (1000/avg_rtt_) ){     // Masayoshi
@@ -454,8 +472,8 @@ void RcpQueue::Timeout()
     if (temp < 16000.0 ){    // Masayoshi 16 KB/sec = 128 Kbps
       flow_rate_ = 16000.0;
       clip  = 'L';
-    } else if (temp > m_bps.GetBitRate()){
-      flow_rate_ = m_bps.GetBitRate();
+    } else if (temp > (m_bps.GetBitRate()/8)){
+      flow_rate_ = m_bps.GetBitRate()/8;
       clip = 'U';
     } else {
       flow_rate_ = temp;
@@ -467,7 +485,7 @@ void RcpQueue::Timeout()
 //  else if (temp < 0 )
 //	 flow_rate_ = 1000/avg_rtt_; // 1 pkt per rtt
 
-  datarate_fact = flow_rate_/m_bps.GetBitRate();
+  datarate_fact = flow_rate_/(m_bps.GetBitRate()/8);
 
 //   if (print_status_ == 1)
 //   if (routerId_ == 0)
@@ -485,7 +503,7 @@ void RcpQueue::Timeout()
 
 // fflush(stdout);
 
-  NS_LOG_FUNCTION(this<<GetNBytes()<<Q_pkts<<datarate_fact<<last_load_<<avg_rtt_<<(m_bps.GetBitRate() - input_traffic_)/m_bps.GetBitRate()<<(Q_/avg_rtt_)/m_bps.GetBitRate()<<ratio<<estN1<<estN2<<clip);
+  NS_LOG_FUNCTION(this<<GetNBytes()<<Q_pkts<<datarate_fact<<last_load_<<avg_rtt_<<((m_bps.GetBitRate()/8) - input_traffic_)/(m_bps.GetBitRate()/8)<<(Q_/avg_rtt_)/(m_bps.GetBitRate()/8)<<ratio<<estN1<<estN2<<clip);
 
   Tq_ = std::min(avg_rtt_, upd_timeslot_);
   this_Tq_rtt_ = 0;
@@ -502,6 +520,7 @@ void RcpQueue::Timeout()
 
 double RcpQueue::RunningAvg(double var_sample, double var_last_avg, double gain)
 {
+	NS_LOG_FUNCTION(this<<var_sample<<var_last_avg<<gain);
 	double avg;
 	if (gain < 0)
 	  exit(3);
