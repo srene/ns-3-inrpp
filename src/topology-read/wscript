@@ -7,6 +7,8 @@ def build(bld):
        'model/inet-topology-reader.cc',
        'model/orbis-topology-reader.cc',
        'model/rocketfuel-topology-reader.cc',
+		 'model/annotated-topology-reader.cc',
+		 'model/rocketfuel-map-reader.cc',
        'helper/topology-reader-helper.cc',
         ]
 
@@ -22,6 +24,8 @@ def build(bld):
        'model/inet-topology-reader.h',
        'model/orbis-topology-reader.h',
        'model/rocketfuel-topology-reader.h',
+		 'model/annotated-topology-reader.h',
+		 'model/rocketfuel-map-reader.h',
        'helper/topology-reader-helper.h',
         ]
 

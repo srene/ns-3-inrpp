@@ -1,0 +1,10 @@
+prefix=/usr/local
+libdir=/usr/local/lib
+includedir=/usr/local/include/ns3.23
+
+Name: libns3-test
+Description: ns-3 module ns3-test
+Version: 3.23
+Libs: -L${libdir} -Wl,-Bdynamic -lns3.23-test-debug
+Cflags: -I${includedir}
+Requires: libns3.23-internet-debug libns3.23-mobility-debug libns3.23-applications-debug libns3.23-csma-debug libns3.23-bridge-debug libns3.23-config-store-debug libns3.23-point-to-point-debug libns3.23-csma-layout-debug libns3.23-flow-monitor-debug libns3.23-wifi-debug

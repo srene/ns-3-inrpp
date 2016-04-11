@@ -1,0 +1,10 @@
+prefix=/usr/local
+libdir=/usr/local/lib
+includedir=/usr/local/include/ns3.23
+
+Name: libns3-dsr
+Description: ns-3 module ns3-dsr
+Version: 3.23
+Libs: -L${libdir} -Wl,-Bdynamic -lns3.23-dsr-debug
+Cflags: -I${includedir}
+Requires: libns3.23-internet-debug libns3.23-wifi-debug
