@@ -28,6 +28,17 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("TopologyReader");
 
+NS_OBJECT_ENSURE_REGISTERED (TopologyReader);
+
+TypeId TopologyReader::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::TopologyReader")
+    .SetParent<Object> ()
+    .SetGroupName ("TopologyReader")
+  ;
+  return tid;
+}
+
 TopologyReader::TopologyReader ()
 {
   NS_LOG_FUNCTION (this);
@@ -96,21 +107,10 @@ TopologyReader::Link::Link ()
 {
 }
 
-void
-TopologyReader::Link::SetNetDevices (Ptr<NetDevice> from, Ptr<NetDevice> to)
-{
-  m_fromNetDevice = from;
-  m_toNetDevice = to;
-}
 
 Ptr<Node> TopologyReader::Link::GetFromNode (void) const
 {
   return m_fromPtr;
-}
-
-Ptr<NetDevice> TopologyReader::Link::GetFromNetDevice (void) const
-{
-  return m_fromNetDevice;
 }
 
 std::string
@@ -123,12 +123,6 @@ Ptr<Node>
 TopologyReader::Link::GetToNode (void) const
 {
   return m_toPtr;
-}
-
-Ptr<NetDevice>
-TopologyReader::Link::GetToNetDevice (void) const
-{
-  return m_toNetDevice;
 }
 
 std::string
