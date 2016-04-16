@@ -354,7 +354,7 @@ void RcpQueue::Timeout()
 
   NS_LOG_LOGIC (this <<" << Flowrate " << flow_rate_ << " " << (flow_rate_/(m_bps.GetBitRate()/8)));
 
-  double temp;
+  double temp = 0.0;
   double datarate_fact;
   double estN1;
   double estN2;
@@ -366,7 +366,7 @@ void RcpQueue::Timeout()
   //double input_traffic_devider_;
   //double queueing_delay_;
 
-  double virtual_link_capacity; // bytes per second
+  double virtual_link_capacity=0.0; // bytes per second
 
   last_load_ = act_input_traffic_/Tq_; // bytes per second
 
