@@ -186,7 +186,7 @@ void
 RcpQueue::Init()
 {
   //link_capacity_ = -1;
-	flow_rate_=0.0
+	flow_rate_=0.0;
 	input_traffic_ = 0.0;
 	act_input_traffic_ = 0.0;
 	output_traffic_ = 0.0;
