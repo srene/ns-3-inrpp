@@ -89,17 +89,17 @@ main (int argc, char *argv[])
 	  tracing = true;
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 10000000;
-	  uint32_t    	maxPackets = 500;
+	  uint32_t    	maxPackets = 400;
 	//  uint32_t      minTh = 25;
 	//  uint32_t      maxTh = 40;
 	  uint32_t 		stop = 200;
 	  n = 100;
-	  double 		time = 0;
+	  double 		time = 0.01;
 
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp	::GetTypeId ()));
   Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (100000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (100000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
 
@@ -141,7 +141,7 @@ main (int argc, char *argv[])
 						   "MaxBytes", UintegerValue(maxPackets*1500),
 						   "DataRate", StringValue ("10Gbps"));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 
   NetDeviceContainer devices0;
   NetDeviceContainer devices1;
@@ -351,10 +351,10 @@ main (int argc, char *argv[])
   Simulator::Destroy ();
   NS_LOG_INFO ("Done.");
 
-//  /int fl = 0;
- // double avg_ct=0;
+  int fl = 0;
+  double avg_ct=0;
 
- /* while (!sink.empty())
+  while (!sink.empty())
   {
 	    std::map<Ptr<PacketSink>,uint32_t>::iterator it = flows.find(sink.back());
 	    double ct =  sink.back()->GetCompletionTime().GetSeconds();
@@ -365,8 +365,8 @@ main (int argc, char *argv[])
 	    avg_ct+=ct;
 
   }
-  */
-  //NS_LOG_LOGIC("Average flow completion time " << avg_ct/n);
+
+  NS_LOG_LOGIC("Average flow completion time " << avg_ct/n);
 
 }
 
