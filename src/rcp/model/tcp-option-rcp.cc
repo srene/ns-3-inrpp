@@ -30,7 +30,9 @@ NS_OBJECT_ENSURE_REGISTERED (TcpOptionRcp);
 
 TcpOptionRcp::TcpOptionRcp ()
   : TcpOption (),
-	m_flag (0)
+	m_flag (0),
+	m_rcpRate(0),
+	m_pktsRcvd(0)
 {
 }
 

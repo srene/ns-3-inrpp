@@ -188,6 +188,16 @@ public:
   virtual int GetSockName (Address &address) const; // Return local addr:port in address
   virtual void BindToNetDevice (Ptr<NetDevice> netdevice); // NetDevice with my m_endPoint
 
+
+  /**
+   * \brief Call Retransmit() upon RTO event
+   */
+  virtual void ReTxTimeout (void);
+  /**
+   * \brief Send 1 byte probe to get an updated window size
+   */
+  virtual void PersistTimeout (void);
+
 protected:
   // Implementing ns3::TcpSocket -- Attribute get/set
   // inherited, no need to doc
@@ -589,11 +599,6 @@ protected:
   virtual void DupAck (const TcpHeader& tcpHeader, uint32_t count) = 0;
 
   /**
-   * \brief Call Retransmit() upon RTO event
-   */
-  virtual void ReTxTimeout (void);
-
-  /**
    * \brief Halving cwnd and call DoRetransmit()
    */
   virtual void Retransmit (void);
@@ -608,10 +613,6 @@ protected:
    */
   virtual void LastAckTimeout (void);
 
-  /**
-   * \brief Send 1 byte probe to get an updated window size
-   */
-  virtual void PersistTimeout (void);
 
   /**
    * \brief Retransmit the oldest packet

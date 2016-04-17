@@ -45,6 +45,7 @@
 #include "ns3/ipv4-nix-vector-helper.h"
 #include "ns3/inrpp-module.h"
 #include "ns3/queue.h"
+#include "ns3/tcp-rcp.h"
 
 using namespace ns3;
 
@@ -88,17 +89,17 @@ main (int argc, char *argv[])
 	  tracing = true;
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 10000000;
-	  uint32_t    	maxPackets = 50;
+	  uint32_t    	maxPackets = 400;
 	//  uint32_t      minTh = 25;
 	//  uint32_t      maxTh = 40;
-	  uint32_t 		stop = 100;
-	  n = 10;
-	  double 		time = 1;
+	  uint32_t 		stop = 200;
+	  n = 100;
+	  double 		time = 0.01;
 
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
-  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp	::GetTypeId ()));
+  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (100000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (100000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
   Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
 
@@ -140,7 +141,7 @@ main (int argc, char *argv[])
 						   "MaxBytes", UintegerValue(maxPackets*1500),
 						   "DataRate", StringValue ("10Gbps"));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 
   NetDeviceContainer devices0;
   NetDeviceContainer devices1;
@@ -152,10 +153,10 @@ main (int argc, char *argv[])
   devices4 = pointToPoint.Install (nodes.Get(4),nodes.Get(0));
 
 
-  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
   pointToPoint.SetQueue ("ns3::RcpQueue",
 						   "MaxBytes", UintegerValue(maxPackets*1500),
-						   "DataRate", StringValue ("10Mbps"));
+						   "DataRate", StringValue ("100Mbps"));
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
@@ -197,8 +198,8 @@ main (int argc, char *argv[])
 
 	  pointToPoint.SetQueue ("ns3::RcpQueue",
 							   "MaxBytes", UintegerValue(maxPackets*1500),
-							   "DataRate", StringValue ("10Mbps"));
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+							   "DataRate", StringValue ("100Mbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
 	  NetDeviceContainer sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
 	  NetDeviceContainer destLink = pointToPoint.Install (nodes.Get(3),nodes.Get(5+n+i));
 
@@ -364,6 +365,7 @@ main (int argc, char *argv[])
 	    avg_ct+=ct;
 
   }
+
   NS_LOG_LOGIC("Average flow completion time " << avg_ct/n);
 
 }

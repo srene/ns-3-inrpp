@@ -564,7 +564,7 @@ InrppInterface::OneMoreDetour(Ipv4Address ip)
 	//m_currentBW4.insert(std::make_pair(ip,0));
 	m_lastSampleBW4.insert(std::make_pair(ip,0));
 	m_lastBW4.insert(std::make_pair(ip,0));
-	t4.insert(std::make_pair(ip,0));
+	t4.insert(std::make_pair(ip,Seconds(0)));
 	data4.insert(std::make_pair(ip,0));
 	m_nDetour++;
 	  for(std::map<Ipv4Address,uint32_t>::iterator it = data4.begin();it!=data4.end();it++)

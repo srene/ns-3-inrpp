@@ -88,17 +88,17 @@ main (int argc, char *argv[])
 	  tracing = true;
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 10000000;
-	  uint32_t    	maxPackets = 50;
+	  uint32_t    	maxPackets = 400;
 	  uint32_t      minTh = 25;
 	  uint32_t      maxTh = 40;
-	  uint32_t 		stop = 100;
-	  n = 10;
-	  double 		time = 1;
+	  uint32_t 		stop = 200;
+	  n = 100;
+	  double 		time = 0.01;
 
   Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
-  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
+  Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (100000000));
+  Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (100000000));
   Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
 
 //
@@ -140,7 +140,7 @@ main (int argc, char *argv[])
                            "HigherThBytes", UintegerValue (maxTh*1500),
 						   "MaxBytes", UintegerValue(maxPackets*1500));
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
-  pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
+  pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 
   NetDeviceContainer devices0;
   NetDeviceContainer devices1;
@@ -160,7 +160,7 @@ main (int argc, char *argv[])
   //
   // Install the internet stack on the nodes with INRPP
   //
-    InrppStackHelper inrpp;
+   InternetStackHelper inrpp;
     inrpp.Install (nodes.Get(0));
     inrpp.Install (nodes.Get(1));
     inrpp.Install (nodes.Get(2));
@@ -193,7 +193,7 @@ main (int argc, char *argv[])
   {
 
 
-	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+	  pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
 	  NetDeviceContainer sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
 	  NetDeviceContainer destLink = pointToPoint.Install (nodes.Get(3),nodes.Get(5+n+i));
 
