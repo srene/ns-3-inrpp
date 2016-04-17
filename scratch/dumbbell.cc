@@ -57,12 +57,12 @@ std::string folder;
 Time t;
 std::map<Ptr<PacketSink> ,uint32_t> flows;
 uint32_t n;
-std::vector<Ptr<PacketSink> > sink;
-std::map<Ptr<PacketSink> ,uint32_t> data;
-*/
+std::vector<Ptr<PacketSink> > sink;*/
+std::map<uint16_t,Time> data;
+
 
 uint32_t active_flows;
-
+Ptr<OutputStreamWrapper> flowstream;
 
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
@@ -80,15 +80,15 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
-void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev);
-void StopFlow(Ptr<PacketSink> p);
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port);
+void StopFlow(Ptr<PacketSink> p, uint16_t port);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 int
 main (int argc, char *argv[])
 {
 	//t = Simulator::Now();
-	std::string protocol = "r";
+	std::string protocol = "i";
 	//i=0;
 	//tracing = true;
 	//tracing2 = true;
@@ -101,34 +101,14 @@ main (int argc, char *argv[])
 	uint32_t bneck = 1000000000;
 	uint32_t mean_n_pkts = (0.015*bneck)/(8*1500);
 
-	uint32_t      maxPackets = (bneck * 0.05)/(8*1500);
+	uint32_t      maxPackets = (bneck * 0.05)/(8);
+
+	uint32_t      maxTh = maxPackets;
 	uint32_t      minTh = maxPackets/2;
-	uint32_t      maxTh = maxPackets*0.9;
+
 	std::string folder;
 	double load = 0.9;
 
-	if(protocol=="t"){
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1458));
-
-	} else if(protocol=="r"){
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-
-	} else if(protocol=="i"){
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-	}
-
-	Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
-	Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
-	Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (4000000000));
-	Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (1250000000));
-	Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (620000000));
-	Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
-	Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
-	Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
-	Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 
 	//
 	// Allow the user to override any of the defaults at
@@ -156,6 +136,33 @@ main (int argc, char *argv[])
     if (mean_n_pkts < 30)
 		mean_n_pkts = 30;
 
+
+	if(protocol=="t"){
+		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
+		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1458));
+
+	} else if(protocol=="r"){
+		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
+		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+
+	} else if(protocol=="i"){
+		maxPackets = maxPackets*2;
+		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
+		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+		Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (maxPackets));
+		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (maxTh));
+		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (minTh));
+		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
+		Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
+
+	}
+
+	Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (10000000));
+	Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (10000000));
+
+	Config::SetDefault ("ns3::DropTailQueue::Mode", EnumValue (DropTailQueue::QUEUE_MODE_BYTES));
+	Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (1));
+
 	//
 	// Explicitly create the nodes required by the topology (shown above).
 	//
@@ -172,16 +179,16 @@ main (int argc, char *argv[])
 
 	if(protocol=="t"){
 		pointToPoint.SetQueue ("ns3::DropTailQueue",
-							   "MaxBytes", UintegerValue(maxPackets*1500));
+							   "MaxBytes", UintegerValue(maxPackets));
 		InternetStackHelper inrpp;
 		inrpp.Install (nodes.Get(0));
 		inrpp.Install (nodes.Get(1));
 	} else if (protocol=="i") {
 
 		pointToPoint.SetQueue ("ns3::InrppTailQueue",
-							   "LowerThBytes", UintegerValue (minTh*1500),
-							   "HigherThBytes", UintegerValue (maxTh*1500),
-							   "MaxBytes", UintegerValue(maxPackets*1500));
+							   "LowerThBytes", UintegerValue (minTh),
+							   "HigherThBytes", UintegerValue (maxTh),
+							   "MaxBytes", UintegerValue(maxPackets));
 
 		InrppStackHelper inrpp;
 		inrpp.Install (nodes.Get(0));
@@ -189,7 +196,7 @@ main (int argc, char *argv[])
 	} else if (protocol=="r"){
 
 		pointToPoint.SetQueue ("ns3::RcpQueue",
-		"MaxBytes", UintegerValue(maxPackets*1500),
+		"MaxBytes", UintegerValue(maxPackets),
 		"DataRate", StringValue (bottleneck));
 
 		InternetStackHelper inrpp;
@@ -226,20 +233,46 @@ main (int argc, char *argv[])
 	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
 	for(uint32_t i=0;i<n;i++)
 	{
-		if(protocol=="r")
-		{
+
+		NetDeviceContainer sourceLink;
+		NetDeviceContainer destLink;
+
+		if(protocol=="t"){
+			pointToPoint.SetQueue ("ns3::DropTailQueue",
+								   "MaxBytes", UintegerValue(maxPackets));
+			sourceLink = pointToPoint.Install (nodes.Get(2+i),nodes.Get(0));
+			destLink = pointToPoint.Install (nodes.Get(1),nodes.Get(2+n+i));
+
+			InternetStackHelper inrpp;
+			inrpp.Install (nodes.Get(2+i));
+			inrpp.Install (nodes.Get(2+n+i));
+		} else if (protocol=="i") {
+
+			pointToPoint.SetQueue ("ns3::InrppTailQueue",
+								   "LowerThBytes", UintegerValue (minTh),
+								   "HigherThBytes", UintegerValue (maxTh),
+								   "MaxBytes", UintegerValue(maxPackets));
+
+			sourceLink = pointToPoint.Install (nodes.Get(2+i),nodes.Get(0));
+			destLink = pointToPoint.Install (nodes.Get(1),nodes.Get(2+n+i));
+
+			InrppStackHelper inrpp;
+			inrpp.Install (nodes.Get(2+i));
+			inrpp.Install (nodes.Get(2+n+i));
+		} else if (protocol=="r"){
+
 			pointToPoint.SetQueue ("ns3::RcpQueue",
-			"MaxBytes", UintegerValue(maxPackets*1500),
+			"MaxBytes", UintegerValue(maxPackets),
 			"DataRate", StringValue (bottleneck));
+
+			sourceLink = pointToPoint.Install (nodes.Get(2+i),nodes.Get(0));
+			destLink = pointToPoint.Install (nodes.Get(1),nodes.Get(2+n+i));
+
+			InternetStackHelper inrpp;
+			inrpp.Install (nodes.Get(2+i));
+			inrpp.Install (nodes.Get(2+n+i));
 		}
 
-		pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
-		NetDeviceContainer sourceLink = pointToPoint.Install (nodes.Get(2+i),nodes.Get(0));
-		NetDeviceContainer destLink = pointToPoint.Install (nodes.Get(1),nodes.Get(2+n+i));
-
-		InternetStackHelper internet;
-		internet.Install (nodes.Get(2+i));
-		internet.Install (nodes.Get(2+n+i));
 
 		senders.Add(nodes.Get(2+i));
 
@@ -299,10 +332,10 @@ main (int argc, char *argv[])
 		psink->SetCallback(MakeCallback(&StopFlow));
 
 
-		AsciiTraceHelper asciiTraceHelper;
-		std::ostringstream osstr;
-		osstr << folder << "/netdeviceRx_"<<i<<".tr";
-		Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
+		//AsciiTraceHelper asciiTraceHelper;
+		//std::ostringstream osstr;
+		//osstr << folder << "/netdeviceRx_"<<i<<".tr";
+		//Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 		//DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
 
 
@@ -352,6 +385,10 @@ main (int argc, char *argv[])
 	Ptr<OutputStreamWrapper> streamtr2 = asciiTraceHelper.CreateFileStream (osstr2.str());
 	txQueue2->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr2));
 
+
+	std::ostringstream osstr3;
+	osstr3 << folder << "/flows.tr";
+	flowstream = asciiTraceHelper.CreateFileStream (osstr3.str());
 	//
 	// Now, do the actual simulation.
 	//
@@ -364,18 +401,23 @@ main (int argc, char *argv[])
 }
 
 
-void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev)
+void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port)
 {
 	active_flows++;
-	NS_LOG_LOGIC("Start flow " << active_flows);
+	NS_LOG_LOGIC("Start flow " << port << " " << active_flows);
 	socket->BindToNetDevice(netDev);
+	data.insert(std::make_pair(port,Simulator::Now()));
 
 }
 
-void StopFlow(Ptr<PacketSink> p)
+void StopFlow(Ptr<PacketSink> p, uint16_t port)
 {
 	active_flows--;
-	NS_LOG_LOGIC("Flow ended " <<active_flows);
+	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows);
+
+	std::map<uint16_t,Time>::iterator it = data.find(port);
+	if(it!=data.end())
+		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << active_flows <<  std::endl;
 
 }
 

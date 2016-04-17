@@ -99,7 +99,7 @@ public:
    */
   Ptr<Socket> GetSocket (void) const;
 
-  void SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice> > cb);
+  void SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice>, uint16_t> cb);
 
   void SetNetDevice (Ptr<NetDevice> netDev);
 
@@ -126,7 +126,7 @@ private:
   /// Traced Callback: sent packets
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
-  Callback<void, Ptr<Socket>, Ptr<NetDevice> > m_cb;
+  Callback<void, Ptr<Socket>, Ptr<NetDevice>, uint16_t> m_cb;
 
   Ptr<NetDevice> m_netDevice;
 private:
