@@ -192,7 +192,7 @@ RcpQueue::Init()
 	output_traffic_ = 0.0;
 	last_load_ = 0;
 	traffic_spill_ = 0;
-	avg_rtt_ = 0.2;
+	avg_rtt_ = 0.1;
 	this_Tq_rtt_sum_ = 0;
 	this_Tq_rtt_     = 0;
 	this_Tq_rtt_numPkts_ = 0;

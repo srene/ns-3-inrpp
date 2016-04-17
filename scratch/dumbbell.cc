@@ -93,19 +93,19 @@ main (int argc, char *argv[])
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-    bool pcap_tracing=true;
+    bool pcap_tracing=false;
 	uint32_t 		stop = 1000;
 	uint32_t n = 1000;
 	//double 		time = 0.01;
 	std::string bottleneck="1Gbps";
 	uint32_t bneck = 1000000000;
-	uint32_t mean_n_pkts = (0.1*bneck)/(8*1500);
+	uint32_t mean_n_pkts = (0.015*bneck)/(8*1500);
 
 	uint32_t      maxPackets = (bneck * 0.05)/(8*1500);
 	uint32_t      minTh = maxPackets/2;
 	uint32_t      maxTh = maxPackets*0.9;
 	std::string folder;
-	double load = 0.8;
+	double load = 0.9;
 
 	if(protocol=="t"){
 		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
@@ -190,7 +190,7 @@ main (int argc, char *argv[])
 
 		pointToPoint.SetQueue ("ns3::RcpQueue",
 		"MaxBytes", UintegerValue(maxPackets*1500),
-		"DataRate", StringValue ("10Gbps"));
+		"DataRate", StringValue (bottleneck));
 
 		InternetStackHelper inrpp;
 		inrpp.Install (nodes.Get(0));
@@ -198,6 +198,7 @@ main (int argc, char *argv[])
 	}
 
 	pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
+	pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 	NetDeviceContainer devices = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 
 
@@ -225,6 +226,12 @@ main (int argc, char *argv[])
 	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
 	for(uint32_t i=0;i<n;i++)
 	{
+		if(protocol=="r")
+		{
+			pointToPoint.SetQueue ("ns3::RcpQueue",
+			"MaxBytes", UintegerValue(maxPackets*1500),
+			"DataRate", StringValue (bottleneck));
+		}
 
 		pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
 		NetDeviceContainer sourceLink = pointToPoint.Install (nodes.Get(2+i),nodes.Get(0));
@@ -235,22 +242,26 @@ main (int argc, char *argv[])
 		internet.Install (nodes.Get(2+n+i));
 
 		senders.Add(nodes.Get(2+i));
+
 		receivers.Add(nodes.Get(2+n+i));
 
 		std::stringstream netAddr;
-		netAddr << "10." << net << "." << (num+2) << ".0";
+		netAddr << "11." << net << "." << (num) << ".0";
 		Ipv4AddressHelper ipv4;
 		std::string str = netAddr.str();
 		ipv4.SetBase(str.c_str(), "255.255.255.0");
 		Ipv4InterfaceContainer iSource = ipv4.Assign (sourceLink);
 
 		std::stringstream netAddr2;
-		netAddr2 << "11." << net << "." << (num+2) << ".0";
+		netAddr2 << "12." << net << "." << (num) << ".0";
 		str = netAddr2.str();
 		ipv4.SetBase(str.c_str(), "255.255.255.0");
 		Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
 
 		uint16_t port = 9000+i;  // well-known echo port number
+
+		NS_LOG_LOGIC("Ip " << iSource.GetAddress(0));
+		NS_LOG_LOGIC("Ip 2 " << iDest.GetAddress(1));
 
 		m_rv_flow_intval= CreateObject<ExponentialRandomVariable> ();
 
@@ -292,11 +303,11 @@ main (int argc, char *argv[])
 		std::ostringstream osstr;
 		osstr << folder << "/netdeviceRx_"<<i<<".tr";
 		Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-		DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
+		//DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
 
 
 		num++;
-		if(num+2==255)
+		if(num==256)
 		{
 		num=0;
 		net++;
