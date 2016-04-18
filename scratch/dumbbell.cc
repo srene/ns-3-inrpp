@@ -60,6 +60,7 @@ uint32_t n;
 std::vector<Ptr<PacketSink> > sink;*/
 std::map<uint16_t,Time> data;
 
+std::string folder;
 
 uint32_t active_flows;
 Ptr<OutputStreamWrapper> flowstream;
@@ -78,6 +79,16 @@ BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 
 }
 
+
+void LogCache(Ptr<InrppL3Protocol> inrpp)
+{
+	AsciiTraceHelper asciiTraceHelper;
+	std::ostringstream osstr21;
+	osstr21 << folder << "/netcache_0.bf";
+	Ptr<OutputStreamWrapper> streamtr21 = asciiTraceHelper.CreateFileStream (osstr21.str());
+    inrpp->GetCache()->TraceConnectWithoutContext ("Size", MakeBoundCallback (&BufferChange, streamtr21));
+
+}
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port);
@@ -93,8 +104,8 @@ main (int argc, char *argv[])
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-    bool pcap_tracing=false;
-	uint32_t 		stop = 1000;
+    bool pcap_tracing=true;
+	uint32_t 		stop = 300;
 	uint32_t n = 1000;
 	//double 		time = 0.01;
 	std::string bottleneck="1Gbps";
@@ -106,8 +117,10 @@ main (int argc, char *argv[])
 	uint32_t      maxTh = maxPackets;
 	uint32_t      minTh = maxPackets/2;
 
-	std::string folder;
-	double load = 0.9;
+	uint32_t	  hCacheTh  = bneck * 10/8;
+	uint32_t	  lCacheTh  = hCacheTh/2;
+	uint32_t	  maxCacheSize = hCacheTh*2;
+	double load = 0.8;
 
 
 	//
@@ -149,9 +162,9 @@ main (int argc, char *argv[])
 		maxPackets = maxPackets*2;
 		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpInrpp::GetTypeId ()));
 		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
-		Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (maxPackets));
-		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (maxTh));
-		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (minTh));
+		Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (maxCacheSize));
+		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (hCacheTh));
+		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (lCacheTh));
 		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
 		Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 
@@ -223,14 +236,23 @@ main (int argc, char *argv[])
 	NodeContainer senders;
 	NodeContainer receivers;
 
-	Ptr<ExponentialRandomVariable> m_rv_flow_intval;
-	Ptr<RandomVariableStream> m_rv_npkts;
-
 	DataRate dr(bottleneck);
+
+	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
+
+
+	Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
+	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
+	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
+
+	Ptr<RandomVariableStream> m_rv_npkts = CreateObject<ParetoRandomVariable> ();
+	m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*1500));
+	m_rv_npkts->SetAttribute("Shape", DoubleValue(1.2));
+	m_rv_npkts->SetAttribute("Stream", IntegerValue(-1));
+
 
 	double time = 1.0;
 
-	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
 	for(uint32_t i=0;i<n;i++)
 	{
 
@@ -296,15 +318,7 @@ main (int argc, char *argv[])
 		NS_LOG_LOGIC("Ip " << iSource.GetAddress(0));
 		NS_LOG_LOGIC("Ip 2 " << iDest.GetAddress(1));
 
-		m_rv_flow_intval= CreateObject<ExponentialRandomVariable> ();
 
-		m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
-		m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
-
-		m_rv_npkts = CreateObject<ParetoRandomVariable> ();
-		m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*1500));
-		m_rv_npkts->SetAttribute("Shape", DoubleValue(1.2));
-		m_rv_npkts->SetAttribute("Stream", IntegerValue(-1));
 
 		uint32_t packets = m_rv_npkts->GetInteger();
 
@@ -332,11 +346,11 @@ main (int argc, char *argv[])
 		psink->SetCallback(MakeCallback(&StopFlow));
 
 
-		//AsciiTraceHelper asciiTraceHelper;
-		//std::ostringstream osstr;
-		//osstr << folder << "/netdeviceRx_"<<i<<".tr";
-		//Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-		//DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
+		AsciiTraceHelper asciiTraceHelper;
+		std::ostringstream osstr;
+		osstr << folder << "/netdeviceRx_"<<i<<".tr";
+		Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
+		DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
 
 
 		num++;
@@ -362,6 +376,8 @@ main (int argc, char *argv[])
 		InrppGlobalRoutingHelper::PopulateRoutingTables ();
 		Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
 		ip->SetCallback(MakeCallback(&LogState));
+		Simulator::Schedule(Seconds(1.0),&LogCache,ip);
+
 
 	}else
 		Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
