@@ -151,7 +151,7 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
     }
 }
 
-void BulkSendApplication::SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice> > cb)
+void BulkSendApplication::SetCallback(Callback<void, Ptr<Socket> ,Ptr<NetDevice>,  uint16_t> cb)
 {
 	m_cb = cb;
 }
@@ -215,7 +215,7 @@ BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
   NS_LOG_FUNCTION (this << socket);
   NS_LOG_LOGIC ("BulkSendApplication Connection succeeded");
   m_connected = true;
-  if(!m_cb.IsNull())m_cb(m_socket,m_netDevice);
+  if(!m_cb.IsNull())m_cb(m_socket,m_netDevice,InetSocketAddress::ConvertFrom(m_peer).GetPort());
   SendData ();
 }
 

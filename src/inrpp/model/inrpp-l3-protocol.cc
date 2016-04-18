@@ -202,11 +202,11 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 				(outInterface->GetState()==UP_BACKPRESSURE)||(outInterface->GetState()==PROP_BACKPRESSURE)))
 		{
 
-				/*if(AddOptionInrpp(tcpHeader,outInterface->GetNonce()))
+				if(AddOptionInrpp(tcpHeader,outInterface->GetNonce()))
 				{
 					uint32_t size = ipHeader.GetPayloadSize();
 					ipHeader.SetPayloadSize(size+12);
-				}*/
+				}
 
 			uint32_t flag = 0;
 			if(tcpHeader.HasOption(TcpOption::INRPP))
@@ -216,6 +216,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 				NS_LOG_LOGIC("Insert at slot " << this << " " << flag << " " << inrpp->GetFlag() << " " << inrpp->GetNonce()<< " " << tcpHeader.GetDestinationPort() << " " << m_cache->GetSize(outInterface,flag) << " " << m_cache->GetSize());
 			} else{
 				flag = tcpHeader.GetDestinationPort()%m_numSlot;
+				NS_LOG_LOGIC("Insert at slot " << this << " " << flag);
 			}
 
 			packet->AddHeader(tcpHeader);
@@ -542,7 +543,7 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header, uint32_t nonce)
   bool add = false;
   if (!header.HasOption (TcpOption::INRPP))
   {
-	/*  uint32_t flag = header.GetDestinationPort()%m_numSlot;
+	  uint32_t flag = header.GetDestinationPort()%m_numSlot;
 	  NS_LOG_LOGIC("AddHeader " << flag);
 	  Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
 	  option->SetFlag(flag);
@@ -552,7 +553,7 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header, uint32_t nonce)
 	  //NS_LOG_FUNCTION("Create option inrpp " <<header);
 	  NS_LOG_FUNCTION (this << option->GetFlag());
 
-	  add = true;*/
+	  add = true;
 	  return add;
 
   } else {

@@ -96,7 +96,7 @@ TcpRcp::TcpRcp (void)
 	m_lastBW(0),
 	data(0),
 	m_slot(0),
-	m_tcpRate(100000),
+	m_tcpRate(1000),
 	rtt_(1.0),
 	min_rtt_(1.0),
 	m_pktsRx(0)
