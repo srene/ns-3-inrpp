@@ -95,7 +95,7 @@ public:
  
   Time GetCompletionTime();
 
-  void SetCallback(Callback<void,Ptr<PacketSink>, uint16_t> cb);
+  void SetCallback(Callback<void,Ptr<PacketSink>, uint16_t,uint32_t> cb);
 
 protected:
   virtual void DoDispose (void);
@@ -148,7 +148,7 @@ private:
   uint32_t data;
 
 
-  Callback<void,Ptr<PacketSink>, uint16_t> m_cb;
+  Callback<void,Ptr<PacketSink>, uint16_t, uint32_t> m_cb;
 
 };
 

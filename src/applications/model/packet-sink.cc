@@ -213,12 +213,12 @@ void PacketSink::HandleRead (Ptr<Socket> socket)
 void PacketSink::HandlePeerClose (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
-  if(!m_cb.IsNull())m_cb(this,InetSocketAddress::ConvertFrom(m_local).GetPort());
+  if(!m_cb.IsNull())m_cb(this,InetSocketAddress::ConvertFrom(m_local).GetPort(),m_totalRx);
   t = Simulator::Now()-t;
 
 }
 
-void PacketSink::SetCallback(Callback<void, Ptr<PacketSink>, uint16_t> cb)
+void PacketSink::SetCallback(Callback<void, Ptr<PacketSink>, uint16_t,uint32_t> cb)
 {
 	m_cb = cb;
 }

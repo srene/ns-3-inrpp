@@ -59,9 +59,8 @@ std::map<Ptr<PacketSink> ,uint32_t> flows;
 uint32_t n;
 std::vector<Ptr<PacketSink> > sink;*/
 std::map<uint16_t,Time> data;
-
+uint32_t packetSize;
 std::string folder;
-
 uint32_t active_flows;
 Ptr<OutputStreamWrapper> flowstream;
 
@@ -72,12 +71,12 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 }
 
-static void
+/*static void
 BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
 
-}
+}*/
 
 
 void LogCache(Ptr<InrppL3Protocol> inrpp)
@@ -92,37 +91,27 @@ void LogCache(Ptr<InrppL3Protocol> inrpp)
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port);
-void StopFlow(Ptr<PacketSink> p, uint16_t port);
+void StopFlow(Ptr<PacketSink> p, uint16_t port,uint32_t size);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 int
 main (int argc, char *argv[])
 {
-	//t = Simulator::Now();
+	packetSize = 1500;
 	std::string protocol = "i";
-	//i=0;
-	//tracing = true;
-	//tracing2 = true;
-	//uint32_t 		maxBytes = 10000000;
-    bool pcap_tracing=true;
-	uint32_t 		stop = 300;
-	uint32_t n = 1000;
-	//double 		time = 0.01;
-	std::string bottleneck="1Gbps";
-	uint32_t bneck = 1000000000;
-	uint32_t mean_n_pkts = (0.015*bneck)/(8*1500);
-
+    bool 	      pcap_tracing=false;
+	uint32_t 	  stop = 300;
+	uint32_t 	  n = 1000;
+	std::string   bottleneck="1Gbps";
+	uint32_t 	  bneck = 1000000000;
+	uint32_t 	  mean_n_pkts = (0.015*bneck)/(8*packetSize);
 	uint32_t      maxPackets = (bneck * 0.05)/(8);
-
 	uint32_t      maxTh = maxPackets;
 	uint32_t      minTh = maxPackets/2;
-
 	uint32_t	  hCacheTh  = bneck * 10/8;
 	uint32_t	  lCacheTh  = hCacheTh/2;
 	uint32_t	  maxCacheSize = hCacheTh*2;
 	double load = 0.8;
-
-
 	//
 	// Allow the user to override any of the defaults at
 	// run-time, via command-line arguments
@@ -221,8 +210,6 @@ main (int argc, char *argv[])
 	pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 	NetDeviceContainer devices = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
 
-
-
 	//
 	// We've got the "hardware" in place.  Now we need to add IP addresses.
 	//
@@ -238,18 +225,17 @@ main (int argc, char *argv[])
 
 	DataRate dr(bottleneck);
 
-	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
+	double lambda = ((dr.GetBitRate() * load) / (mean_n_pkts * packetSize * 8.0));
 
-
+	NS_LOG_LOGIC("LAmbda " << packetSize << " " << lambda);
 	Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
 	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
 	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
 
 	Ptr<RandomVariableStream> m_rv_npkts = CreateObject<ParetoRandomVariable> ();
-	m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*1500));
+	m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*packetSize));
 	m_rv_npkts->SetAttribute("Shape", DoubleValue(1.2));
 	m_rv_npkts->SetAttribute("Stream", IntegerValue(-1));
-
 
 	double time = 1.0;
 
@@ -295,7 +281,6 @@ main (int argc, char *argv[])
 			inrpp.Install (nodes.Get(2+n+i));
 		}
 
-
 		senders.Add(nodes.Get(2+i));
 
 		receivers.Add(nodes.Get(2+n+i));
@@ -317,8 +302,6 @@ main (int argc, char *argv[])
 
 		NS_LOG_LOGIC("Ip " << iSource.GetAddress(0));
 		NS_LOG_LOGIC("Ip 2 " << iDest.GetAddress(1));
-
-
 
 		uint32_t packets = m_rv_npkts->GetInteger();
 
@@ -345,14 +328,12 @@ main (int argc, char *argv[])
 		Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
 		psink->SetCallback(MakeCallback(&StopFlow));
 
-
-		AsciiTraceHelper asciiTraceHelper;
+	/*	AsciiTraceHelper asciiTraceHelper;
 		std::ostringstream osstr;
 		osstr << folder << "/netdeviceRx_"<<i<<".tr";
 		Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 		DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
-
-
+	 */
 		num++;
 		if(num==256)
 		{
@@ -361,7 +342,6 @@ main (int argc, char *argv[])
 		}
 
 	}
-
 
 	if(pcap_tracing)
 	{
@@ -377,12 +357,8 @@ main (int argc, char *argv[])
 		Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
 		ip->SetCallback(MakeCallback(&LogState));
 		Simulator::Schedule(Seconds(1.0),&LogCache,ip);
-
-
 	}else
 		Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-
 
 	AsciiTraceHelper asciiTraceHelper;
 	PointerValue ptr;
@@ -426,17 +402,16 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port)
 
 }
 
-void StopFlow(Ptr<PacketSink> p, uint16_t port)
+void StopFlow(Ptr<PacketSink> p, uint16_t port, uint32_t size)
 {
 	active_flows--;
-	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows);
+	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows << " " << size/packetSize);
 
 	std::map<uint16_t,Time>::iterator it = data.find(port);
 	if(it!=data.end())
-		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << active_flows <<  std::endl;
+		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << size/packetSize << "\t" << active_flows <<  std::endl;
 
 }
-
 
 void LogState(Ptr<InrppInterface> iface,uint32_t state){
 

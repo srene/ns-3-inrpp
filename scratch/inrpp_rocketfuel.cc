@@ -67,6 +67,7 @@ uint32_t n;
 std::vector<Ptr<PacketSink> > sink;*/
 std::map<uint16_t,Time> data;
 std::string folder;
+uint32_t packetSize;
 
 uint32_t active_flows;
 Ptr<OutputStreamWrapper> flowstream;
@@ -100,12 +101,14 @@ void LogCache(Ptr<InrppL3Protocol> inrpp)
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
 
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port);
-void StopFlow(Ptr<PacketSink> p, uint16_t port);
+void StopFlow(Ptr<PacketSink> p, uint16_t port,uint32_t size);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
 
 int
 main (int argc, char *argv[])
 {
+
+	packetSize = 1500;
 	//t = Simulator::Now();
 	std::string protocol = "i";
 	std::string topo_file_name = "3356.pop.cch";
@@ -115,14 +118,14 @@ main (int argc, char *argv[])
 	//uint32_t 		maxBytes = 10000000;
    //bool pcap_tracing=false;
 	uint32_t 		stop = 300;
-	uint32_t n = 1000;
+	uint32_t n = 20;
 	//double 		time = 0.01;
 	std::string bottleneck="1Gbps";
 	std::string b2g_bottleneck = "20Gbps";
 	std::string c2g_bottleneck = "20Gbps";
 
 	uint32_t bneck = 1000000000;
-	uint32_t mean_n_pkts = (0.015*bneck)/(8*1500);
+	uint32_t mean_n_pkts = (0.015*bneck)/(8*packetSize);
 
 	uint32_t      maxPackets = (bneck * 0.05)/(8);
 
@@ -155,7 +158,7 @@ main (int argc, char *argv[])
 	cmd.Parse (argc, argv);
 
 	std::ostringstream st;
-	st << protocol << "test_fl" <<n;
+	st << protocol << "rockettest_fl" <<n;
 	folder = st.str();
 
     if (mean_n_pkts < 30)
@@ -478,14 +481,14 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port)
 
 }
 
-void StopFlow(Ptr<PacketSink> p, uint16_t port)
+void StopFlow(Ptr<PacketSink> p, uint16_t port, uint32_t size)
 {
 	active_flows--;
-	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows);
+	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows << " " << size/packetSize);
 
 	std::map<uint16_t,Time>::iterator it = data.find(port);
 	if(it!=data.end())
-		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << active_flows <<  std::endl;
+		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << size/packetSize << "\t" << active_flows <<  std::endl;
 
 }
 
