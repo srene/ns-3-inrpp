@@ -78,13 +78,14 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 }
 
-
+/*
 static void
 BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
 {
   *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
 
 }
+*/
 
 void LogCache(Ptr<InrppL3Protocol> inrpp)
 {
@@ -112,11 +113,14 @@ main (int argc, char *argv[])
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-   bool pcap_tracing=false;
+   //bool pcap_tracing=false;
 	uint32_t 		stop = 300;
 	uint32_t n = 1000;
 	//double 		time = 0.01;
 	std::string bottleneck="1Gbps";
+	std::string b2g_bottleneck = "20Gbps";
+	std::string c2g_bottleneck = "20Gbps";
+
 	uint32_t bneck = 1000000000;
 	uint32_t mean_n_pkts = (0.015*bneck)/(8*1500);
 
@@ -192,13 +196,13 @@ main (int argc, char *argv[])
 	params.maxb2bDelay = "5ms";
 	params.maxb2bBandwidth = bottleneck;
 	params.minb2gDelay = "5ms";
-	params.minb2gBandwidth = bottleneck;
+	params.minb2gBandwidth = b2g_bottleneck;
 	params.maxb2gDelay = "5ms";
-	params.maxb2gBandwidth = bottleneck;
-	params.ming2cDelay = "1ms";
-	params.ming2cBandwidth = bottleneck;
+	params.maxb2gBandwidth = b2g_bottleneck;
+	params.ming2cDelay = "5ms";
+	params.ming2cBandwidth = c2g_bottleneck;
 	params.maxg2cDelay = "5ms";
-	params.maxg2cBandwidth = bottleneck;
+	params.maxg2cBandwidth = c2g_bottleneck;
 
 	RocketfuelMapReader topo_reader(topo_file_name, 10); //the second paramater has to do with visualizing
 	topo_reader.SetFileName(topo_file_name);
@@ -216,11 +220,6 @@ main (int argc, char *argv[])
 	NS_LOG_INFO("Number of customer (edge) routers: "<<CustomerRouters.GetN());
 	NS_LOG_INFO("Number of gateway routers: "<<GatewayRouters.GetN());
 	NS_LOG_INFO("Number of backbone (core) routers: "<<BackBoneRouters.GetN());
-
-	//
-	// Explicitly create the nodes required by the topology (shown above).
-	//
-
 
 	//
 	// Explicitly create the point-to-point link required by the topology (shown above).
@@ -280,7 +279,7 @@ main (int argc, char *argv[])
 			num=0;
 			net++;
 		}
-		//Onur: Ask Sergi if the code below is placed right...
+		/* Onur: Ask Sergi if the code below is placed right...
 		PointerValue ptr;
 		devices.Get(0)->GetAttribute ("TxQueue", ptr);
 		Ptr<Queue> txQueue = ptr.Get<Queue> ();
@@ -296,6 +295,7 @@ main (int argc, char *argv[])
 		osstr2 << folder << "/netdevice_1.bf";
 		Ptr<OutputStreamWrapper> streamtr2 = asciiTraceHelper.CreateFileStream (osstr2.str());
 		txQueue2->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr2));
+		*/
 	}
 
 	num = 0;
@@ -328,8 +328,8 @@ main (int argc, char *argv[])
 
 	for(uint32_t pair = 0; pair < num_customers/2; pair++)
 	{
-		Ptr<Node> fromNode = nodes.Get(2*pair); 
-		Ptr<Node> toNode = nodes.Get((2*pair)+1);
+		Ptr<Node> fromNode = CustomerRouters.Get(2*pair); 
+		Ptr<Node> toNode = CustomerRouters.Get((2*pair)+1);
 	   
 	   for(uint32_t i=0;i<n;i++)
       {
@@ -414,13 +414,13 @@ main (int argc, char *argv[])
 			bulk->SetNetDevice(sourceLink.Get(0));
 			Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
 			psink->SetCallback(MakeCallback(&StopFlow));
-
+/*
 			AsciiTraceHelper asciiTraceHelper;
 			std::ostringstream osstr;
 			osstr << folder << "/netdeviceRx_"<<i<<".tr";
 			Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
 			DynamicCast<PacketSink> (sinkApps.Get (0))->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtr));
-
+*/
 			num++;
 			if(num==256)
 			{
@@ -430,7 +430,7 @@ main (int argc, char *argv[])
 
 		} // end of i's
 	} // end of pairs
-
+/*
 	if(pcap_tracing)
 	{
 		std::ostringstream osstr3;
@@ -439,12 +439,12 @@ main (int argc, char *argv[])
 		pointToPoint.EnablePcap(osstr3.str(),senders, false);
 		pointToPoint.EnablePcap(osstr3.str(),receivers, false);
 	}
-
+*/
 	if(protocol=="i"){
 		InrppGlobalRoutingHelper::PopulateRoutingTables ();
-		Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
-		ip->SetCallback(MakeCallback(&LogState));
-		Simulator::Schedule(Seconds(1.0),&LogCache,ip);
+		//Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
+		//ip->SetCallback(MakeCallback(&LogState));
+		//Simulator::Schedule(Seconds(1.0),&LogCache,ip);
 	}else
 		Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
