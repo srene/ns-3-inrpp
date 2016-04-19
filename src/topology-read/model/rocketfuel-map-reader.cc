@@ -453,7 +453,10 @@ RocketfuelMapReader::Read(RocketfuelParams params, bool keepOneComponent /*=true
     }
   }
 
-  ApplySettings();
+
+  //Onur: ApplySettings is where the p2p devices are added
+  // should I comment this out?
+  //ApplySettings(); 
 
   NS_LOG_INFO("Clients:   " << m_customerRouters.GetN());
   NS_LOG_INFO("Gateways:  " << m_gatewayRouters.GetN());
