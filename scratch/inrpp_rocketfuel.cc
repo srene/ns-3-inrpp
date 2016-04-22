@@ -333,6 +333,7 @@ main (int argc, char *argv[])
 	{
 		Ptr<Node> fromNode = CustomerRouters.Get(2*pair); 
 		Ptr<Node> toNode = CustomerRouters.Get((2*pair)+1);
+		time = 1.0;
 	   
 	   for(uint32_t i=0;i<n;i++)
       {
@@ -388,7 +389,7 @@ main (int argc, char *argv[])
 			ipv4.SetBase(str.c_str(), "255.255.255.0");
 			Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
 
-			uint16_t port = 9000+i;  // well-known echo port number
+			uint16_t port = 9000+pair*n+i;  // well-known echo port number
 
 			NS_LOG_LOGIC("Ip " << iSource.GetAddress(0));
 			NS_LOG_LOGIC("Ip 2 " << iDest.GetAddress(1));
