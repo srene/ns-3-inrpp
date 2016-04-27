@@ -89,7 +89,6 @@ void LogCache(Ptr<InrppL3Protocol> inrpp)
 
 }
 void Sink(Ptr<PacketSink> psink, Ptr<const Packet> p,const Address &ad);
-
 void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port);
 void StopFlow(Ptr<PacketSink> p, uint16_t port,uint32_t size);
 void LogState(Ptr<InrppInterface> iface,uint32_t state);
@@ -145,7 +144,8 @@ main (int argc, char *argv[])
 
 	} else if(protocol=="r"){
 		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
+		Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
 
 	} else if(protocol=="i"){
 		maxPackets = maxPackets*2;
@@ -227,7 +227,7 @@ main (int argc, char *argv[])
 
 	double lambda = ((dr.GetBitRate() * load) / (mean_n_pkts * packetSize * 8.0));
 
-	NS_LOG_LOGIC("LAmbda " << packetSize << " " << lambda);
+	NS_LOG_LOGIC("Lambda " << packetSize << " " << lambda);
 	Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
 	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
 	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));

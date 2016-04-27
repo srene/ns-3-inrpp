@@ -309,7 +309,8 @@ InrppInterface::GetResidual(Ipv4Address address)
 {
 	NS_LOG_FUNCTION(this<<address);
 
-	uint32_t residual = (uint32_t)m_bps.GetBitRate();
+	//uint32_t residual = (uint32_t)m_bps.GetBitRate();
+	uint32_t residual = GetResidual();
 	int av=0;
 	for (std::map<Ipv4Address,double>::iterator it=m_lastBW4.begin(); it!=m_lastBW4.end(); ++it)
 	{
@@ -317,8 +318,8 @@ InrppInterface::GetResidual(Ipv4Address address)
 	}
 
 	NS_LOG_LOGIC("Joint Residual " << av);
-	uint32_t th=0;
     av=residual-av;
+	uint32_t th=0;
 
 	NS_LOG_LOGIC("Available Residual " << av);
 

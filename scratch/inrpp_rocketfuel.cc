@@ -110,15 +110,15 @@ main (int argc, char *argv[])
 
 	packetSize = 1500;
 	//t = Simulator::Now();
-	std::string protocol = "i";
+	std::string protocol = "t";
 	std::string topo_file_name = "3356.pop.cch";
 	//i=0;
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-   //bool pcap_tracing=false;
-	uint32_t 		stop = 300;
-	uint32_t n = 20;
+    bool pcap_tracing=false;
+	uint32_t 		stop = 1000;
+	uint32_t n = 1;
 	//double 		time = 0.01;
 	std::string bottleneck="1Gbps";
 	std::string b2g_bottleneck = "20Gbps";
@@ -321,13 +321,16 @@ main (int argc, char *argv[])
 	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
 
 	m_rv_npkts = CreateObject<ParetoRandomVariable> ();
-	m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*1500));
+	m_rv_npkts->SetAttribute("Mean", DoubleValue(mean_n_pkts*packetSize));
 	m_rv_npkts->SetAttribute("Shape", DoubleValue(1.2));
 	m_rv_npkts->SetAttribute("Stream", IntegerValue(-1));
 
-   uint32_t num_customers = CustomerRouters.GetN();
+    uint32_t num_customers = CustomerRouters.GetN();
 	senders.Create(n*num_customers/2);
 	receivers.Create(n*num_customers/2);
+
+    NS_LOG_LOGIC("Senders " << senders.GetN());
+    NS_LOG_LOGIC("Receivers " << receivers.GetN());
 
 	for(uint32_t pair = 0; pair < num_customers/2; pair++)
 	{
@@ -433,7 +436,7 @@ main (int argc, char *argv[])
 
 		} // end of i's
 	} // end of pairs
-/*
+
 	if(pcap_tracing)
 	{
 		std::ostringstream osstr3;
@@ -442,7 +445,7 @@ main (int argc, char *argv[])
 		pointToPoint.EnablePcap(osstr3.str(),senders, false);
 		pointToPoint.EnablePcap(osstr3.str(),receivers, false);
 	}
-*/
+
 	if(protocol=="i"){
 		InrppGlobalRoutingHelper::PopulateRoutingTables ();
 		//Ptr<InrppL3Protocol> ip = nodes.Get(0)->GetObject<InrppL3Protocol> ();
@@ -484,7 +487,7 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev,  uint16_t port)
 void StopFlow(Ptr<PacketSink> p, uint16_t port, uint32_t size)
 {
 	active_flows--;
-	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows << " " << size/packetSize);
+	NS_LOG_LOGIC("Flow ended " << port << " " << active_flows << " " << size);
 
 	std::map<uint16_t,Time>::iterator it = data.find(port);
 	if(it!=data.end())

@@ -109,6 +109,11 @@ void PacketSink::DoDispose (void)
 }
 
 
+double PacketSink::GetTr(void)
+{
+	return m_currentBW.Get();
+}
+
 // Application Methods
 void PacketSink::StartApplication ()    // Called at time specified by Start
 {

@@ -97,6 +97,8 @@ public:
 
   void SetCallback(Callback<void,Ptr<PacketSink>, uint16_t,uint32_t> cb);
 
+  double GetTr(void);
+
 protected:
   virtual void DoDispose (void);
 private:

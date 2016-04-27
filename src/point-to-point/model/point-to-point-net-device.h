@@ -479,6 +479,12 @@ private:
    */
   static uint16_t EtherToPpp (uint16_t protocol);
 
+  double			     m_currentBW;              //!< Current value of the estimated BW
+  double                 m_lastSampleBW;           //!< Last bandwidth sample
+  double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
+  Time t1;
+  uint32_t data;
+  TracedValue<double>	 m_linkUtil;
 
 };
 

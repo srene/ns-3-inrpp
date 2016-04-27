@@ -167,7 +167,9 @@ PointToPointNetDevice::GetTypeId (void)
                      "attached to the device",
                      MakeTraceSourceAccessor (&PointToPointNetDevice::m_promiscSnifferTrace),
                      "ns3::Packet::TracedCallback")
-
+	.AddTraceSource("EstimatedBW", "The estimated bandwidth",
+					 MakeTraceSourceAccessor(&PointToPointNetDevice::m_linkUtil),
+					 "ns3::TracedValue::DoubleCallback")
   ;
   return tid;
 }
@@ -243,6 +245,23 @@ PointToPointNetDevice::TransmitStart (Ptr<Packet> p)
   NS_LOG_FUNCTION (this << p);
   NS_LOG_LOGIC ("UID is " << p->GetUid () << ")");
 
+  data+= p->GetSize() * 8;
+   NS_LOG_LOGIC(this << " Packet size " << p->GetSize());
+   if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+ 	  //NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
+ 	  double sample_bwe = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
+ 	  data = 0;
+ 	  double alpha = 0.4;
+ 	  //double   sample_bwe = m_currentBW;
+ 	  m_currentBW = ((alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2)));
+ 	  //NS_LOG_LOGIC("Currentbw " << m_currentBW << " bitrate " << m_bps.GetBitRate() << " " << m_currentBW/m_bps.GetBitRate());
+ 	  m_linkUtil =  m_currentBW/m_bps.GetBitRate();
+ 	  m_lastSampleBW = sample_bwe;
+ 	  m_lastBW = m_currentBW;
+ 	  t1 = Simulator::Now();
+
+   }
+
   //
   // This function is called to start the process of transmitting a packet.
   // We need to tell the channel that we've started wiggling the wire and
@@ -298,6 +317,7 @@ PointToPointNetDevice::TransmitComplete (void)
   //
   // Got another packet off of the queue, so start the transmit process agin.
   //
+
   m_snifferTrace (p);
   m_promiscSnifferTrace (p);
   TransmitStart (p);
@@ -538,7 +558,8 @@ PointToPointNetDevice::Send (
 
   m_macTxTrace (packet);
 
-  //
+
+
   // We should enqueue and dequeue the packet to hit the tracing hooks.
   //
   if (m_queue->Enqueue (packet))
