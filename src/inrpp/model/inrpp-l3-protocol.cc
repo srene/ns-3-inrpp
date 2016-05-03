@@ -146,7 +146,8 @@ InrppL3Protocol::SendInrppInfo (Ptr<InrppInterface> sourceIface, Ptr<InrppInterf
   packet->AddHeader(inrpp);
   destDevice->Send (packet, destDevice->GetBroadcast (), InrppL3Protocol::PROT_NUMBER);
 
-  Simulator::Schedule (Seconds (0.01),&InrppL3Protocol::SendInrppInfo,this,sourceIface,destIface,infoAddress);
+  double rate = 1000000/(double) sourceIface->GetRate().GetBitRate();
+  Simulator::Schedule (Seconds (rate),&InrppL3Protocol::SendInrppInfo,this,sourceIface,destIface,infoAddress);
 
 }
 

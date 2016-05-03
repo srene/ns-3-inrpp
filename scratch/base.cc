@@ -121,6 +121,7 @@ void TxPacket (Ipv4Address add, Ptr<const Packet> p);
 void LogCache(Ptr<InrppL3Protocol> inrpp);
 void LogCacheFlow(Ptr<OutputStreamWrapper> streamtr, Ptr<InrppL3Protocol> ip,Ptr<InrppInterface> iface,uint32_t flow);
 void LogFairness();
+
 int
 main (int argc, char *argv[])
 {
@@ -128,18 +129,18 @@ main (int argc, char *argv[])
 	  i=0;
 	  tracing = false;
 	  tracing2 = true;
-	  uint32_t 		maxBytes = 1000000;
+	  uint32_t 		maxBytes = 10000000;
 	  uint32_t 		stop = 100;
 	  n = 300;
 	  std::string   bottleneck="100Mbps";
-	  uint32_t 	  bneck = 100000000;
+	  uint32_t 	    bneck = 100000000;
 	  double 		time = 0;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
 	  uint32_t      minTh = maxPackets/2;
-	  uint32_t	  hCacheTh  = bneck * 12.5;
-	  uint32_t	  lCacheTh  = hCacheTh/2;
-	  uint32_t	  maxCacheSize = hCacheTh*2;
+	  uint32_t	    hCacheTh  = bneck * 12.5;
+	  uint32_t	    lCacheTh  = hCacheTh/2;
+	  uint32_t	    maxCacheSize = hCacheTh*2;
 	  protocol = "t";
 
 //
@@ -173,9 +174,10 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1458));
 
 	} else if(protocol=="r"){
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
+		 Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp	::GetTypeId ()));
+		  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
 		Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
+		Config::SetDefault ("ns3::RcpQueue::upd_timeslot_", DoubleValue(0.005));
 
 
 	} else if(protocol=="i"){
@@ -214,7 +216,7 @@ main (int argc, char *argv[])
 
 	if(protocol=="t"){
 		pointToPoint.SetQueue ("ns3::DropTailQueue",
-							   "MaxBytes", UintegerValue(maxPackets*100));
+							   "MaxBytes", UintegerValue(maxPackets*1000));
 	} else if (protocol=="i") {
 
 		pointToPoint.SetQueue ("ns3::InrppTailQueue",
@@ -288,7 +290,6 @@ main (int argc, char *argv[])
   devices1 = pointToPoint.Install (nodes.Get(1),nodes.Get(2));
 
 
-
   //
   // We've got the "hardware" in place.  Now we need to add IP addresses.
   //
@@ -360,7 +361,7 @@ main (int argc, char *argv[])
 	  	std::ostringstream osstr3;
 	  	osstr3 << folder << "/netdevice_" <<5+i<<".bf";
 	  	Ptr<OutputStreamWrapper> streamtr3 = asciiTraceHelper.CreateFileStream (osstr3.str());
-	  	txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
+	  	if(protocol!="r")txQueue3->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtr3));
 
 	  	tmap.insert(std::make_pair(iSource.GetAddress(0),Simulator::Now()));
 	  }
@@ -578,9 +579,9 @@ main (int argc, char *argv[])
   {
 	  std::ostringstream osstr;
 	  osstr << folder << "/inrpp2";
-	  pointToPoint.EnablePcap(osstr.str(),nodes, false);
-	  //pointToPoint.EnablePcap(osstr.str(),senders, false);
-	  //pointToPoint.EnablePcap(osstr.str(),receivers, false);
+	  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
+	  pointToPoint.EnablePcap(osstr.str(),senders, false);
+	  pointToPoint.EnablePcap(osstr.str(),receivers, false);
   }
 
 	std::ostringstream osstrfct;

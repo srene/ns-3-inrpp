@@ -173,8 +173,9 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  m_lastSampleBW = sample_bwe;
 		  m_lastBW = m_currentBW;
 		  t1 = Simulator::Now();
-
 	  }
+	  m_refreshEvent.Cancel();
+	  m_refreshEvent = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh,this);
   } else {
 
 	  data3+= p->GetSize() * 8;
@@ -189,6 +190,9 @@ InrppInterface::TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> 
 		  m_lastBW3 = m_currentBW3;
 		  t3 = Simulator::Now();
 	  }
+
+	  m_refreshEvent3.Cancel();
+	  m_refreshEvent3 = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh3,this);
 
   }
 
@@ -211,6 +215,8 @@ InrppInterface::CalculateFlow(Ptr<const Packet> p)
 	  t2 = Simulator::Now();
 
   }
+  m_refreshEvent2.Cancel();
+  m_refreshEvent2 = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh2,this);
 
   if(GetState()==DISABLE_BACK&&m_cache->GetSize()==0)
   {
@@ -391,6 +397,11 @@ InrppInterface::SetRate(DataRate bps)
 	m_bps = bps;
 }
 
+DataRate
+InrppInterface::GetRate()
+{
+	return m_bps;
+}
 
 void
 InrppInterface::SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp)
@@ -584,5 +595,41 @@ InrppInterface::GetEnabled(void)
 	return m_enabled;
 }
 
-} // namespace ns3
+void
+InrppInterface::Refresh(void)
+{
+	  double sample_bwe = 0;
+	  double alpha = 0.6;
+	  m_currentBW = (alpha * m_lastBW) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW) / 2));
+	  m_lastSampleBW = sample_bwe;
+	  m_lastBW = m_currentBW;
+	  t1 = Simulator::Now();
+	  m_refreshEvent = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh,this);
+}
+
+void
+InrppInterface::Refresh2(void)
+{
+	  double   sample_bwe = 0;
+	  double alpha = 0.6;
+	  m_currentBW2 = (alpha * m_lastBW2) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW2) / 2));
+	  m_lastSampleBW2 = sample_bwe;
+	  m_lastBW2 = m_currentBW2;
+	  t2 = Simulator::Now();
+	  m_refreshEvent2 = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh2,this);
+}
+
+void
+InrppInterface::Refresh3(void)
+{
+	  double sample_bwe = 0;
+	  double alpha = 0.6;
+	  m_currentBW3 = (alpha * m_lastBW3) + ((1 - alpha) * ((sample_bwe + m_lastSampleBW3) / 2));
+	  m_lastSampleBW3 = sample_bwe;
+	  m_lastBW3 = m_currentBW3;
+	  t3 = Simulator::Now();
+	  m_refreshEvent3 = Simulator::Schedule(Seconds(m_refresh),&InrppInterface::Refresh3,this);
+}
+}
+// namespace ns3
 

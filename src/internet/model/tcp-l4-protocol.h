@@ -220,6 +220,8 @@ public:
   virtual IpL4Protocol::DownTargetCallback GetDownTarget (void) const;
   virtual IpL4Protocol::DownTargetCallback6 GetDownTarget6 (void) const;
 
+  virtual std::vector<Ptr<TcpSocketBase> > GetSockets(void) const; //MESF
+
 protected:
   virtual void DoDispose (void);
   /* 

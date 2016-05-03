@@ -71,6 +71,10 @@ PacketSink::PacketSink ()
   NS_LOG_FUNCTION (this);
   m_socket = 0;
   m_totalRx = 0;
+  m_currentBW = 0;
+  m_lastSampleBW = 0;
+  m_lastBW = 0;
+
 }
 
 PacketSink::~PacketSink()
@@ -239,6 +243,7 @@ void PacketSink::HandleAccept (Ptr<Socket> s, const Address& from)
   NS_LOG_FUNCTION (this << s << from);
   s->SetRecvCallback (MakeCallback (&PacketSink::HandleRead, this));
   m_socketList.push_back (s);
+  t1 = Simulator::Now();
 }
 
 Time PacketSink::GetCompletionTime()

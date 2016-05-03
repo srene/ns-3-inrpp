@@ -127,7 +127,7 @@ TypeId RcpQueue::GetTypeId (void)
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("upd_timeslot_",
 				   "The lower threshold number of bytes accepted by this RcpQueue.",
-				   DoubleValue (0.05),
+				   DoubleValue (0.001),
 				   MakeDoubleAccessor (&RcpQueue::upd_timeslot_),
 				   MakeDoubleChecker<double> ())
 	.AddAttribute ("rate_fact_mode_",

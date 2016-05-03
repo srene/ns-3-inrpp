@@ -124,8 +124,8 @@ main (int argc, char *argv[])
 	std::string b2g_bottleneck = "20Gbps";
 	std::string c2g_bottleneck = "20Gbps";
 
-	uint32_t bneck = 1000000000;
-	uint32_t mean_n_pkts = (0.015*bneck)/(8*packetSize);
+	uint32_t 	  bneck = 1000000000;
+	uint32_t 	  mean_n_pkts = (0.015*bneck)/(8*packetSize);
 
 	uint32_t      maxPackets = (bneck * 0.05)/(8);
 
@@ -171,7 +171,9 @@ main (int argc, char *argv[])
 
 	} else if(protocol=="r"){
 		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
-		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1446));
+		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
+		Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
+		Config::SetDefault ("ns3::RcpQueue::upd_timeslot_", DoubleValue(0.005));
 
 	} else if(protocol=="i"){
 		maxPackets = maxPackets*2;
@@ -219,7 +221,7 @@ main (int argc, char *argv[])
 	const NodeContainer& BackBoneRouters = topo_reader.GetBackboneRouters();
 	const NodeContainer& GatewayRouters = topo_reader.GetGatewayRouters();
 	const NodeContainer& CustomerRouters = topo_reader.GetCustomerRouters();
-  
+
 	NS_LOG_INFO("Number of customer (edge) routers: "<<CustomerRouters.GetN());
 	NS_LOG_INFO("Number of gateway routers: "<<GatewayRouters.GetN());
 	NS_LOG_INFO("Number of backbone (core) routers: "<<BackBoneRouters.GetN());
@@ -261,7 +263,8 @@ main (int argc, char *argv[])
 	pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
 	AsciiTraceHelper asciiTraceHelper;
 	//Iterate through all the TopologyReader::Link objects and form the "real" links
-   std::list<TopologyReader::Link> links = topo_reader.GetLinks(); 
+    std::list<TopologyReader::Link> links = topo_reader.GetLinks();
+
 	for (std::list<TopologyReader::Link>::iterator it = links.begin(); it != links.end(); it++) {
 		Ptr<Node> fromNode = it->GetFromNode();
 		Ptr<Node> toNode = it->GetToNode();
@@ -269,7 +272,7 @@ main (int argc, char *argv[])
 		//
 		// We've got the "hardware" in place.  Now we need to add IP addresses.
 		//
-		NS_LOG_INFO ("Assign IP Addresses.");
+		//NS_LOG_INFO ("Assign IP Addresses.");
 		std::stringstream netAddr;
 		netAddr << "10." << net << "." << (num) << ".0";
 		Ipv4AddressHelper ipv4;
@@ -314,7 +317,7 @@ main (int argc, char *argv[])
 	double time = 1.0;
 
 	double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
-		
+
 	m_rv_flow_intval= CreateObject<ExponentialRandomVariable> ();
 
 	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
@@ -334,10 +337,10 @@ main (int argc, char *argv[])
 
 	for(uint32_t pair = 0; pair < num_customers/2; pair++)
 	{
-		Ptr<Node> fromNode = CustomerRouters.Get(2*pair); 
+		Ptr<Node> fromNode = CustomerRouters.Get(2*pair);
 		Ptr<Node> toNode = CustomerRouters.Get((2*pair)+1);
 		time = 1.0;
-	   
+
 	   for(uint32_t i=0;i<n;i++)
       {
 			NetDeviceContainer sourceLink;
@@ -418,7 +421,7 @@ main (int argc, char *argv[])
 
 			Ptr<BulkSendApplication> bulk = DynamicCast<BulkSendApplication> (sourceApps.Get (0));
 			bulk->SetCallback(MakeCallback(&StartLog));
-			bulk->SetNetDevice(sourceLink.Get(0));
+			bulk->SetNetDevice(sourceLink.Get(1));
 			Ptr<PacketSink> psink = DynamicCast<PacketSink> (sinkApps.Get (0));
 			psink->SetCallback(MakeCallback(&StopFlow));
 /*

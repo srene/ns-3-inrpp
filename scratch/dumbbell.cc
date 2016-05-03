@@ -143,7 +143,7 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1458));
 
 	} else if(protocol=="r"){
-		Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
+	//	Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpRcp::GetTypeId ()));
 		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
 		Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
 

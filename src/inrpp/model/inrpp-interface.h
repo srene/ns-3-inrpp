@@ -138,6 +138,8 @@ public:
 
  void SetRate(DataRate bps);
 
+ DataRate GetRate();
+
  void SendPacket();
 
  void SetInrppL3Protocol(Ptr<InrppL3Protocol> inrpp);
@@ -171,6 +173,9 @@ private:
   void TxRx(Ptr<const Packet> p, Ptr<NetDevice> dev1 ,  Ptr<NetDevice> dev2,  Time tr, Time rcv);
   void SendResidual();
   void Drop(Ptr<const Packet> p);
+  void Refresh(void);
+  void Refresh2(void);
+  void Refresh3(void);
 
   TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
   double                 m_lastSampleBW;           //!< Last bandwidth sample
@@ -229,6 +234,11 @@ private:
   uint32_t m_lastDetoured;
 
   bool m_enabled;
+
+  EventId m_refreshEvent;       //!< Transmit cached packet event
+  EventId m_refreshEvent2;       //!< Transmit cached packet event
+  EventId m_refreshEvent3;       //!< Transmit cached packet event
+
 };
 
 } // namespace ns3

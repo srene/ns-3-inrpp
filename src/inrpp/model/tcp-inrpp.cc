@@ -475,7 +475,10 @@ TcpInrpp::SendPendingData (bool withAck)
 			  m_nextTxSequence += sz;                     // Advance next tx sequence
 
 		 	  data+= sz * 8;
+
+		 	  NS_LOG_LOGIC("Data " << data);
 		 	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
+
 		 		  m_currentBW = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		 		  data = 0;
 		 		  double alpha = 0.4;
@@ -496,8 +499,8 @@ TcpInrpp::SendPendingData (bool withAck)
 		  // Try to send more data
 		  if (!m_sendPendingDataEvent.IsRunning ())
 		    {
-			 Time t = Seconds(((double)(m_segmentSize+42)*8)/m_tcpRate);
-			 NS_LOG_LOGIC("Schedule next packet at " << Simulator::Now().GetSeconds()+t.GetSeconds());
+			 Time t = Seconds(((double)(m_segmentSize+54)*8)/m_tcpRate);
+			 NS_LOG_LOGIC("Schedule next packet at " << t.GetSeconds());
 		      m_sendPendingDataEvent = Simulator::Schedule (t, &TcpInrpp::SendPendingData, this, m_connected);
 		    }
 

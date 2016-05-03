@@ -105,6 +105,12 @@ TcpL4Protocol::SetNode (Ptr<Node> node)
   m_node = node;
 }
 
+std::vector<Ptr<TcpSocketBase> >
+TcpL4Protocol::GetSockets (void) const
+{
+  return m_sockets;
+}
+
 /* 
  * This method is called by AddAgregate and completes the aggregation
  * by setting the node in the TCP stack, link it to the ipv4 stack and 
