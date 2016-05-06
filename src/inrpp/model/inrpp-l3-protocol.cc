@@ -222,7 +222,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 			packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
-			NS_LOG_LOGIC("Insert at slot " << flag << " " << m_numSlot);
+			NS_LOG_LOGIC("Insert at slot seq " << flag << " " << m_numSlot << " " << tcpHeader.GetDestinationPort() << " " << Simulator::Now().GetSeconds() << " "<< tcpHeader.GetSequenceNumber());
 			if(!m_cache->Insert(outInterface,flag,rtentry,packet)){
 				NS_LOG_LOGIC("CACHE FULL");
 			} else {
@@ -423,12 +423,12 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 				ipHeader.SetPayloadSize(size+12);
 			}
 		}
-		if(iface->GetState()==PROP_BACKPRESSURE){
+		/*if(iface->GetState()==PROP_BACKPRESSURE){
 			NS_LOG_WARN("Pacing");
 			packet->AddHeader(tcpHeader);
 			Simulator::Schedule (Seconds (0.5),&InrppL3Protocol::Forward,this,packet,ipHeader,device,interface);
 			return;
-		}
+		}*/
 		packet->AddHeader(tcpHeader);
 
 	 }

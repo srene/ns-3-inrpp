@@ -134,7 +134,7 @@ private:
   std::list<Ptr<Socket> > m_socketList; //!< the accepted sockets
 
   Address         m_local;        //!< Local address to bind to
-  uint32_t        m_totalRx;      //!< Total bytes received
+  TracedValue<uint32_t>        m_totalRx;      //!< Total bytes received
   TypeId          m_tid;          //!< Protocol TypeId
 
   /// Traced Callback: received packets, source address.

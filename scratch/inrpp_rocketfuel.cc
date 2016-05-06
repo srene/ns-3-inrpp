@@ -116,7 +116,7 @@ main (int argc, char *argv[])
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-    bool pcap_tracing=false;
+    bool pcap_tracing=true;
 	uint32_t 		stop = 1000;
 	uint32_t n = 1;
 	//double 		time = 0.01;
@@ -260,7 +260,7 @@ main (int argc, char *argv[])
 
 	NS_LOG_INFO ("Create channels.");
 	pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
-	pointToPoint.SetChannelAttribute ("Delay", StringValue ("5ms"));
+	pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 	AsciiTraceHelper asciiTraceHelper;
 	//Iterate through all the TopologyReader::Link objects and form the "real" links
     std::list<TopologyReader::Link> links = topo_reader.GetLinks();
