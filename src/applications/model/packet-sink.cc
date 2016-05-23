@@ -60,11 +60,11 @@ PacketSink::GetTypeId (void)
                      MakeTraceSourceAccessor (&PacketSink::m_rxTrace),
                      "ns3::Packet::PacketAddressTracedCallback")
 	.AddTraceSource("EstimatedBW", "The estimated bandwidth",
-					 MakeTraceSourceAccessor(&PacketSink::m_currentBW),
-					 "ns3::TracedValue::DoubleCallback")
+					 MakeTraceSourceAccessor(&PacketSink::m_currentBW))
+					// "ns3::TracedValue::DoubleCallback")
 	.AddTraceSource("TotalRx", "The estimated bandwidth",
-					 MakeTraceSourceAccessor(&PacketSink::m_totalRx),
-					 "ns3::TracedValue::Uint32Callback")
+					 MakeTraceSourceAccessor(&PacketSink::m_totalRx))
+					 //"ns3::TracedValue::Uint32Callback")
   ;
   return tid;
 }

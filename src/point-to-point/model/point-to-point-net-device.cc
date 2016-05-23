@@ -168,7 +168,7 @@ PointToPointNetDevice::GetTypeId (void)
                      MakeTraceSourceAccessor (&PointToPointNetDevice::m_promiscSnifferTrace),
                      "ns3::Packet::TracedCallback")
 	.AddTraceSource("EstimatedBW", "The estimated bandwidth",
-					 MakeTraceSourceAccessor(&PointToPointNetDevice::m_linkUtil),
+					 MakeTraceSourceAccessor(&PointToPointNetDevice::m_currentBW),
 					 "ns3::TracedValue::DoubleCallback")
   ;
   return tid;
@@ -180,9 +180,17 @@ PointToPointNetDevice::PointToPointNetDevice ()
     m_txMachineState (READY),
     m_channel (0),
     m_linkUp (false),
-    m_currentPkt (0)
+    m_currentPkt (0),
+	m_currentBW(0),
+	m_lastSampleBW(0),
+	m_lastBW(0),
+	data(0),
+	m_linkUtil(0)
+
+
 {
   NS_LOG_FUNCTION (this);
+  t1 = Simulator::Now();
 }
 
 PointToPointNetDevice::~PointToPointNetDevice ()
@@ -248,7 +256,7 @@ PointToPointNetDevice::TransmitStart (Ptr<Packet> p)
   data+= p->GetSize() * 8;
    NS_LOG_LOGIC(this << " Packet size " << p->GetSize());
    if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
- 	  //NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
+ 	  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8 << " " << m_linkUtil << " " << m_currentBW << " " << m_lastSampleBW << " " << m_lastBW << " " << m_bps.GetBitRate());
  	  double sample_bwe = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
  	  data = 0;
  	  double alpha = 0.4;
@@ -699,5 +707,10 @@ PointToPointNetDevice::EtherToPpp (uint16_t proto)
   return 0;
 }
 
+double
+PointToPointNetDevice::GetLinkUtilization ()
+{
+	return m_linkUtil;
+}
 
 } // namespace ns3

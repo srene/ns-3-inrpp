@@ -53,9 +53,9 @@ InrppInterface::GetTypeId (void)
     .AddTraceSource("DetouredThroughput", "The estimated bandwidth",
 	     			 MakeTraceSourceAccessor(&InrppInterface::m_currentBW3),
 				     "ns3::TracedValue::DoubleCallback")
-    .AddTraceSource("Residual", "The estimated bandwidth",
-	     			 MakeTraceSourceAccessor(&InrppInterface::m_residualMin),
-				     "ns3::TracedValue::Uint32Callback")
+//  .AddTraceSource("Residual", "The estimated bandwidth",
+//	     			 MakeTraceSourceAccessor(&InrppInterface::m_residualMin),
+//				     "ns3::TracedValue::Uint32Callback")
 	.AddAttribute ("Refresh",
 					   "Moving average refresh value.",
 					   DoubleValue (0.1),
@@ -305,7 +305,7 @@ InrppInterface::GetResidual()
 	else
 		residual = (uint32_t)m_bps.GetBitRate()-m_currentBW.Get();
 
-	NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get() << " " << GetState() << " " << residual);
+	//NS_LOG_LOGIC("Bitrate " << (uint32_t)m_bps.GetBitRate() << " bw " << m_currentBW.Get() << " " << GetState() << " " << residual);
 
 	return residual;
 }
@@ -320,6 +320,7 @@ InrppInterface::GetResidual(Ipv4Address address)
 	int av=0;
 	for (std::map<Ipv4Address,double>::iterator it=m_lastBW4.begin(); it!=m_lastBW4.end(); ++it)
 	{
+		NS_LOG_LOGIC("Av " << it->first << " " << it->second);
 	    av+=it->second;
 	}
 
@@ -443,14 +444,14 @@ InrppInterface::SendPacket()
 
 				}
 					packetSize=p->GetSize();
-				Time t = Seconds((double)((p->GetSize()+2)*8)/m_bps.GetBitRate());
+				Time t = Seconds((double)((p->GetSize()+3)*8)/m_bps.GetBitRate());
 
 				NS_LOG_LOGIC("Time " << t.GetSeconds() << " " << p->GetSize() << " " << (double)((p->GetSize()+2)*8)/m_bps.GetBitRate() << " "<< m_bps.GetBitRate());
 				m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 			}
 		} else if (m_cache->GetSize()>0)
 		{
-			Time t = Seconds((double)((packetSize+2)*8)/(uint32_t)m_bps.GetBitRate());
+			Time t = Seconds((double)((packetSize+3)*8)/(uint32_t)m_bps.GetBitRate());
 			m_txEvent = Simulator::Schedule(t,&InrppInterface::SendPacket,this);
 		}
 	}
@@ -468,7 +469,17 @@ void
 InrppInterface::UpdateResidual(Ipv4Address address, uint32_t residual)
 {
 	NS_LOG_LOGIC("Residual " << GetResidual() << " " << residual);
-	m_residualMin = std::min(GetResidual(),residual);
+	m_residualList.insert(std::make_pair(address,residual));
+
+	uint32_t totalResidual = 0;
+	std::map <Ipv4Address, uint32_t>::iterator it = m_residualList.find(address);
+	if(it!=m_residualList.end()) m_residualList.erase(it);
+	m_residualList.insert(std::make_pair(address,residual));
+
+	for(it=m_residualList.begin();it!=m_residualList.end();++it)
+		totalResidual+=it->second;
+
+	m_residualMin = std::min(GetResidual(),totalResidual);
 	NS_LOG_LOGIC("Residual "<<  GetAddress(0).GetLocal() << " " << address << " "<< m_residualMin.Get());
 
 	if(!m_txResidualEvent.IsRunning()&&m_residualMin.Get()>0)
@@ -520,8 +531,8 @@ InrppInterface::SendResidual()
 				if(m_detouredIface.size()==m_lastDetoured)m_lastDetoured=0;
 				if(m_residualMin.Get()>0)
 				{
-					Time t = Seconds(((double)(packet->GetSize()+10)*8)/m_residualMin.Get());
-					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+10)*8 << " " << m_residualMin.Get());
+					Time t = Seconds(((double)(packet->GetSize()+3)*8)/m_residualMin.Get());
+					NS_LOG_LOGIC(this<<" Time " << t.GetSeconds() << (packet->GetSize()+2)*8 << " " << m_residualMin.Get());
 					m_txResidualEvent = Simulator::Schedule(t,&InrppInterface::SendResidual,this);
 				}
 			}
