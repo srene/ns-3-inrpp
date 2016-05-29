@@ -349,6 +349,7 @@ TcpHeader::Deserialize (Buffer::Iterator start)
 {
   Buffer::Iterator i = start;
   m_sourcePort = i.ReadNtohU16 ();
+  if(m_sourcePort==0)return 0;
   m_destinationPort = i.ReadNtohU16 ();
   m_sequenceNumber = i.ReadNtohU32 ();
   m_ackNumber = i.ReadNtohU32 ();

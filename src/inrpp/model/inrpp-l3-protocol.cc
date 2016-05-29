@@ -46,6 +46,7 @@
 #include "inrpp-tag.h"
 #include <iostream>
 
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("InrppL3Protocol");
@@ -186,10 +187,8 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 	if(ipHeader.GetProtocol()==6)
 	{
-		TcpHeader tcpHeader;
-		packet->RemoveHeader(tcpHeader);
 
-		NS_LOG_FUNCTION(tcpHeader);
+		//NS_LOG_FUNCTION(tcpHeader);
 
 		InrppTag tag;
 		if(packet->PeekPacketTag(tag))
@@ -197,16 +196,19 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			NS_LOG_LOGIC("Detoured traffic from " << tag.GetAddress() << " through " << outInterface->GetAddress(0).GetLocal());
 			outInterface->CalculateDetour(tag.GetAddress(),p);
 		}
-		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize() << " " << tcpHeader.HasOption(TcpOption::INRPP));
+		NS_LOG_LOGIC("Detour State Cache " << outInterface->GetState() << " " << m_mustCache << " " << outInterface->GetInitCache() << " " << m_cache->GetSize());
 		if((outInterface->GetState()==BACKPRESSURE||outInterface->GetState()==DETOUR||outInterface->GetState()==DISABLE_BACK||
 		//		(outInterface->GetState()==UP_BACKPRESSURE&&m_mustCache)||(outInterface->GetState()==PROP_BACKPRESSURE&&m_mustCache))&&tcpHeader.HasOption(TcpOption::INRPP))
 				(outInterface->GetState()==UP_BACKPRESSURE)||(outInterface->GetState()==PROP_BACKPRESSURE)))
 		{
 
+			TcpHeader tcpHeader;
+			packet->RemoveHeader(tcpHeader);
+
 				if(AddOptionInrpp(tcpHeader,outInterface->GetNonce()))
 				{
 					uint32_t size = ipHeader.GetPayloadSize();
-					ipHeader.SetPayloadSize(size+12);
+					ipHeader.SetPayloadSize(size+10);
 				}
 
 			uint32_t flag = 0;
@@ -231,7 +233,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 
 		} else
 		{
-			packet->AddHeader(tcpHeader);
+			//packet->AddHeader(tcpHeader);
 			packet->AddHeader(ipHeader);
 			NS_LOG_LOGIC("Send packet "<< rtentry->GetDestination());
 			SendData(rtentry,packet);
@@ -397,6 +399,9 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
   {
 	 TcpHeader tcpHeader;
 
+//	 try
+//	 {
+
 	 if(packet->RemoveHeader(tcpHeader))
 	 {
 
@@ -412,7 +417,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 			if(AddOptionInrppBack(tcpHeader,1,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
-				ipHeader.SetPayloadSize(size+12);
+				ipHeader.SetPayloadSize(size+10);
 			}
 		} else if (iface->GetState()==DISABLE_BACK)
 		{
@@ -420,7 +425,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 			if(AddOptionInrppBack(tcpHeader,2,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
-				ipHeader.SetPayloadSize(size+12);
+				ipHeader.SetPayloadSize(size+10);
 			}
 		}
 		/*if(iface->GetState()==PROP_BACKPRESSURE){
@@ -431,7 +436,18 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		}*/
 		packet->AddHeader(tcpHeader);
 
+	 } else {
+		 std::cout << "TCP Header error " << this << " " <<  device << " " << p  << " " << p->GetSize() << " " <<
+				 protocol <<  " " << from << " " << to << " " << packetType << std::endl;
+
+		 return;
 	 }
+	 /*	 }
+	  catch (int e)
+	  {
+	    std::cout << "Tcpheader error " << e << '\n';
+	    return;
+	  }*/
   	}
   	Forward(packet,ipHeader,device,interface);
 
@@ -544,6 +560,7 @@ InrppL3Protocol::AddOptionInrpp (TcpHeader& header, uint32_t nonce)
   bool add = false;
   if (!header.HasOption (TcpOption::INRPP))
   {
+	  header.ClearOption();
 	  uint32_t flag = header.GetDestinationPort()%m_numSlot;
 	  NS_LOG_LOGIC("AddHeader " << flag);
 	  Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
@@ -585,15 +602,16 @@ InrppL3Protocol::AddOptionInrppBack (TcpHeader& header,uint8_t flag,uint32_t non
 	  Ptr<TcpOptionInrpp> option = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
 	  header.ClearOption();
 	  header.AppendOption(option);
+  } else {
+	  header.ClearOption();
   }
-  if (!header.HasOption (TcpOption::INRPP_BACK))
-  {
+
 	  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 	  option->SetFlag(flag);
 	  option->SetNonce (nonce);
 	  header.AppendOption (option);
 	  add = true;
-  }
+
 
   return add;
 

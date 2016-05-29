@@ -66,7 +66,7 @@ TcpOptionInrppBack::Print (std::ostream &os) const
 uint32_t
 TcpOptionInrppBack::GetSerializedSize (void) const
 {
-  return 7;
+  return 10;
 }
 
 void
@@ -74,8 +74,8 @@ TcpOptionInrppBack::Serialize (Buffer::Iterator start) const
 {
   Buffer::Iterator i = start;
   i.WriteU8 (GetKind ()); // Kind
-  i.WriteU8 (7); // Length
-  i.WriteU8 (m_flag); // Flag
+  i.WriteU8 (10); // Length
+  i.WriteHtonU32 (m_flag); // Flag
   i.WriteHtonU32 (m_nonce); // Nonce
 }
 
@@ -93,12 +93,12 @@ TcpOptionInrppBack::Deserialize (Buffer::Iterator start)
     }
 
   uint8_t size = i.ReadU8 ();
-  if (size != 7)
+  if (size != 10)
     {
       NS_LOG_WARN ("Malformed Inrpp option");
       return 0;
     }
-  m_flag = i.ReadU8();
+  m_flag = i.ReadNtohU32();
   m_nonce = i.ReadNtohU32 ();
   return GetSerializedSize ();
 }
@@ -115,7 +115,7 @@ TcpOptionInrppBack::GetNonce(void) const
   return m_nonce;
 }
 
-uint8_t
+uint32_t
 TcpOptionInrppBack::GetFlag (void) const
 {
   return m_flag;
@@ -129,7 +129,7 @@ TcpOptionInrppBack::SetNonce (uint32_t nonce)
 
 
 void
-TcpOptionInrppBack::SetFlag (uint8_t flag)
+TcpOptionInrppBack::SetFlag (uint32_t flag)
 {
   m_flag = flag;
 }

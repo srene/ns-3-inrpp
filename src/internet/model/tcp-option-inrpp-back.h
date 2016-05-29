@@ -56,19 +56,19 @@ public:
    */
   uint32_t GetNonce(void) const;
 
-  uint8_t GetFlag (void) const;
+  uint32_t GetFlag (void) const;
   /**
    * \brief Set the timestamp stored in the Option
    * \param ts the timestamp
    */
   void SetNonce (uint32_t nonce);
 
-  void SetFlag (uint8_t flag);
+  void SetFlag (uint32_t flag);
 
 
 
 protected:
-  uint8_t m_flag;     //!< Header destination address
+  uint32_t m_flag;     //!< Header destination address
   uint32_t m_nonce;
 };
 

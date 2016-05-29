@@ -47,6 +47,7 @@ uint32_t cache=0;
 Ptr<OutputStreamWrapper> logstream;
 Ptr<OutputStreamWrapper> fairstream;
 Ptr<OutputStreamWrapper> linkstream;
+Ptr<OutputStreamWrapper> totalstream;
 uint32_t segmentSize = 1446;
 std::map<Ipv4Address, Time> tmap;
 //std::map<Ipv4Address,DelayJitterEstimation> jit;
@@ -133,7 +134,7 @@ ChangeBW(Ptr<PointToPointNetDevice> netdev, DataRate dr)
 int
 main (int argc, char *argv[])
 {
-		uint32_t 	packetSize = 1500;
+	  uint32_t 	packetSize = 1500;
 	  t = Simulator::Now();
 	  i=0;
 	  tracing = false;
@@ -251,8 +252,8 @@ main (int argc, char *argv[])
 
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
   dev.push_back(devices0);
-  devices1 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
-  dev.push_back(devices1);
+ // devices1 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
+ // dev.push_back(devices1);
   devices2 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
   dev.push_back(devices2);
   devices3 = pointToPoint.Install (nodes.Get(0),nodes.Get(3));
@@ -282,7 +283,7 @@ main (int argc, char *argv[])
     NS_LOG_INFO ("Assign IP Addresses.");
 
 
-  for(uint32_t i = 0; i<6;i++)
+  for(uint32_t i = 0; i<dev.size();i++)
   {
     	std::stringstream netAddr;
 	    netAddr << "10.0." << i << ".0";
@@ -339,7 +340,7 @@ main (int argc, char *argv[])
 		}
 
 			sourceLink = pointToPoint.Install (nodes.Get(4+i),nodes.Get(0));
-			destLink = pointToPoint.Install (nodes.Get(2),nodes.Get(4+n+i));
+			destLink = pointToPoint.Install (nodes.Get(1),nodes.Get(4+n+i));
 
 
 		InternetStackHelper inrpp;
@@ -446,7 +447,7 @@ main (int argc, char *argv[])
   if(cross)
   {
 //	  Simulator::Schedule(Seconds(5.0),&GenerateTraffic,5.0,15.0,devices0.Get(0),nodes.Get(0),nodes.Get(2),bneck/2,bneck,udpDest);
-	  GenerateTraffic(5.0,15.0,devices0.Get(0),nodes.Get(0),nodes.Get(2),bneck/2,bneck,udpDest);
+	  GenerateTraffic(5.0,15.0,devices0.Get(0),nodes.Get(0),nodes.Get(1),bneck/2,bneck,udpDest);
   }
 
 
@@ -454,6 +455,11 @@ main (int argc, char *argv[])
   std::ostringstream osstrfair;
   osstrfair << folder << "/fairness.tr";
   fairstream = asciiTraceHelper.CreateFileStream (osstrfair.str());
+
+  std::ostringstream osstrtotal;
+  osstrtotal << folder << "/totalTr.tr";
+  totalstream = asciiTraceHelper.CreateFileStream (osstrtotal.str());
+
   Simulator::Schedule(Seconds(1.0),&LogFairness);
 
   std::ostringstream osstrlink;
@@ -543,9 +549,9 @@ main (int argc, char *argv[])
   {
 	  std::ostringstream osstr;
 	  osstr << folder << "/inrpp2";
-//	  pointToPoint.EnablePcap(osstr.str(),nodes, false);
-  pointToPoint.EnablePcap(osstr.str(),senders, false);
-	  pointToPoint.EnablePcap(osstr.str(),receivers, false);
+	  pointToPoint.EnablePcap(osstr.str(),nodes, false);
+//  pointToPoint.EnablePcap(osstr.str(),senders, false);
+//	  pointToPoint.EnablePcap(osstr.str(),receivers, false);
   }
 
 	std::ostringstream osstrfct;
@@ -682,23 +688,28 @@ void LogFairness()
 	double num = 0.0;
 	double den = 0.0;
 	uint32_t n = 0;
-
+	uint32_t total = 0;
 	for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
 	{
 		Ptr<PacketSink> p = *it;
-		if(p->GetTr()>0)
+		if(p->GetTr()>100)
 		{
-			NS_LOG_LOGIC("GetTr " << p->GetTr());
+			NS_LOG_LOGIC("GetTr " << p << " " <<  p->GetTr());
 			n++;
 			num += p->GetTr();
 			den += pow(p->GetTr(),2);
 
 		}
-	}
-	if(n>0)
-		fairness = pow(num,2)/(den*n);
+		total+=p->GetTr();
 
-	*fairstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << fairness << std::endl;
+	}
+	if(n>0){
+		fairness = pow(num,2)/(den*n);
+		*fairstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << fairness << std::endl;
+	}
+
+	*totalstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << total << std::endl;
+
 
 	if(sink.size()>0)Simulator::Schedule(Seconds(0.001),&LogFairness);
 

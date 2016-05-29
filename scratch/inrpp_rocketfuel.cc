@@ -116,7 +116,7 @@ main (int argc, char *argv[])
 	//tracing = true;
 	//tracing2 = true;
 	//uint32_t 		maxBytes = 10000000;
-    bool pcap_tracing=true;
+    bool pcap_tracing=false;
 	uint32_t 		stop = 1000;
 	uint32_t n = 1;
 	//double 		time = 0.01;

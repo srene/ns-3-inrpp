@@ -520,6 +520,7 @@ TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 //	 {
 		 NS_LOG_FUNCTION (this << m_slot << m_nonce);
 		 Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
+		 tcpHeader.ClearOption();
 		 option->SetFlag(m_slot);
 		 option->SetNonce (m_nonce);
 	     tcpHeader.AppendOption (option);

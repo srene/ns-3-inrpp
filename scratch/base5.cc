@@ -771,7 +771,7 @@ void LogFairness()
 		Ptr<PacketSink> p = *it;
 		if(p->GetTr()>0)
 		{
-			NS_LOG_LOGIC("GetTr " << p->GetTr());
+		//	NS_LOG_LOGIC("GetTr " << p->GetTr());
 			n++;
 			num += p->GetTr();
 			den += pow(p->GetTr(),2);
