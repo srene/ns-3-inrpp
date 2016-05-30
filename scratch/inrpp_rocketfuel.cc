@@ -335,6 +335,8 @@ main (int argc, char *argv[])
     NS_LOG_LOGIC("Senders " << senders.GetN());
     NS_LOG_LOGIC("Receivers " << receivers.GetN());
 
+    uint32_t source_net = 11;
+    uint32_t dest_net = 12;
 	for(uint32_t pair = 0; pair < num_customers/2; pair++)
 	{
 		Ptr<Node> fromNode = CustomerRouters.Get(2*pair);
@@ -365,7 +367,7 @@ main (int argc, char *argv[])
 				sourceLink = pointToPoint.Install (fromNode, senders.Get(pair*n + i));
 				destLink = pointToPoint.Install (toNode, receivers.Get(pair*n + i));
 
-				InrppStackHelper inrpp;
+				InternetStackHelper inrpp;
 				inrpp.Install (senders.Get(pair*n + i));
 				inrpp.Install (receivers.Get(pair*n + i));
 			} else if (protocol=="r"){
@@ -383,14 +385,14 @@ main (int argc, char *argv[])
 			}
 
 			std::stringstream netAddr;
-			netAddr << "11." << net << "." << (num) << ".0";
+			netAddr << source_net << "." << net << "." << (num) << ".0";
 			Ipv4AddressHelper ipv4;
 			std::string str = netAddr.str();
 			ipv4.SetBase(str.c_str(), "255.255.255.0");
 			Ipv4InterfaceContainer iSource = ipv4.Assign (sourceLink);
 
 			std::stringstream netAddr2;
-			netAddr2 << "12." << net << "." << (num) << ".0";
+			netAddr2 << dest_net << "." << net << "." << (num) << ".0";
 			str = netAddr2.str();
 			ipv4.SetBase(str.c_str(), "255.255.255.0");
 			Ipv4InterfaceContainer iDest = ipv4.Assign (destLink);
@@ -436,6 +438,12 @@ main (int argc, char *argv[])
 			{
 				num=0;
 				net++;
+			}
+			if(net==256)
+			{
+				net=0;
+				source_net++;
+				dest_net++;
 			}
 
 		} // end of i's
