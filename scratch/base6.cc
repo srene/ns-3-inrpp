@@ -171,6 +171,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("time","interflow time",time);
   cmd.AddValue ("stop","stop time",stop);
   cmd.AddValue ("cross","cross traffic", cross);
+  cmd.AddValue ("load" ,"load",load);
   cmd.Parse (argc, argv);
 
   std::ostringstream st;
@@ -711,7 +712,7 @@ void LogFairness()
 	*totalstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << total << std::endl;
 
 
-	if(sink.size()>0)Simulator::Schedule(Seconds(0.001),&LogFairness);
+	if(sink.size()>0)Simulator::Schedule(Seconds(0.01),&LogFairness);
 
 }
 

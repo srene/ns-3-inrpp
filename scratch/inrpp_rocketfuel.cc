@@ -336,7 +336,7 @@ main (int argc, char *argv[])
     NS_LOG_LOGIC("Receivers " << receivers.GetN());
 
     uint32_t source_net = 11;
-    uint32_t dest_net = 12;
+    uint32_t dest_net = 110;
 	for(uint32_t pair = 0; pair < num_customers/2; pair++)
 	{
 		Ptr<Node> fromNode = CustomerRouters.Get(2*pair);
