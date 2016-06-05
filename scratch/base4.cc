@@ -147,7 +147,7 @@ main (int argc, char *argv[])
 {
 	  t = Simulator::Now();
 	  i=0;
-	  tracing = true;
+	  tracing = false;
 	  tracing2 = true;
 	  uint32_t 		maxBytes = 10000000;
 	  uint32_t 		stop = 100;
@@ -158,7 +158,7 @@ main (int argc, char *argv[])
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
 	  uint32_t      minTh = maxPackets/2;
-	  uint32_t	    hCacheTh  = bneck * 1.25;
+	  uint32_t	    hCacheTh  = bneck ;
 	  uint32_t	    lCacheTh  = hCacheTh/2;
 	  uint32_t	    maxCacheSize = hCacheTh*2;
 	  protocol = "t";
@@ -335,9 +335,9 @@ main (int argc, char *argv[])
 
   // double lambda = ((bneck * load) / (maxBytes * 8.0));
 
-   Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
-	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(time));
-	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
+//   Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
+//	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(time));
+//	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
 
 	double start = 1.0;
 	for(uint32_t i=0;i<n;i++)
@@ -347,13 +347,13 @@ main (int argc, char *argv[])
 		NetDeviceContainer sourceLink;
 		NetDeviceContainer destLink;
 
-		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("40Mbps"));
 
 		if (protocol=="r"){
 
 			pointToPoint.SetQueue ("ns3::RcpQueue",
 			"MaxBytes", UintegerValue(maxPackets*10000),
-			"DataRate", StringValue ("100Mbps"));
+			"DataRate", StringValue ("40Mbps"));
 
 		}
 		sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
@@ -406,8 +406,8 @@ main (int argc, char *argv[])
 
 	  uint16_t port = 9000+i;  // well-known echo port number
 
-	  if(i!=0)start+=m_rv_flow_intval->GetValue();
-
+	  //if(i!=0)start+=m_rv_flow_intval->GetValue();
+	  if(i!=0)start+=time;
 	  BulkSendHelper source ("ns3::TcpSocketFactory",
 	                         InetSocketAddress (iDest.GetAddress (1), port));
 	  // Set the amount of data to send in bytes.  Zero is unlimited.
@@ -668,13 +668,12 @@ void StartLog(Ptr<Socket> socket,Ptr<NetDevice> netDev, uint16_t port)
 	  {
 		  AsciiTraceHelper asciiTraceHelper;
 
-		  if(protocol=="i")
-		  {
-			  std::ostringstream osstr;
-			  osstr << folder << "/netdevice_"<<i<<".tr";
-			  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
-			  socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
-		  }
+
+		  std::ostringstream osstr;
+		  osstr << folder << "/netdevice_"<<i<<".tr";
+		  Ptr<OutputStreamWrapper> streamtr = asciiTraceHelper.CreateFileStream (osstr.str());
+		  if(protocol=="i")socket->GetObject<TcpInrpp>()->TraceConnectWithoutContext ("Throughput", MakeBoundCallback (&BwChange, streamtr));
+
 
 		  std::ostringstream oss2;
 		  oss2 << folder << "/netdevice_"<<i<<".rtt";
@@ -773,27 +772,32 @@ void LogCacheFlow(Ptr<OutputStreamWrapper> streamtr, Ptr<InrppL3Protocol> ip,Ptr
 
 void LogFairness(){
 
+
 	double fairness=1.0;
 	double num = 0.0;
 	double den = 0.0;
 	uint32_t n = 0;
-
+	uint32_t total = 0;
 	for (std::vector<Ptr<PacketSink> >::iterator it = sink.begin() ; it != sink.end(); ++it)
 	{
 		Ptr<PacketSink> p = *it;
-		//NS_LOG_LOGIC("GetTr " << p->GetTr());
-		if(p->GetTr()>0)
+		if(p->GetTr()>100)
 		{
+			//NS_LOG_LOGIC("GetTr " << p << " " <<  p->GetTr());
 			n++;
 			num += p->GetTr();
 			den += pow(p->GetTr(),2);
 
 		}
-	}
-	if(n>0)
-		fairness = pow(num,2)/(den*n);
+		total+=p->GetTr();
 
-	*fairstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << fairness << std::endl;
+	}
+	if(n>0){
+		fairness = pow(num,2)/(den*n);
+		*fairstream->GetStream() << Simulator::Now ().GetSeconds () << "\t" << fairness << std::endl;
+	}
+
+
 
 	if(sink.size()>0)Simulator::Schedule(Seconds(0.01),&LogFairness);
 

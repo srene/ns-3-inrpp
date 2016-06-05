@@ -175,8 +175,8 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
 
   std::ostringstream st;
-  if(!cross)st << protocol << "test3_fl" <<n;
-  else st << protocol << "testcross3_fl" <<n;
+  if(!cross)st << protocol << "test3_fl"<<n<<"_"<<load;
+  else st << protocol << "testcross3_fl" <<n<<"_"<<load;
   folder = st.str();
 
   AsciiTraceHelper asciiTraceHelper;
@@ -253,8 +253,8 @@ main (int argc, char *argv[])
 
   devices0 = pointToPoint.Install (nodes.Get(0),nodes.Get(1));
   dev.push_back(devices0);
- // devices1 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
- // dev.push_back(devices1);
+  devices1 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
+  dev.push_back(devices1);
   devices2 = pointToPoint.Install (nodes.Get(2),nodes.Get(3));
   dev.push_back(devices2);
   devices3 = pointToPoint.Install (nodes.Get(0),nodes.Get(3));
