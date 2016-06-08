@@ -104,7 +104,7 @@ void
 InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
 {
 	NS_LOG_FUNCTION (this<<GetState());
-	if(GetState()!=DETOUR||GetState()!=BACKPRESSURE)
+	if(GetState()!=DETOUR&&GetState()!=BACKPRESSURE)
 	{
 		NS_LOG_FUNCTION(this<<packets<<dev<<GetState());
 		SetState(DETOUR);

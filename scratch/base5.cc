@@ -235,7 +235,7 @@ main (int argc, char *argv[])
 	} else if (protocol=="r"){
 
 		pointToPoint.SetQueue ("ns3::RcpQueue",
-		"MaxBytes", UintegerValue(maxPackets),
+		"MaxBytes", UintegerValue(maxPackets*1000),
 		"DataRate", StringValue (bottleneck));
 	}
 	  NetDeviceContainer devices0;
@@ -323,7 +323,7 @@ main (int argc, char *argv[])
 		} else if (protocol=="r"){
 
 			pointToPoint.SetQueue ("ns3::RcpQueue",
-			"MaxBytes", UintegerValue(maxPackets*100),
+			"MaxBytes", UintegerValue(maxPackets*10000),
 			"DataRate", StringValue ("100Mbps"));
 		}
 

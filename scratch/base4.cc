@@ -624,9 +624,9 @@ main (int argc, char *argv[])
   {
 	  std::ostringstream osstr;
 	  osstr << folder << "/inrpp2";
-	  pointToPoint.EnablePcap(osstr.str(),nodes, false);
-	  //pointToPoint.EnablePcap(osstr.str(),senders, false);
-	  //pointToPoint.EnablePcap(osstr.str(),receivers, false);
+	  //pointToPoint.EnablePcap(osstr.str(),nodes, false);
+	  pointToPoint.EnablePcap(osstr.str(),senders, false);
+	  pointToPoint.EnablePcap(osstr.str(),receivers, false);
   }
 
 	std::ostringstream osstrfct;

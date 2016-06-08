@@ -208,7 +208,7 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 				if(AddOptionInrpp(tcpHeader,outInterface->GetNonce()))
 				{
 					uint32_t size = ipHeader.GetPayloadSize();
-					ipHeader.SetPayloadSize(size+10);
+					ipHeader.SetPayloadSize(size+12);
 				}
 
 			uint32_t flag = 0;
@@ -402,6 +402,9 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 //	 try
 //	 {
 
+	 packet->Print (std::cout);
+
+
 	 if(packet->RemoveHeader(tcpHeader))
 	 {
 
@@ -417,7 +420,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 			if(AddOptionInrppBack(tcpHeader,1,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
-				ipHeader.SetPayloadSize(size+10);
+				ipHeader.SetPayloadSize(size+12);
 			}
 		} else if (iface->GetState()==DISABLE_BACK)
 		{
@@ -425,7 +428,7 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 			if(AddOptionInrppBack(tcpHeader,2,iface->GetNonce()))
 			{
 				uint32_t size = ipHeader.GetPayloadSize();
-				ipHeader.SetPayloadSize(size+10);
+				ipHeader.SetPayloadSize(size+12);
 			}
 		}
 		/*if(iface->GetState()==PROP_BACKPRESSURE){

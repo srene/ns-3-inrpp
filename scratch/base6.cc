@@ -145,7 +145,7 @@ main (int argc, char *argv[])
 	  std::string   bottleneck="10Mbps";
       uint32_t 	    bneck = 10000000;
 	  double 		time = 1;
-		uint32_t 	  mean_n_pkts = 30;
+	  uint32_t 	    mean_n_pkts = 30;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  //uint32_t		maxPackets = 10000;
 	  //std::string   congestion="ns3::TcpMpTcp";
@@ -166,7 +166,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("tracing2", "Flag to enable/disable tracing", tracing2);
   cmd.AddValue ("protocol","protocol",protocol);
   cmd.AddValue ("maxBytes",
-                "Total number of bytes for application to send", maxBytes);
+                "Total number of bytes for application to send", mean_n_pkts);
   cmd.AddValue ("n","number of flows", n);
   cmd.AddValue ("time","interflow time",time);
   cmd.AddValue ("stop","stop time",stop);
@@ -240,7 +240,7 @@ main (int argc, char *argv[])
 	} else if (protocol=="r"){
 
 		pointToPoint.SetQueue ("ns3::RcpQueue",
-		"MaxBytes", UintegerValue(maxPackets),
+		"MaxBytes", UintegerValue(maxPackets*1000),
 		"DataRate", StringValue (bottleneck));
 	}
 
@@ -336,7 +336,7 @@ main (int argc, char *argv[])
 		} else if (protocol=="r"){
 
 			pointToPoint.SetQueue ("ns3::RcpQueue",
-			"MaxBytes", UintegerValue(maxPackets*100),
+			"MaxBytes", UintegerValue(maxPackets*1000),
 			"DataRate", StringValue ("100Mbps"));
 		}
 
@@ -695,7 +695,7 @@ void LogFairness()
 		Ptr<PacketSink> p = *it;
 		if(p->GetTr()>100)
 		{
-			NS_LOG_LOGIC("GetTr " << p << " " <<  p->GetTr());
+		//	NS_LOG_LOGIC("GetTr " << p << " " <<  p->GetTr());
 			n++;
 			num += p->GetTr();
 			den += pow(p->GetTr(),2);

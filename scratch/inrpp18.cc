@@ -136,7 +136,7 @@ main (int argc, char *argv[])
 	  std::string   bottleneck="10Mbps";
       uint32_t 	    bneck = 10000000;
 	  std::string   usersbw="1Mbps";
-	  uint32_t 	    mean_n_pkts = 100;
+	  uint32_t 	    mean_n_pkts = 500;
 	  uint32_t 		maxBytes = 1000000;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
