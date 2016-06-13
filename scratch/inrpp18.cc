@@ -67,6 +67,7 @@ std::vector<Ptr<PacketSink> > sink;
 std::map<Ptr<PacketSink> ,uint32_t> data;
 std::map<Ptr<PacketSink> ,uint32_t> data2;
 Ptr<OutputStreamWrapper> logstream;
+Ptr<OutputStreamWrapper> usersstream;
 
 //std::map<Ptr<PacketSink> ,Ptr<OutputStreamWrapper> > jit1;
 //std::map<Ptr<PacketSink> ,DelayJitterEstimation> jit2;
@@ -135,8 +136,8 @@ main (int argc, char *argv[])
 	  tracing2 = true;
 	  std::string   bottleneck="10Mbps";
       uint32_t 	    bneck = 10000000;
-	  std::string   usersbw="1Mbps";
-	  uint32_t 	    mean_n_pkts = 500;
+	  std::string   usersbw="10Mbps";
+	  uint32_t 	    mean_n_pkts = 100;
 	  uint32_t 		maxBytes = 1000000;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
@@ -149,7 +150,7 @@ main (int argc, char *argv[])
 	  uint32_t as = 3;
 	  double 		time = 0.1;
 	  protocol = "i";
-	  double load = 0.9;
+	  double load = 0.8;
 
 //
 // Allow the user to override any of the defaults at
@@ -364,6 +365,22 @@ main (int argc, char *argv[])
 		Ipv4InterfaceContainer i0 = ipv4.Assign (cores[j]);
 		coreIfaces.push_back(i0);
 		net2++;
+
+
+			  std::ostringstream devosstr;
+			  devosstr << folder << "/p2pdevicecore_"<<j<<".tr";
+			  Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
+			  cores[j].Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, streamtrdev));
+
+
+			  PointerValue ptr;
+			  cores[j].Get(0)->GetAttribute ("TxQueue", ptr);
+			  Ptr<Queue> txQueue = ptr.Get<Queue> ();
+			  std::ostringstream osstrbf;
+			  osstrbf << folder << "/linkcore_"<<j<<".bf";
+			  Ptr<OutputStreamWrapper> streamtrbf = asciiTraceHelper.CreateFileStream (osstrbf.str());
+			  txQueue->GetObject<DropTailQueue>()->TraceConnectWithoutContext ("BytesQueue", MakeBoundCallback (&BufferChange, streamtrbf));
+
 	}
 
   NS_LOG_INFO ("Create channels.");
@@ -397,17 +414,17 @@ main (int argc, char *argv[])
 
 		if(protocol=="t"){
 				pointToPoint.SetQueue ("ns3::DropTailQueue",
-									   "MaxBytes", UintegerValue(maxPackets));
+									   "MaxBytes", UintegerValue(maxPackets/10));
 		} else if (protocol=="i") {
 			pointToPoint.SetQueue ("ns3::InrppTailQueue",
-									   "LowerThBytes", UintegerValue (minTh),
-									   "HigherThBytes", UintegerValue (maxTh),
-									   "MaxBytes", UintegerValue(maxPackets));
+									   "LowerThBytes", UintegerValue (minTh/10),
+									   "HigherThBytes", UintegerValue (maxTh/10),
+									   "MaxBytes", UintegerValue(maxPackets/10));
 		} else if (protocol=="r"){
 
 			pointToPoint.SetQueue ("ns3::RcpQueue",
 			"MaxBytes", UintegerValue(maxPackets*10000),
-			"DataRate", StringValue ("1Mbps"));
+			"DataRate", StringValue (usersbw));
 		}
 	    InternetStackHelper internet;
 	    internet.Install (server.Get(j));
@@ -458,6 +475,7 @@ main (int argc, char *argv[])
 
 	  NS_LOG_LOGIC("Lambda " << lambda);
 
+	  SeedManager::SetSeed (i+1);
 	  Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
 	  m_rv_flow_intval->SetAttribute("Mean", DoubleValue(1.0/lambda));
 	  m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
@@ -477,7 +495,7 @@ main (int argc, char *argv[])
 		  netAddr << "14." << net << "." << num++ << ".0";
 		  Ipv4AddressHelper ipv4;
 		  std::string str = netAddr.str();
-		  NS_LOG_LOGIC("Set up address " << str);
+//		  NS_LOG_LOGIC("Set up address " << str);
 		  ipv4.SetBase(str.c_str(), "255.255.255.0");
 		  Ipv4InterfaceContainer iSource = ipv4.Assign (clientDevs[nuser]);
 
@@ -497,6 +515,7 @@ main (int argc, char *argv[])
 
 		  if(j>0)start+=m_rv_flow_intval->GetValue();
 
+		  NS_LOG_LOGIC("Flow start at " << start << " size " << bytes/packetSize);
 
 		  sourceApps.Start (Seconds(start));
 		  sourceApps.Stop (Seconds (stop));
@@ -565,10 +584,10 @@ main (int argc, char *argv[])
 	 //pointToPoint.EnablePcap(osstr.str(),nodes, false);
 	  pointToPoint.EnablePcap(osstr2.str(),senders, false);
 
-	}*/
+	}
 
   if(tracing2)
-  {
+  {*/
 	  if(protocol=="i"){
 		  std::ostringstream osstrlog;
 		  osstrlog << folder << "/logcache.tr";
@@ -584,11 +603,14 @@ main (int argc, char *argv[])
 	  }
 
 
-  }
+ // }
 	std::ostringstream osstrfct;
 	osstrfct << folder << "/flows.tr";
 	flowstream = asciiTraceHelper.CreateFileStream (osstrfct.str());
 
+	std::ostringstream osstruser;
+	osstruser << folder << "/users.tr";
+	usersstream = asciiTraceHelper.CreateFileStream (osstruser.str());
   //
   // Now, do the actual simulation.
   //
@@ -640,8 +662,10 @@ void StopFlow(Ptr<PacketSink> p, uint16_t port, uint32_t size)
 
 	std::map<uint16_t,Time>::iterator it = fct.find(port);
 	if(it!=fct.end())
+	{
 		*flowstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << port << "\t" << Simulator::Now ().GetSeconds ()-it->second.GetSeconds() << "\t" << size/segmentSize << "\t" << active_flows <<  std::endl;
-
+		*usersstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << active_flows <<  std::endl;
+	}
 	data.erase(p);
 	sink.erase(std::remove(sink.begin(), sink.end(), p), sink.end());
 

@@ -216,7 +216,7 @@ void PacketSink::HandleRead (Ptr<Socket> socket)
                        << " total Rx " << m_totalRx << " bytes");
         }
 	  data+= packet->GetSize() * 8;
-	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
+	  if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.1){
 		  //NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8);
 		  double sample_bwe = data / (Simulator::Now().GetSeconds()-t1.GetSeconds());
 		  data = 0;
