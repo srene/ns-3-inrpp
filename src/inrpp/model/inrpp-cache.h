@@ -51,16 +51,21 @@ class CachedPacket : public Object
 
 public:
 
+   //Cached packet object along the route and the nonce information
    CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route);
+   CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route, uint32_t nonce);
    ~CachedPacket ();
 
    Ptr<const Packet> GetPacket();
    Ptr<Ipv4Route> GetRoute();
+   uint32_t GetNonce();
 
 private:
 
 	Ptr<const Packet> m_packet;
 	Ptr<Ipv4Route> m_route;
+	  uint32_t m_nonce;
+
 };
 
 typedef std::pair<Ptr<InrppInterface>,uint32_t> PairKey;
@@ -85,32 +90,40 @@ public:
   InrppCache ();
   ~InrppCache ();
 
+  //Set callback when cache is full
   void SetHighThCallback(HighThCallback cb);
-
+  //Set callback when cache is empty again
   void SetLowThCallback(LowThCallback cb);
-
+  //Flush cache
   void Flush ();
-
+  //Insert packet to the cache
   bool Insert(Ptr<InrppInterface> iface, uint32_t flag,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
+  //Insert packet at the beginning of the cache after a drop or when packet not sent
   bool InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
 
+  bool Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet, uint32_t nonce);
   Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface,uint32_t flag);
+  //Insert packet at the beginning of the cache after a drop or when packet not sent
+  bool InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t nonce);
 
+  //Set the max size of the cache
   void SetMaxSize (uint32_t size);
-
+  //Get the max size of the cache
   uint32_t GetMaxSize (void) const;
-
+  //Get the cache occupancy x iface and slot
   uint32_t GetSize (Ptr<InrppInterface> iface,uint32_t slot);
-
+  //Get the occupancy of the whole cache
   uint32_t GetSize();
 
+  //Return true when the cache occupancy is over the high_tr
   bool IsFull();
 
+  //Increase the packet count
   void AddPacket();
+  //Decrease the packet count
   void RemovePacket();
-
+  //Return the low threshold of the cache occupancy
   uint32_t GetThreshold();
-
 
 private:
 
@@ -122,6 +135,7 @@ private:
   uint32_t m_lowSizeTh;
 
   uint32_t m_redSizeTh;
+  std::map<uint32_t,uint32_t> m_nonces;
 
 
   HighThCallback m_highTh;
@@ -132,6 +146,7 @@ private:
   uint32_t m_packets;
 
   uint32_t m_split,m_round;
+
 
   bool red;
 };

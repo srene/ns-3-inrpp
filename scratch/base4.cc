@@ -14,7 +14,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-// Network topology
+// Scenario 1 dummbell topology fixed flow size
 /*
 			 n6				   n1
 			  \			  1.2 /   \ 2.1
@@ -145,20 +145,21 @@ ChangeBW(Ptr<PointToPointNetDevice> netdev, DataRate dr)
 int
 main (int argc, char *argv[])
 {
+	  //Initialize parameters
 	  t = Simulator::Now();
 	  i=0;
 	  tracing = false;
 	  tracing2 = true;
-	  uint32_t 		maxBytes = 10000000;
+	  uint32_t 		maxBytes = 100000000;
 	  uint32_t 		stop = 100;
 	  n = 5;
-	  std::string   bottleneck="10Mbps";
-	  uint32_t 	    bneck = 10000000;
+	  std::string   bottleneck="1Gbps";
+	  uint32_t 	    bneck = 1000000000;
 	  double 		time = 5;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
 	  uint32_t      minTh = maxPackets/2;
-	  uint32_t	    hCacheTh  = bneck ;
+	  uint32_t	    hCacheTh  = bneck;
 	  uint32_t	    lCacheTh  = hCacheTh/2;
 	  uint32_t	    maxCacheSize = hCacheTh*2;
 	  protocol = "t";
@@ -186,8 +187,8 @@ main (int argc, char *argv[])
 
   AsciiTraceHelper asciiTraceHelper;
 
-  //NS_LOG_LOGIC((double)((1498+4)*8)/10000000000);
 
+  //Config set default parameters for differnt protocols
   NS_LOG_LOGIC("Cache " << hCacheTh);
 
 	if(protocol=="t"){
@@ -209,6 +210,7 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (hCacheTh));
 		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (lCacheTh));
 		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
+		Config::SetDefault ("ns3::TcpInrpp::NumSlot", UintegerValue (n));
 		Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 
 	}
@@ -266,7 +268,7 @@ main (int argc, char *argv[])
 		pointToPoint.SetQueue ("ns3::DropTailQueue",
 							   "MaxBytes", UintegerValue(maxPackets));
 		  //
-		  // Install the internet stack on the nodes with INRPP
+		  // Install the internet stack on the nodes
 		  //
 			InternetStackHelper inrpp;
 			inrpp.Install (nodes.Get(0));
@@ -296,7 +298,7 @@ main (int argc, char *argv[])
 		"MaxBytes", UintegerValue(maxPackets*100000),
 		"DataRate", StringValue (bottleneck));
 		  //
-		  // Install the internet stack on the nodes with INRPP
+		  // Install the internet stack on the nodes
 		  //
 			InternetStackHelper inrpp;
 			inrpp.Install (nodes.Get(0));
@@ -333,12 +335,8 @@ main (int argc, char *argv[])
    NodeContainer senders;
    NodeContainer receivers;
 
-  // double lambda = ((bneck * load) / (maxBytes * 8.0));
 
-//   Ptr<ExponentialRandomVariable> m_rv_flow_intval = CreateObject<ExponentialRandomVariable> ();
-//	m_rv_flow_intval->SetAttribute("Mean", DoubleValue(time));
-//	m_rv_flow_intval->SetAttribute("Stream", IntegerValue(2));
-
+   //We create a link x flow and we start a flow each time t
 	double start = 1.0;
 	for(uint32_t i=0;i<n;i++)
 	{
@@ -347,13 +345,13 @@ main (int argc, char *argv[])
 		NetDeviceContainer sourceLink;
 		NetDeviceContainer destLink;
 
-		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("40Mbps"));
+		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
 
 		if (protocol=="r"){
 
 			pointToPoint.SetQueue ("ns3::RcpQueue",
 			"MaxBytes", UintegerValue(maxPackets*10000),
-			"DataRate", StringValue ("40Mbps"));
+			"DataRate", StringValue ("100Mbps"));
 
 		}
 		sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
@@ -493,6 +491,8 @@ main (int argc, char *argv[])
   else
 	  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
 
+
+  //Logging
   if(tracing2)
   {
 	  PointerValue ptr;

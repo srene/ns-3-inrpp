@@ -36,12 +36,6 @@ TypeId InrppTailQueue::GetTypeId (void)
     .SetParent<DropTailQueue> ()
     .SetGroupName("Inrpp")
     .AddConstructor<InrppTailQueue> ()
-    /*.AddAttribute ("Mode",
-                   "Whether to use bytes (see MaxBytes) or packets (see MaxPackets) as the maximum queue size metric.",
-                   EnumValue (QUEUE_MODE_PACKETS),
-                   MakeEnumAccessor (&DropTailQueue::SetMode),
-                   MakeEnumChecker (QUEUE_MODE_BYTES, "QUEUE_MODE_BYTES",
-                                    QUEUE_MODE_PACKETS, "QUEUE_MODE_PACKETS"))*/
     .AddAttribute ("HigherThPackets",
                    "The higher threshold number of packets accepted by this InrppTailQueue.",
                    UintegerValue (80),

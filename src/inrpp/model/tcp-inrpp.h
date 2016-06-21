@@ -74,6 +74,7 @@ protected:
   virtual void ScaleSsThresh (uint8_t scaleFactor);
   bool SendPendingData (bool withAck);
   void AddOptions (TcpHeader& tcpHeader);
+  //uint32_t SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool withAck);
   virtual void ReadOptions (const TcpHeader& tcpHeader);
   //void UpdateRate();
  // void ReceivedData (Ptr<Packet> p, const TcpHeader& tcpHeader);
@@ -111,6 +112,7 @@ protected:
   //EventId m_ackEvent;       //!< Transmit cached packet event
   //Time t;
   //double m_ackInterval;
+  uint32_t				 m_numSlot;
 
 };
 

@@ -32,6 +32,18 @@
 #include "ns3/tcp-option-inrpp-back.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/ipv4-end-point.h"
+#include "inrpp-tag2.h"
+#include "ns3/callback.h"
+#include "ns3/traced-value.h"
+#include "ns3/tcp-socket.h"
+#include "ns3/ptr.h"
+#include "ns3/ipv4-address.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/ipv4-interface.h"
+#include "ns3/ipv6-header.h"
+#include "ns3/ipv6-interface.h"
+#include "ns3/event-id.h"
+
 
 namespace ns3 {
 
@@ -54,10 +66,6 @@ TcpInrpp::GetTypeId (void)
                    BooleanValue (false),
                    MakeBooleanAccessor (&TcpInrpp::m_limitedTx),
                    MakeBooleanChecker ())
-//	.AddAttribute ("Rate", "Tcp rate",
-//					UintegerValue (1400000),
-//					MakeUintegerAccessor (&TcpInrpp::m_initialRate),
-//					MakeUintegerChecker<uint32_t> ())
     .AddTraceSource ("CongestionWindow",
                      "The TCP connection's congestion window",
                      MakeTraceSourceAccessor (&TcpInrpp::m_cWnd),
@@ -65,15 +73,16 @@ TcpInrpp::GetTypeId (void)
 	.AddTraceSource("Throughput", "The estimated bandwidth",
 					 MakeTraceSourceAccessor(&TcpInrpp::m_currentBW),
 					 "ns3::TracedValue::DoubleCallback")
+	.AddAttribute ("NumSlot",
+					   "The size of the queue for packets pending an arp reply.",
+					   UintegerValue (100),
+					   MakeUintegerAccessor (&TcpInrpp::m_numSlot),
+					   MakeUintegerChecker<uint32_t> ())
 	.AddAttribute ("Refresh",
 					   "Moving average refresh value.",
 					   DoubleValue (0.1),
 					   MakeDoubleAccessor (&TcpInrpp::m_refresh),
 					   MakeDoubleChecker<double> ());
-    /*.AddTraceSource ("SlowStartThreshold",
-                     "TCP slow start threshold (bytes)",
-                     MakeTraceSourceAccessor (&TcpInrpp::m_ssThresh),
-                     "ns3::TracedValue::Uint32Callback")*/
  ;
   return tid;
 }
@@ -141,8 +150,6 @@ TcpInrpp::Connect (const Address & address)
 {
   NS_LOG_FUNCTION (this << address);
   InitializeCwnd ();
-  //m_tcpRate = m_endPoint->GetBoundNetDevice()->GetObject<PointToPointNetDevice>()->GetDataRate().GetBitRate();
- // t = Simulator::Now();
   return TcpSocketBase::Connect (address);
 }
 
@@ -151,7 +158,6 @@ uint32_t
 TcpInrpp::Window (void)
 {
   NS_LOG_FUNCTION (this);
-  //return std::min (m_rWnd.Get (), m_cWnd.Get ());
   return std::min (m_rWnd.Get (), m_segmentSize);
 }
 
@@ -183,9 +189,7 @@ TcpInrpp::NewAck (const SequenceNumber32& seq)
 
   // Check for exit condition of fast recovery
   if (m_inFastRec && seq < m_recover)
-    { // Partial ACK, partial window deflation (RFC2582 sec.3 bullet #5 paragraph 3)
-    //  m_cWnd += m_segmentSize - (seq - m_txBuffer->HeadSequence ());
-    //  NS_LOG_INFO ("Partial ACK for seq " << seq << " in fast recovery: cwnd set to " << m_cWnd);
+    {
       m_txBuffer->DiscardUpTo(seq);  //Bug 1850:  retransmit before newack
       DoRetransmit (); // Assume the next seq is lost. Retransmit lost packet
       TcpSocketBase::NewAck (seq); // update m_nextTxSequence and send new data if allowed by window
@@ -193,28 +197,10 @@ TcpInrpp::NewAck (const SequenceNumber32& seq)
     }
   else if (m_inFastRec && seq >= m_recover)
     { // Full ACK (RFC2582 sec.3 bullet #5 paragraph 2, option 1)
-    //  m_cWnd = std::min (m_ssThresh.Get (), BytesInFlight () + m_segmentSize);
       m_inFastRec = false;
   //    NS_LOG_INFO ("Received full ACK for seq " << seq <<". Leaving fast recovery with cwnd set to " << m_cWnd);
     }
 
-  // Increase of cwnd based on current phase (slow start or congestion avoidance)
-//  if (m_cWnd < m_ssThresh)
- //   { // Slow start mode, add one segSize to cWnd. Default m_ssThresh is 65535. (RFC2001, sec.1)
-   //   m_cWnd += m_segmentSize;
- //     NS_LOG_INFO ("In SlowStart, ACK of seq " << seq << "; update cwnd to " << m_cWnd << "; ssthresh " << m_ssThresh);
-//    }
- // else
- //   { // Congestion avoidance mode, increase by (segSize*segSize)/cwnd. (RFC2581, sec.3.1)
-      // To increase cwnd for one segSize per RTT, it should be (ackBytes*segSize)/cwnd
- //     double adder = static_cast<double> (m_segmentSize * m_segmentSize) / m_cWnd.Get ();
-  //    adder = std::max (1.0, adder);
-    //  m_cWnd += static_cast<uint32_t> (adder);
- //     NS_LOG_INFO ("In CongAvoid, updated to cwnd " << m_cWnd << " ssthresh " << m_ssThresh);
- //   }
-
-  // Complete newAck processing
-  // Try to send more data
   if (!m_sendPendingDataEvent.IsRunning ())
     {
       m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpInrpp::SendPendingData, this, m_connected);
@@ -241,22 +227,7 @@ TcpInrpp::Retransmit (void)
 {
   NS_LOG_FUNCTION (this);
   NS_LOG_LOGIC (this << " ReTxTimeout Expired at time " << Simulator::Now ().GetSeconds ());
- // m_inFastRec = false;
-
-  // If erroneous timeout in closed/timed-wait state, just return
- // if (m_state == CLOSED || m_state == TIME_WAIT) return;
-  // If all data are received (non-closing socket and nothing to send), just return
- // if (m_state <= ESTABLISHED && m_txBuffer->HeadSequence () >= m_highTxMark) return;
-
-  // According to RFC2581 sec.3.1, upon RTO, ssthresh is set to half of flight
-  // size and cwnd is set to 1*MSS, then the lost packet is retransmitted and
-  // TCP back to slow start
-  //m_ssThresh = std::max (2 * m_segmentSize, BytesInFlight () / 2);
-  //m_cWnd = m_segmentSize;
- // m_nextTxSequence = m_txBuffer->HeadSequence (); // Restart from highest Ack
- // NS_LOG_INFO ("RTO. Reset cwnd to " << m_cWnd <<
-  //             ", ssthresh to " << m_ssThresh << ", restart from seqnum " << m_nextTxSequence);
- // DoRetransmit ();                          // Retransmit the packet
+                    // Retransmit the packet
 }
 
 void
@@ -324,13 +295,10 @@ TcpInrpp::ReadOptions (const TcpHeader& header)
 				   (uint32_t) inrpp->GetFlag()<< " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
 	}
 
-	if (header.HasOption (TcpOption::INRPP))
+	if(m_flag==2)
 	{
-		  Ptr<TcpOptionInrpp> inrpp = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
-		  m_slot = inrpp->GetFlag();
-		  m_nonce =  inrpp->GetNonce ();
-		  NS_LOG_LOGIC (this << m_node->GetId () << " Got Inrpp slot=" <<
-		 				    inrpp->GetFlag()<< " " << m_slot << " and nonce="     << inrpp->GetNonce () << " " << m_tcpRate);
+		NS_LOG_LOGIC("Clear nonce");
+		m_nonce = 0;
 	}
 
 
@@ -352,7 +320,6 @@ TcpInrpp::ReceivedAck (Ptr<Packet> packet, const TcpHeader& tcpHeader)
 		  m_cWnd = 0;
 		  NS_LOG_LOGIC("Full rate again");
 		  m_back = false;
-		 // m_tcpRate = m_initialRate;
 	  }
 
 	TcpSocketBase::ReceivedAck (packet,tcpHeader);
@@ -385,7 +352,6 @@ TcpInrpp::Send (Ptr<Packet> p, uint32_t flags)
           if (!m_sendPendingDataEvent.IsRunning ())
             {
               m_sendPendingDataEvent = Simulator::Schedule ( TimeStep (1), &TcpInrpp::SendPendingData, this, m_connected);
-        	  //SendPendingData(m_connected);
             }
         }
       return p->GetSize ();
@@ -514,27 +480,26 @@ TcpInrpp::SendPendingData (bool withAck)
 void
 TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
-	 NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
+	// NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
+	 NS_LOG_FUNCTION (this << m_slot << m_nonce);
 
-//	 if(m_nonce!=0)
-//	 {
-		 NS_LOG_FUNCTION (this << m_slot << m_nonce);
+	 if(m_nonce!=0)
+	 {
 		 Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
 		 tcpHeader.ClearOption();
-		 option->SetFlag(m_slot);
+		 uint32_t slot = m_endPoint->GetPeerPort ()%m_numSlot;
+		 NS_LOG_LOGIC("Add option " << slot);
+		 option->SetFlag(slot);
 		 option->SetNonce (m_nonce);
-	     tcpHeader.AppendOption (option);
-//	 }
-
+		 tcpHeader.AppendOption (option);
+	 }
 	 TcpSocketBase::AddOptions (tcpHeader);
 }
 
 void
 TcpInrpp::SetRate(uint32_t rate)
 {
-	//m_initialRate =  rate;
 	m_tcpRate = rate;
 }
-
 
 } // namespace ns3

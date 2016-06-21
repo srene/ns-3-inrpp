@@ -145,7 +145,7 @@ main (int argc, char *argv[])
 	  std::string   bottleneck="10Mbps";
       uint32_t 	    bneck = 10000000;
 	  double 		time = 1;
-	  uint32_t 	    mean_n_pkts = 30;
+	  uint32_t 	    mean_n_pkts = 500;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  //uint32_t		maxPackets = 10000;
 	  //std::string   congestion="ns3::TcpMpTcp";
@@ -175,8 +175,8 @@ main (int argc, char *argv[])
   cmd.Parse (argc, argv);
 
   std::ostringstream st;
-  if(!cross)st << protocol << "test3_fl"<<n<<"_"<<load;
-  else st << protocol << "testcross3_fl" <<n<<"_"<<load;
+  if(!cross)st << protocol << "test3_fl"<<n<<"_"<<mean_n_pkts;
+  else st << protocol << "testcross3_fl" <<n<<"_"<<mean_n_pkts;
   folder = st.str();
 
   AsciiTraceHelper asciiTraceHelper;

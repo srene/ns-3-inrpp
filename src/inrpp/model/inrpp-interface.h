@@ -150,7 +150,7 @@ public:
 
  void UpdateResidual(Ipv4Address address, uint32_t residual);
 
- void CalculatePacing(uint32_t bytes);
+ void CalculatePacing(uint32_t bytes,uint32_t nonce);
 
  void SetInitCache(bool);
 
@@ -216,7 +216,7 @@ private:
   std::vector<std::pair<Ptr<InrppInterface>,Ptr<InrppRoute> > > m_detouredIface;
   TracedValue<uint32_t>  m_residualMin;
   bool m_disable;
-  uint32_t m_ackRate;
+  std::map<uint32_t,uint32_t> m_ackRate;
   uint32_t packetSize;
   bool m_initCache;
 

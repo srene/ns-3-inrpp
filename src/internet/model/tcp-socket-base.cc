@@ -54,6 +54,9 @@
 #include <math.h>
 #include <algorithm>
 
+#include "ns3/tcp-inrpp.h"
+#include "ns3/inrpp-tag2.h"
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("TcpSocketBase");
@@ -1676,6 +1679,20 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
    * if both options are set. Once the packet got to layer three, only
    * the corresponding tags will be read.
    */
+
+
+  if(this->GetObject<TcpInrpp>())
+  {
+	  NS_LOG_LOGIC("Inrpp traffic");
+	  InrppTag2 tag;
+	  tag.SetAddress(m_endPoint->GetLocalAddress ());
+	  p->AddPacketTag(tag);
+
+  } else {
+	  NS_LOG_LOGIC("No Inrpp traffic");
+
+  }
+
   if (IsManualIpTos ())
     {
       SocketIpTosTag ipTosTag;
@@ -1957,6 +1974,19 @@ TcpSocketBase::SendDataPacket (SequenceNumber32 seq, uint32_t maxSize, bool with
       m_delAckEvent.Cancel ();
       m_delAckCount = 0;
     }
+
+
+  if(this->GetObject<TcpInrpp>())
+  {
+	  NS_LOG_LOGIC("Inrpp traffic");
+	  InrppTag2 tag;
+	  tag.SetAddress(m_endPoint->GetLocalAddress ());
+	  p->AddPacketTag(tag);
+
+  } else {
+	  NS_LOG_LOGIC("No Inrpp traffic");
+
+  }
 
   /*
    * Add tags for each socket option.

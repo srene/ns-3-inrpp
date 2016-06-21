@@ -45,6 +45,13 @@ CachedPacket::CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route)
 	m_packet = p;
 	m_route = route;
 }
+CachedPacket::CachedPacket (Ptr<const Packet> p, Ptr<Ipv4Route> route,uint32_t nonce)
+{
+	NS_LOG_FUNCTION (this);
+	m_packet = p;
+	m_route = route;
+	m_nonce = nonce;
+}
 CachedPacket::~CachedPacket ()
 {
 	NS_LOG_FUNCTION (this);
@@ -62,6 +69,11 @@ CachedPacket::GetRoute()
 	return m_route;
 }
 
+uint32_t
+CachedPacket::GetNonce()
+{
+	return m_nonce;
+}
 
 TypeId 
 InrppCache::GetTypeId (void)
@@ -145,27 +157,45 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 			m_ifaceSize.insert(make_pair(PairKey(iface,flag),packet->GetSize()));
 		}
 
-		/*if(m_size.Get()>m_redSizeTh&&!red){
-			red = true;
-			for (Cache::iterator itr = m_InrppCache.begin(); itr != m_InrppCache.end(); ) {
-			    // ... process *itr ...
-				m_InrppCache.erase(itr);
-				m_size-=packet->GetSize();
-			    // Now, go skip to the first entry with a new key.
-				Cache::iterator curr = itr;
-			    while (itr != m_InrppCache.end() && itr->first == curr->first)
-			        ++itr;
-			}
-		}
-		if(m_size.Get()<m_highSizeTh&&red){
-			red = false;
-		}*/
 		return true;
 	} else {
 		return false;
 	}
 
+}
 
+bool
+InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet, uint32_t nonce)
+{
+	NS_LOG_FUNCTION(this<<m_size<<flag<<packet->GetSize());
+
+	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
+	{
+
+	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+		{
+		  NS_LOG_LOGIC ("Queue reaching full " << this);
+		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
+		  m_hTh = true;
+		  m_lTh = false;
+		}
+
+		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry,nonce);
+		m_InrppCache.insert(PairCache(PairKey(iface,flag),p));
+		m_size+=packet->GetSize();
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
+		if(it!=m_ifaceSize.end())
+		{
+		  NS_LOG_LOGIC("Size found " << it->second << " " << flag << " " << iface);
+		  it->second += packet->GetSize();
+		} else {
+			m_ifaceSize.insert(make_pair(PairKey(iface,flag),packet->GetSize()));
+		}
+
+		return true;
+	} else {
+		return false;
+	}
 
 }
 
@@ -173,6 +203,7 @@ bool
 InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
 	NS_LOG_FUNCTION(this<<m_size<<packet->GetSize());
+
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
@@ -188,13 +219,48 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> 
 		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry);
 		m_InrppCache.insert(m_InrppCache.begin(),PairCache(PairKey(iface,flag),p));
 		m_size+=packet->GetSize();
-		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,0));
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
 		if(it!=m_ifaceSize.end())
 		{
 		  NS_LOG_LOGIC("Size found " << it->second);
 		  it->second += packet->GetSize();
 		} else {
 			m_ifaceSize.insert(std::make_pair(PairKey(iface,flag),packet->GetSize()));
+		}
+		return true;
+	} else {
+		return false;
+	}
+
+}
+
+bool
+InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t nonce)
+{
+	NS_LOG_FUNCTION(this<<m_size<<packet->GetSize()<<nonce<<flag);
+
+	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
+	{
+
+	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+		{
+		  NS_LOG_LOGIC ("Queue reaching full " << this);
+		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
+		  m_hTh = true;
+		  m_lTh = false;
+
+		}
+
+		Ptr<CachedPacket> p = CreateObject<CachedPacket> (packet,rtentry,nonce);
+		m_InrppCache.insert(m_InrppCache.begin(),PairCache(PairKey(iface,flag),p));
+		m_size+=packet->GetSize();
+		std::map<PairKey,uint32_t>::iterator it = m_ifaceSize.find(PairKey(iface,flag));
+		if(it!=m_ifaceSize.end())
+		{
+		  NS_LOG_LOGIC("Size found " << it->second);
+		  it->second += packet->GetSize();
+		} else {
+		  m_ifaceSize.insert(std::make_pair(PairKey(iface,flag),packet->GetSize()));
 		}
 		return true;
 	} else {
@@ -210,17 +276,13 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface,uint32_t flag)
 	Ptr<CachedPacket> p;
 	CacheIter it = m_InrppCache.find(PairKey(iface,flag));
 
-
 	if(it!=m_InrppCache.end())
 	{
 
-	//	uint32_t pointer = m_InrppCache.count(iface) / m_split;
-	//	std::advance(it,pointer*m_round);
-	//	m_round++;
-	//	if(m_round==m_split)m_round=0;
 		p = it->second;
 		m_InrppCache.erase (it);
-		m_size-=p->GetPacket()->GetSize();
+		if(m_size<p->GetPacket()->GetSize())m_size=0;
+		else m_size-=p->GetPacket()->GetSize();
 
 	    if ((m_size.Get()<=m_lowSizeTh)&&(!m_lTh&&m_hTh))
 		{
@@ -234,10 +296,10 @@ InrppCache::GetPacket(Ptr<InrppInterface> iface,uint32_t flag)
 		if(it!=m_ifaceSize.end())
 		{
 			  NS_LOG_LOGIC("Size found " << it->second << " " << flag << " " << iface);
-		  it->second-=p->GetPacket()->GetSize();
+			  if(it->second<p->GetPacket()->GetSize())it->second=0;
+			  else it->second-=p->GetPacket()->GetSize();
+
 		}
-
-
 		return p;
 	}
 
