@@ -257,7 +257,7 @@ main (int argc, char *argv[])
 
   Simulator::Run ();
   Simulator::Destroy ();
-  std::cout << "Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC) << std::end;
+  //std::cout << "Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC) << std::end;
 
   // Exit the MPI execution environment
   MpiInterface::Disable ();
