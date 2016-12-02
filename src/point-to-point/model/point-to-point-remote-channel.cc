@@ -68,6 +68,7 @@ PointToPointRemoteChannel::TransmitStart (
 
 #ifdef NS3_MPI
   // Calculate the rxTime (absolute)
+  NS_LOG_LOGIC("MPI");
   Time rxTime = Simulator::Now () + txTime + GetDelay ();
   MpiInterface::SendPacket (p, rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
 #else

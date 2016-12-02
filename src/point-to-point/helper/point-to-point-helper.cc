@@ -226,7 +226,7 @@ NetDeviceContainer
 PointToPointHelper::Install (Ptr<Node> a, Ptr<Node> b)
 {
   NetDeviceContainer container;
-
+  NS_LOG_LOGIC("P2P Install");
   Ptr<PointToPointNetDevice> devA = m_deviceFactory.Create<PointToPointNetDevice> ();
   devA->SetAddress (Mac48Address::Allocate ());
   a->AddDevice (devA);
@@ -245,6 +245,7 @@ PointToPointHelper::Install (Ptr<Node> a, Ptr<Node> b)
 
   if (MpiInterface::IsEnabled ())
     {
+	  NS_LOG_LOGIC("P2P Install MPI enabled");
       uint32_t n1SystemId = a->GetSystemId ();
       uint32_t n2SystemId = b->GetSystemId ();
       uint32_t currSystemId = MpiInterface::GetSystemId ();
@@ -252,13 +253,17 @@ PointToPointHelper::Install (Ptr<Node> a, Ptr<Node> b)
         {
           useNormalChannel = false;
         }
+    } else {
+  	  NS_LOG_LOGIC("P2P Install MPI disabled");
     }
   if (useNormalChannel)
     {
+	  NS_LOG_LOGIC("P2P Install without MPI receiver");
       channel = m_channelFactory.Create<PointToPointChannel> ();
     }
   else
     {
+	  NS_LOG_LOGIC("P2P Install MPI receiver");
       channel = m_remoteChannelFactory.Create<PointToPointRemoteChannel> ();
       Ptr<MpiReceiver> mpiRecA = CreateObject<MpiReceiver> ();
       Ptr<MpiReceiver> mpiRecB = CreateObject<MpiReceiver> ();

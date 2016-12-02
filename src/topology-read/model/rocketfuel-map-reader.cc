@@ -40,7 +40,8 @@
 #include "ns3/uinteger.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/node-list.h"
-
+#include "ns3/mpi-interface.h"
+#include "ns3/mpi-receiver.h"
 #include "ns3/mobility-model.h"
 
 #include <regex.h>
@@ -397,23 +398,110 @@ RocketfuelMapReader::Read(RocketfuelParams params, bool keepOneComponent /*=true
     NS_LOG_DEBUG("After 2 eliminating disconnected nodes:  " << num_vertices(m_graph));
   }
 
+  if (MpiInterface::IsEnabled ())
+  {
+	  NS_LOG_LOGIC("ROCKETFUEL MPI ACTIVATED");
+  } else
+  {
+	  NS_LOG_LOGIC("ROCKETFUEL MPI DEACTIVATED");
+  }
+//#ifdef NS3_MPI
+ // NS_LOG_LOGIC("ROCKETFUEL MPI ACTIVATED dfa");
+  if (MpiInterface::IsEnabled ())
+  {
+	  uint32_t nsys=0;
+
+	  NS_LOG_LOGIC("Create node " << nsys);
+	  for (tie(v, endv) = vertices(m_graph); v != endv; v++) {
+	    string nodeName = get(vertex_name, m_graph, *v);
+	    //Ptr<Node> node = CreateNode(nodeName, 0);
+	    Ptr<Node> node;
+	    node_type_t type = get(vertex_rank, m_graph, *v);
+	    switch (type) {
+	    case BACKBONE:
+	      NS_LOG_LOGIC("ROCKETFUEL backbone node cpu 0");
+	      node = CreateNode(nodeName, 0);
+	      Names::Rename(nodeName, "bb-" + nodeName);
+	      put(vertex_name, m_graph, *v, "bb-" + nodeName);
+	      m_backboneRouters.Add(node);
+	      break;
+	    case CLIENT:
+		  NS_LOG_LOGIC("ROCKETFUEL client node cpu "<<nsys);
+	      node = CreateNode(nodeName,nsys);
+	      Names::Rename(nodeName, "leaf-" + nodeName);
+	      put(vertex_name, m_graph, *v, "leaf-" + nodeName);
+	      m_customerRouters.Add(node);
+	      break;
+	    case GATEWAY:
+		  NS_LOG_LOGIC("ROCKETFUEL gateway node cpu "<<nsys);
+	      node = CreateNode(nodeName, nsys);
+	      Names::Rename(nodeName, "gw-" + nodeName);
+	      put(vertex_name, m_graph, *v, "gw-" + nodeName);
+	      m_gatewayRouters.Add(node);
+	      break;
+	    case UNKNOWN:
+	      NS_FATAL_ERROR("Should not happen");
+	      break;
+	    }
+	    nsys++;
+	    if(nsys==MpiInterface::GetSize())nsys=0;
+	  }
+  } else {
+	  for (tie(v, endv) = vertices(m_graph); v != endv; v++) {
+	     string nodeName = get(vertex_name, m_graph, *v);
+	     Ptr<Node> node = CreateNode(nodeName, 0);
+	     //Ptr<Node> node;
+	     node_type_t type = get(vertex_rank, m_graph, *v);
+	     switch (type) {
+	     case BACKBONE:
+	       //node = CreateNode(nodeName, 0);
+	       Names::Rename(nodeName, "bb-" + nodeName);
+	       put(vertex_name, m_graph, *v, "bb-" + nodeName);
+	       m_backboneRouters.Add(node);
+	       break;
+	     case CLIENT:
+	       //node = CreateNode(nodeName,1);
+	       Names::Rename(nodeName, "leaf-" + nodeName);
+	       put(vertex_name, m_graph, *v, "leaf-" + nodeName);
+	       m_customerRouters.Add(node);
+	       break;
+	     case GATEWAY:
+	       //node = CreateNode(nodeName, 2);
+	       Names::Rename(nodeName, "gw-" + nodeName);
+	       put(vertex_name, m_graph, *v, "gw-" + nodeName);
+	       m_gatewayRouters.Add(node);
+	       break;
+	     case UNKNOWN:
+	       NS_FATAL_ERROR("Should not happen");
+	       break;
+	     }
+	   }
+  }
+
+//#endif
+
+/*#ifndef NS3_MPI
+  NS_LOG_LOGIC("ROCKETFUEL MPI DEACTIVATED ea");
   for (tie(v, endv) = vertices(m_graph); v != endv; v++) {
     string nodeName = get(vertex_name, m_graph, *v);
     Ptr<Node> node = CreateNode(nodeName, 0);
-
+    //Ptr<Node> node;
     node_type_t type = get(vertex_rank, m_graph, *v);
     switch (type) {
     case BACKBONE:
+      //node = CreateNode(nodeName, 0);
       Names::Rename(nodeName, "bb-" + nodeName);
       put(vertex_name, m_graph, *v, "bb-" + nodeName);
       m_backboneRouters.Add(node);
       break;
     case CLIENT:
+      //node = CreateNode(nodeName,1);
       Names::Rename(nodeName, "leaf-" + nodeName);
       put(vertex_name, m_graph, *v, "leaf-" + nodeName);
       m_customerRouters.Add(node);
       break;
     case GATEWAY:
+      //node = CreateNode(nodeName, 2);
       Names::Rename(nodeName, "gw-" + nodeName);
       put(vertex_name, m_graph, *v, "gw-" + nodeName);
       m_gatewayRouters.Add(node);
@@ -423,6 +511,8 @@ RocketfuelMapReader::Read(RocketfuelParams params, bool keepOneComponent /*=true
       break;
     }
   }
+#endif*/
+
 
   for (tie(e, ende) = edges(m_graph); e != ende; e++) {
     Traits::vertex_descriptor u = source(*e, m_graph), v = target(*e, m_graph);
