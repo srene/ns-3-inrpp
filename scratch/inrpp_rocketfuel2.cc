@@ -184,8 +184,7 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (maxCacheSize));
 		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (hCacheTh));
 		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (lCacheTh));
-		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (148*n+9000));
-		Config::SetDefault ("ns3::TcpInrpp::NumSlot", UintegerValue (148*n+9000));
+
 		Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 	}
 
@@ -225,6 +224,11 @@ main (int argc, char *argv[])
 	const NodeContainer& GatewayRouters = topo_reader.GetGatewayRouters();
 	const NodeContainer& CustomerRouters = topo_reader.GetCustomerRouters();
 
+	if(protocol=="i")
+	{
+		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue ((CustomerRouters.GetN()*n)+9000));
+		Config::SetDefault ("ns3::TcpInrpp::NumSlot", UintegerValue ((CustomerRouters.GetN()*n)+9000));
+	}
 	NS_LOG_INFO("Number of customer (edge) routers: "<<CustomerRouters.GetN());
 	NS_LOG_INFO("Number of gateway routers: "<<GatewayRouters.GetN());
 	NS_LOG_INFO("Number of backbone (core) routers: "<<BackBoneRouters.GetN());
