@@ -1,0 +1,11 @@
+/Debug/
+utils.pyc
+waf-tools/boost.pyc
+waf-tools/cflags.pyc
+waf-tools/command.pyc
+waf-tools/misc.pyc
+waf-tools/relocation.pyc
+waf-tools/shellcmd.pyc
+wutils.pyc
+
+

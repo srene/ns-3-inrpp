@@ -1,0 +1,50 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+
+def build(bld):
+    module = bld.create_ns3_module('inrpp', ['core', 'network','internet','point-to-point'])
+    module.source = [
+        'model/inrpp-route.cc',        
+        'model/inrpp-cache.cc',
+        'model/inrpp-l3-protocol.cc',    
+        'model/inrpp-header.cc', 
+        'model/inrpp-tail-queue.cc',  
+        'model/inrpp-interface.cc',    
+        'model/inrpp-tag.cc',   
+        'model/inrpp-tag2.cc',                         
+        'model/tcp-inrpp.cc',      
+        'model/inrpp-global-route-manager.cc',         
+        'model/inrpp-global-route-manager-impl.cc',  
+#        'model/tcpinrpp-socket-factory.cc',       
+#        'model/tcpinrpp-socket-factory-impl.cc',                                                                                                                          
+        'helper/inrpp-stack-helper.cc',
+        'helper/inrpp-global-routing-helper.cc',       
+        ]
+
+    module_test = bld.create_ns3_module_test_library('inrpp')
+
+    headers = bld(features='ns3header')
+    headers.module = 'inrpp'
+    headers.source = [
+        'model/inrpp-route.h',        
+        'model/inrpp-cache.h',        
+        'model/inrpp-l3-protocol.h',    
+        'model/inrpp-header.h',
+        'model/inrpp-interface.h',    
+        'model/inrpp-tail-queue.h',          
+        'model/inrpp-tag.h',
+        'model/inrpp-tag2.h',                                   
+        'model/tcp-inrpp.h',   
+        'model/inrpp-global-route-manager.h',         
+        'model/inrpp-global-route-manager-impl.h',      
+#        'model/tcpinrpp-socket-factory.h',       
+#        'model/tcpinrpp-socket-factory-impl.h',                                                                                                            
+        'helper/inrpp-stack-helper.h',
+        'helper/inrpp-global-routing-helper.h',   
+        ]
+
+    if bld.env.ENABLE_EXAMPLES:
+        bld.recurse('examples')
+
+    bld.ns3_python_bindings()
+
