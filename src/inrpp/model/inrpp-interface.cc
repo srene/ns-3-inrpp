@@ -507,7 +507,7 @@ InrppInterface::SendResidual()
 			}while(!c&&loop<=m_numSlot);
 			if(c)
 			{
-				NS_LOG_LOGIC(this << " Inteface " << m_detouredIface[m_lastDetoured].first->GetAddress(0).GetLocal() << " is sending through " << GetAddress(0).GetLocal() << " " << m_detouredIface[m_lastDetoured].second->GetDetour() << " " << m_inrpp->GetInterface(m_inrpp->GetInterfaceForDevice (m_detouredIface[m_lastDetoured].second->GetOutputDevice()))->GetObject<InrppInterface>());
+				NS_LOG_LOGIC(this << " Interface " << m_detouredIface[m_lastDetoured].first->GetAddress(0).GetLocal() << " is sending through " << GetAddress(0).GetLocal() << " " << m_detouredIface[m_lastDetoured].second->GetDetour() << " " << m_inrpp->GetInterface(m_inrpp->GetInterfaceForDevice (m_detouredIface[m_lastDetoured].second->GetOutputDevice()))->GetObject<InrppInterface>());
 				Ptr<Ipv4Route> rtentry = c->GetRoute();
 				Ptr<const Packet> packet = c->GetPacket();
 				InrppTag tag;

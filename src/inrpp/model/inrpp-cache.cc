@@ -96,11 +96,6 @@ InrppCache::GetTypeId (void)
 				   UintegerValue (5000000),
 				   MakeUintegerAccessor (&InrppCache::m_lowSizeTh),
 				   MakeUintegerChecker<uint32_t> ())
-	.AddAttribute ("RedThresholdCacheSize",
-				   "The size of the queue for packets pending an arp reply.",
-				   UintegerValue (10000000),
-				   MakeUintegerAccessor (&InrppCache::m_redSizeTh),
-				   MakeUintegerChecker<uint32_t> ())
 	.AddTraceSource ("Size",
 					 "Remote side's flow control window",
 					 MakeTraceSourceAccessor (&InrppCache::m_size),
@@ -110,11 +105,10 @@ InrppCache::GetTypeId (void)
 }
 
 InrppCache::InrppCache ():
-m_size(0),
-m_packets(0),
-m_split(100),
-m_round(0),
-red(false)
+m_size(0)
+//m_packets(0)
+//m_split(100)
+//m_round(0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -122,22 +116,23 @@ red(false)
 InrppCache::~InrppCache ()
 {
   NS_LOG_FUNCTION (this);
+  Flush();
 }
 
 void
 InrppCache::Flush (void)
 {
-
+	m_InrppCache.clear();
 }
 
-bool
+/*bool
 InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
 	NS_LOG_FUNCTION(this<<m_size<<flag<<packet->GetSize());
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -162,7 +157,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 		return false;
 	}
 
-}
+}*/
 
 bool
 InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet, uint32_t nonce)
@@ -172,7 +167,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -199,7 +194,7 @@ InrppCache::Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtent
 
 }
 
-bool
+/*bool
 InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet)
 {
 	NS_LOG_FUNCTION(this<<m_size<<packet->GetSize());
@@ -207,7 +202,7 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> 
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -232,7 +227,7 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> 
 		return false;
 	}
 
-}
+}*/
 
 bool
 InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet,uint32_t nonce)
@@ -242,7 +237,7 @@ InrppCache::InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> 
 	if(m_size.Get()+packet->GetSize()<=m_maxCacheSize)
 	{
 
-	    if ((m_size.Get()+m_packets>m_highSizeTh)&&!m_hTh)
+	    if ((m_size.Get()>m_highSizeTh)&&!m_hTh)
 		{
 		  NS_LOG_LOGIC ("Queue reaching full " << this);
 		  if(!m_highTh.IsNull())m_highTh (m_size.Get());
@@ -364,7 +359,7 @@ InrppCache::IsFull()
 	return (m_size.Get() >= m_highSizeTh);
 }
 
-void
+/*void
 InrppCache::AddPacket()
 {
 	m_packets++;
@@ -374,7 +369,7 @@ void
 InrppCache::RemovePacket()
 {
 	m_packets--;
-}
+}*/
 
 uint32_t
 InrppCache::GetThreshold()

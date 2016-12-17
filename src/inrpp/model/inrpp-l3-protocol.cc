@@ -221,12 +221,12 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			uint32_t flag;
 			uint32_t nonce;
 		    Ptr<TcpOptionInrpp> ts = DynamicCast<TcpOptionInrpp> (tcpHeader.GetOption (TcpOption::INRPP));
+	    	flag = tcpHeader.GetDestinationPort()%m_numSlot;
 		    if(!ts)
 		    {
-		    	flag = tcpHeader.GetDestinationPort()%m_numSlot;
 		    	nonce = outInterface->GetNonce();
 		    } else {
-		    	flag = ts->GetFlag();
+		    	//flag = ts->GetFlag();
 		    	nonce = ts->GetNonce();
 		    }
 		  // NS_LOG_LOGIC("Slot " << ts->GetFlag());
@@ -246,9 +246,9 @@ InrppL3Protocol::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p, const I
 			uint32_t flag;
 			uint32_t nonce;
 		    Ptr<TcpOptionInrpp> ts = DynamicCast<TcpOptionInrpp> (tcpHeader.GetOption (TcpOption::INRPP));
-
-		    	flag = ts->GetFlag();
-		    	nonce = ts->GetNonce();
+	    	flag = tcpHeader.GetDestinationPort()%m_numSlot;
+		    	//flag = ts->GetFlag();
+		    nonce = ts->GetNonce();
 				// NS_LOG_LOGIC("Slot " << ts->GetFlag());
 			if(!m_cache->Insert(outInterface,flag,rtentry,packet,nonce)){
 				NS_LOG_LOGIC("CACHE FULL");
@@ -707,17 +707,15 @@ InrppL3Protocol::LostPacket(Ptr<const Packet> packet, Ptr<InrppInterface> iface,
 			ipHeader.SetTtl (ipHeader.GetTtl () + 1);
 			p->AddHeader(tcpHeader);
 			p->AddHeader(ipHeader);
-			uint32_t flag = 0;
+			uint32_t flag = tcpHeader.GetDestinationPort()%m_numSlot;
+			uint32_t nonce = 0;
 			if(tcpHeader.HasOption(TcpOption::INRPP))
 			{
 				Ptr<TcpOptionInrpp> inrpp = DynamicCast<TcpOptionInrpp> (tcpHeader.GetOption (TcpOption::INRPP));
-				flag = inrpp->GetFlag();
-				NS_LOG_LOGIC("Insert at slot " << this << " " << flag);
-			} else {
-				flag = tcpHeader.GetDestinationPort()%m_numSlot;
+				nonce = inrpp->GetNonce();
 			}
-
-			if(!m_cache->InsertFirst(iface,flag,it->second,p)){
+			NS_LOG_LOGIC("Insert at slot " << this << " " << flag);
+			if(!m_cache->InsertFirst(iface,flag,it->second,p,nonce)){
 							NS_LOG_LOGIC("CACHE FULL");
 			}
 

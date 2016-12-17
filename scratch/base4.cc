@@ -150,11 +150,11 @@ main (int argc, char *argv[])
 	  i=0;
 	  tracing = false;
 	  tracing2 = true;
-	  uint32_t 		maxBytes = 100000000;
+	  uint32_t 		maxBytes = 10000000;
 	  uint32_t 		stop = 100;
 	  n = 5;
-	  std::string   bottleneck="1Gbps";
-	  uint32_t 	    bneck = 1000000000;
+	  std::string   bottleneck="10Mbps";
+	  uint32_t 	    bneck = 10000000;
 	  double 		time = 5;
 	  uint32_t      maxPackets = (bneck * 0.05)/(8);
 	  uint32_t      maxTh = maxPackets;
@@ -264,18 +264,30 @@ main (int argc, char *argv[])
 
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
 
+  // Setup NixVector Routing
+   Ipv4NixVectorHelper nixRouting;
+   Ipv4StaticRoutingHelper staticRouting;
+
+   Ipv4ListRoutingHelper list;
+   list.Add (staticRouting, 0);
+   list.Add (nixRouting, 10);
+
+	InternetStackHelper internet;
+	InrppStackHelper inrpp;
+	internet.SetRoutingHelper (list); // has effect on the next Install ()
+	inrpp.SetRoutingHelper (list); // has effect on the next Install ()
+
 	if(protocol=="t"){
 		pointToPoint.SetQueue ("ns3::DropTailQueue",
 							   "MaxBytes", UintegerValue(maxPackets));
 		  //
 		  // Install the internet stack on the nodes
 		  //
-			InternetStackHelper inrpp;
-			inrpp.Install (nodes.Get(0));
-			inrpp.Install (nodes.Get(1));
-			inrpp.Install (nodes.Get(2));
-			inrpp.Install (nodes.Get(3));
-			inrpp.Install (nodes.Get(4));
+		internet.Install (nodes.Get(0));
+		internet.Install (nodes.Get(1));
+		internet.Install (nodes.Get(2));
+		internet.Install (nodes.Get(3));
+		internet.Install (nodes.Get(4));
 	} else if (protocol=="i") {
 
 		pointToPoint.SetQueue ("ns3::InrppTailQueue",
@@ -285,7 +297,6 @@ main (int argc, char *argv[])
 		  //
 		  // Install the internet stack on the nodes with INRPP
 		  //
-			InrppStackHelper inrpp;
 			inrpp.Install (nodes.Get(0));
 			inrpp.Install (nodes.Get(1));
 			inrpp.Install (nodes.Get(2));
@@ -300,12 +311,11 @@ main (int argc, char *argv[])
 		  //
 		  // Install the internet stack on the nodes
 		  //
-			InternetStackHelper inrpp;
-			inrpp.Install (nodes.Get(0));
-			inrpp.Install (nodes.Get(1));
-			inrpp.Install (nodes.Get(2));
-			inrpp.Install (nodes.Get(3));
-			inrpp.Install (nodes.Get(4));
+			internet.Install (nodes.Get(0));
+			internet.Install (nodes.Get(1));
+			internet.Install (nodes.Get(2));
+			internet.Install (nodes.Get(3));
+			internet.Install (nodes.Get(4));
 	}
 
   devices2 = pointToPoint.Install (nodes.Get(0),nodes.Get(2));
@@ -345,7 +355,7 @@ main (int argc, char *argv[])
 		NetDeviceContainer sourceLink;
 		NetDeviceContainer destLink;
 
-		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+		pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
 
 		if (protocol=="r"){
 
@@ -357,9 +367,8 @@ main (int argc, char *argv[])
 		sourceLink = pointToPoint.Install (nodes.Get(5+i),nodes.Get(4));
 		destLink = pointToPoint.Install (nodes.Get(3),nodes.Get(5+n+i));
 
-		InternetStackHelper inrpp;
-		inrpp.Install (nodes.Get(5+i));
-		inrpp.Install (nodes.Get(5+n+i));
+		internet.Install (nodes.Get(5+i));
+		internet.Install (nodes.Get(5+n+i));
 
 	  senders.Add(nodes.Get(5+i));
 	  receivers.Add(nodes.Get(5+n+i));
@@ -486,11 +495,11 @@ main (int argc, char *argv[])
   Simulator::Schedule(Seconds(1.0),&LogFairness);
 
   //Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-  if(protocol=="i")
+  /*if(protocol=="i")
 	  InrppGlobalRoutingHelper::PopulateRoutingTables ();
   else
 	  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
+  */
 
   //Logging
   if(tracing2)
@@ -635,6 +644,10 @@ main (int argc, char *argv[])
 //
 // Now, do the actual simulation.
 //
+	  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper> ("nix-simple.routes", std::ios::out);
+
+	  nixRouting.PrintRoutingTableAllAt (Seconds (8), routingStream);
+
   NS_LOG_INFO ("Run Simulation.");
   Simulator::Stop (Seconds (stop));
   Simulator::Run ();

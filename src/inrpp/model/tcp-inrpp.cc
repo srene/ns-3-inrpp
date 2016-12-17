@@ -100,7 +100,7 @@ TcpInrpp::TcpInrpp (void)
     m_lastSampleBW(0),
 	m_lastBW(0),
 	data(0),
-	m_slot(0),
+	//m_slot(0),
 	m_tcpRate(1000000)
 	//m_ackInterval(0)
 {
@@ -481,15 +481,15 @@ void
 TcpInrpp::AddOptions (TcpHeader& tcpHeader)
 {
 	// NS_LOG_FUNCTION (this << tcpHeader << m_nonce);
-	 std::cout << this << m_slot << m_nonce << m_endPoint->GetPeerPort () << std::endl;
+	 //std::cout << m_slot << m_nonce << m_endPoint->GetPeerPort () << std::endl;
 
 	 if(m_nonce!=0)
 	 {
 		 Ptr<TcpOptionInrpp> option = CreateObject<TcpOptionInrpp> ();
 		 tcpHeader.ClearOption();
-		 uint32_t slot = m_endPoint->GetPeerPort ()%m_numSlot;
-		 NS_LOG_LOGIC("Add option " << slot);
-		 option->SetFlag(slot);
+		// uint32_t slot = m_endPoint->GetPeerPort ()%m_numSlot;
+		// NS_LOG_LOGIC("Add option " << slot);
+		// option->SetFlag(slot);
 		 option->SetNonce (m_nonce);
 		 tcpHeader.AppendOption (option);
 	 }

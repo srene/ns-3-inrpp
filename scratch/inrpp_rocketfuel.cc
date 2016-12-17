@@ -176,6 +176,7 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1434));
 		Config::SetDefault ("ns3::TcpSocketBase::Timestamp", BooleanValue (true));
 		Config::SetDefault ("ns3::RcpQueue::upd_timeslot_", DoubleValue(0.005));
+		maxPackets = maxPackets*10;
 
 	} else if(protocol=="i"){
 		maxPackets = maxPackets*2;
@@ -184,7 +185,7 @@ main (int argc, char *argv[])
 		Config::SetDefault ("ns3::InrppCache::MaxCacheSize", UintegerValue (maxCacheSize));
 		Config::SetDefault ("ns3::InrppCache::HighThresholdCacheSize", UintegerValue (hCacheTh));
 		Config::SetDefault ("ns3::InrppCache::LowThresholdCacheSize", UintegerValue (lCacheTh));
-		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
+		//Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue (n));
 		Config::SetDefault ("ns3::InrppInterface::Refresh", DoubleValue (0.01));
 	}
 

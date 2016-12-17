@@ -97,9 +97,9 @@ public:
   //Flush cache
   void Flush ();
   //Insert packet to the cache
-  bool Insert(Ptr<InrppInterface> iface, uint32_t flag,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
+  //bool Insert(Ptr<InrppInterface> iface, uint32_t flag,Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
   //Insert packet at the beginning of the cache after a drop or when packet not sent
-  bool InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
+  //bool InsertFirst(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet);
 
   bool Insert(Ptr<InrppInterface> iface,uint32_t flag, Ptr<Ipv4Route> rtentry, Ptr<const Packet> packet, uint32_t nonce);
   Ptr<CachedPacket>  GetPacket(Ptr<InrppInterface> iface,uint32_t flag);
@@ -143,12 +143,10 @@ private:
   bool m_hTh;
   bool m_lTh;
 
-  uint32_t m_packets;
+  //uint32_t m_packets;
 
-  uint32_t m_split,m_round;
+  //uint32_t m_split,m_round;
 
-
-  bool red;
 };
 
 
