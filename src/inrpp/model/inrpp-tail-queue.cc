@@ -106,15 +106,16 @@ InrppTailQueue::SetNetDevice(Ptr<NetDevice> dev)
 bool 
 InrppTailQueue::DoEnqueue (Ptr<Packet> p)
 {
-  NS_LOG_FUNCTION (this << p << m_packets.size () << p->GetSize());
-  //p->Print (std::cout);
+ // NS_LOG_FUNCTION (this << p << m_packets.size () << p->GetSize());
+  ////p->Print (std::cout);
 	Ptr<Packet> packet = p->Copy ();
 	PppHeader h;
 	InrppHeader inrpp;
-	if(packet->RemoveHeader (h))NS_LOG_LOGIC("Send p2p Info");
+	if(packet->RemoveHeader (h))//NS_LOG_LOGIC("Send p2p Info");
 	//if(packet->PeekHeader (inrpp))NS_LOG_LOGIC("Send Inrpp Info");
   if (m_mode == QUEUE_MODE_BYTES && (m_bytesInQueue + p->GetSize () >= m_maxBytes) && !packet->PeekHeader (inrpp))
     {
+	  NS_LOG_LOGIC ("Drop " << p << " "<< m_bytesInQueue << " " << m_packets.size () <<" " << p->GetSize()  << " " << m_maxBytes);
 	  if(!m_drop.IsNull())m_drop(p);
     }
   if (m_mode == QUEUE_MODE_PACKETS && (m_packets.size () >= m_highPacketsTh)&&!m_hTh)
@@ -170,8 +171,8 @@ InrppTailQueue::DoEnqueue (Ptr<Packet> p)
   m_bytesInQueue += p->GetSize ();
   m_packets.push (p);
 
-  NS_LOG_LOGIC ("Number packets " << m_packets.size ());
-  NS_LOG_LOGIC ("Number bytes " << m_bytesInQueue);
+  //NS_LOG_LOGIC ("Number packets " << m_packets.size ());
+  //NS_LOG_LOGIC ("Number bytes " << m_bytesInQueue);
 
   return true;
 }

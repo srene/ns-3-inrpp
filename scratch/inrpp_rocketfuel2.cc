@@ -122,9 +122,9 @@ main (int argc, char *argv[])
 	uint32_t 		stop = 1000;
 	uint32_t n = 1;
 	//double 		time = 0.01;
-	std::string bottleneck="1Gbps";
-	std::string b2g_bottleneck = "20Gbps";
-	std::string c2g_bottleneck = "20Gbps";
+	std::string b2b_bottleneck="10Gbps";
+	std::string b2g_bottleneck = "10Gbps";
+	std::string c2g_bottleneck = "1Gbps";
 
 	uint32_t 	  bneck = 1000000000;
 	uint32_t 	  mean_n_pkts = (0.015*bneck)/(8*packetSize);
@@ -153,7 +153,7 @@ main (int argc, char *argv[])
 	//cmd.AddValue ("time","interflow time",time);
 	cmd.AddValue ("stop","stop time",stop);
 	cmd.AddValue ("protocol","protocol",protocol);
-	cmd.AddValue ("bottleneck","bottleneck",bottleneck);
+	//cmd.AddValue ("bottleneck","bottleneck",bottleneck);
 	cmd.AddValue ("load","load",load);
 	cmd.AddValue ("topo_file_name","topo_file_name",topo_file_name);
 
@@ -198,17 +198,17 @@ main (int argc, char *argv[])
 	RocketfuelParams params;
 	params.averageRtt = 2.0;
 	params.clientNodeDegrees = 2;
-	params.minb2bDelay = "5ms";
-	params.minb2bBandwidth = bottleneck;
-	params.maxb2bDelay = "5ms";
-	params.maxb2bBandwidth = bottleneck;
-	params.minb2gDelay = "5ms";
+	params.minb2bDelay = "1ms";
+	params.minb2bBandwidth = b2b_bottleneck;
+	params.maxb2bDelay = "1ms";
+	params.maxb2bBandwidth = b2b_bottleneck;
+	params.minb2gDelay = "1ms";
 	params.minb2gBandwidth = b2g_bottleneck;
-	params.maxb2gDelay = "5ms";
+	params.maxb2gDelay = "1ms";
 	params.maxb2gBandwidth = b2g_bottleneck;
-	params.ming2cDelay = "5ms";
+	params.ming2cDelay = "1ms";
 	params.ming2cBandwidth = c2g_bottleneck;
-	params.maxg2cDelay = "5ms";
+	params.maxg2cDelay = "1ms";
 	params.maxg2cBandwidth = c2g_bottleneck;
 
 	RocketfuelMapReader topo_reader(topo_file_name, 10); //the second paramater has to do with visualizing
@@ -238,36 +238,25 @@ main (int argc, char *argv[])
 	//
 	PointToPointHelper pointToPoint;
 
-	if(protocol=="t"){
-		pointToPoint.SetQueue ("ns3::DropTailQueue",
-							   "MaxBytes", UintegerValue(maxPackets));
-		InternetStackHelper inrpp;
-		inrpp.Install (nodes);
-	} else if (protocol=="i") {
-
-		pointToPoint.SetQueue ("ns3::InrppTailQueue",
-							   "LowerThBytes", UintegerValue (minTh),
-							   "HigherThBytes", UintegerValue (maxTh),
-							   "MaxBytes", UintegerValue(maxPackets));
-
-		InrppStackHelper inrpp;
-		inrpp.Install (nodes);
-	} else if (protocol=="r"){
-
-		pointToPoint.SetQueue ("ns3::RcpQueue",
-		"MaxBytes", UintegerValue(maxPackets),
-		"DataRate", StringValue (bottleneck));
-
-		InternetStackHelper inrpp;
-		inrpp.Install (nodes);
-	}
 
 	int num = 0;
 	int net = 0;
 
+
+	if(protocol=="t"||protocol=="r"){
+
+		InternetStackHelper inrpp;
+		inrpp.Install (nodes);
+	} else if (protocol=="i") {
+
+
+		InrppStackHelper inrpp;
+		inrpp.Install (nodes);
+	}
+
 	NS_LOG_INFO ("Create channels.");
-	pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
-	pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
+	//pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
+	//pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 	AsciiTraceHelper asciiTraceHelper;
 	//Iterate through all the TopologyReader::Link objects and form the "real" links
     std::list<TopologyReader::Link> links = topo_reader.GetLinks();
@@ -275,6 +264,29 @@ main (int argc, char *argv[])
 	for (std::list<TopologyReader::Link>::iterator it = links.begin(); it != links.end(); it++) {
 		Ptr<Node> fromNode = it->GetFromNode();
 		Ptr<Node> toNode = it->GetToNode();
+		//Ptr<TopologyReader::Link> link = it;
+		NS_LOG_LOGIC("Data rate " << it->GetAttribute("DataRate"));
+		NS_LOG_LOGIC("Delay " << it->GetAttribute("Delay"));
+		pointToPoint.SetDeviceAttribute ("DataRate", StringValue (it->GetAttribute("DataRate")));
+		pointToPoint.SetChannelAttribute ("Delay", StringValue (it->GetAttribute("Delay")));
+
+
+		if(protocol=="t"){
+			pointToPoint.SetQueue ("ns3::DropTailQueue",
+								   "MaxBytes", UintegerValue(maxPackets));
+		} else if (protocol=="i") {
+
+			pointToPoint.SetQueue ("ns3::InrppTailQueue",
+								   "LowerThBytes", UintegerValue (minTh),
+								   "HigherThBytes", UintegerValue (maxTh),
+								   "MaxBytes", UintegerValue(maxPackets));
+		} else if (protocol=="r"){
+
+			pointToPoint.SetQueue ("ns3::RcpQueue",
+			"MaxBytes", UintegerValue(maxPackets),
+			"DataRate", StringValue (it->GetAttribute("DataRate")));
+		}
+
 		NetDeviceContainer devices = pointToPoint.Install (fromNode, toNode);
 		//
 		// We've got the "hardware" in place.  Now we need to add IP addresses.
@@ -303,9 +315,7 @@ main (int argc, char *argv[])
 	Ptr<ExponentialRandomVariable> m_rv_flow_intval;
 	Ptr<RandomVariableStream> m_rv_npkts;
 
-	DataRate dr(bottleneck);
-
-
+	DataRate dr(c2g_bottleneck);
 
     uint32_t num_customers = CustomerRouters.GetN();
 	senders.Create(n*num_customers);
@@ -349,6 +359,8 @@ main (int argc, char *argv[])
       {
 			NetDeviceContainer sourceLink;
 			NetDeviceContainer destLink;
+			pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
+			pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
 
 			if(protocol=="t"){
 				pointToPoint.SetQueue ("ns3::DropTailQueue",
@@ -376,7 +388,7 @@ main (int argc, char *argv[])
 
 				pointToPoint.SetQueue ("ns3::RcpQueue",
 				"MaxBytes", UintegerValue(maxPackets),
-				"DataRate", StringValue (bottleneck));
+				"DataRate", StringValue (c2g_bottleneck));
 
 				sourceLink = pointToPoint.Install (fromNode, senders.Get(pair*n + i));
 				destLink = pointToPoint.Install (toNode, receivers.Get(pair*n + i));

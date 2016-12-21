@@ -176,6 +176,7 @@ private:
   void Refresh(void);
   void Refresh2(void);
   void Refresh3(void);
+  void DisableDetour();
 
   TracedValue<double>    m_currentBW;              //!< Current value of the estimated BW
   double                 m_lastSampleBW;           //!< Last bandwidth sample
@@ -229,7 +230,8 @@ private:
   std::list<Ipv4Address> m_adList;
   //uint32_t m_lastSlot;
 
-  double m_refresh;
+  double m_refresh,m_timeout;
+  EventId m_flagEvent;
 
   uint32_t m_lastDetoured;
 
