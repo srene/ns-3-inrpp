@@ -270,7 +270,6 @@ main (int argc, char *argv[])
 		pointToPoint.SetDeviceAttribute ("DataRate", StringValue (it->GetAttribute("DataRate")));
 		pointToPoint.SetChannelAttribute ("Delay", StringValue (it->GetAttribute("Delay")));
 
-
 		if(protocol=="t"){
 			pointToPoint.SetQueue ("ns3::DropTailQueue",
 								   "MaxBytes", UintegerValue(maxPackets));
@@ -343,7 +342,7 @@ main (int argc, char *argv[])
 		Ptr<Node> toNode = CustomerRouters.Get(dest);
 		double time = 1.0;
 
-		double lambda = ((dr.GetBitRate()/2 * load) / ((mean_n_pkts) * 1500 * 8.0));
+		double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
 
 		m_rv_flow_intval= CreateObject<ExponentialRandomVariable> ();
 

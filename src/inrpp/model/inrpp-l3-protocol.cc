@@ -556,28 +556,24 @@ InrppL3Protocol::AddOptionInrppBack (TcpHeader& header,uint8_t flag,uint32_t non
 {
   NS_LOG_FUNCTION (this << header << flag);
 
-  bool add = false;
-
- // if(!header.HasOption (TcpOption::INRPP)) return add;
 
   if(header.HasOption (TcpOption::INRPP))
   {
 	  NS_LOG_LOGIC("Has option");
-	  Ptr<TcpOptionInrpp> option = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
-	  header.ClearOption();
-	  header.AppendOption(option);
+	  //Ptr<TcpOptionInrpp> option = DynamicCast<TcpOptionInrpp> (header.GetOption (TcpOption::INRPP));
+	  //eader.ClearOption();
+	  //header.AppendOption(option);
+	  return false;
   } else {
-	  header.ClearOption();
-  }
 
 	  Ptr<TcpOptionInrppBack> option = CreateObject<TcpOptionInrppBack> ();
 	  option->SetFlag(flag);
 	  option->SetNonce (nonce);
 	  header.AppendOption (option);
-	  add = true;
+	  return true;
+  }
 
 
-  return add;
 
 }
 

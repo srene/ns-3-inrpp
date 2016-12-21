@@ -50,25 +50,13 @@ public:
   virtual uint8_t GetKind (void) const;
   virtual uint32_t GetSerializedSize (void) const;
 
-  /**
-   * \brief Get the timestamp stored in the Option
-   * \return the timestamp
-   */
   uint32_t GetNonce(void) const;
-
-  uint32_t GetFlag (void) const;
-  /**
-   * \brief Set the timestamp stored in the Option
-   * \param ts the timestamp
-   */
   void SetNonce (uint32_t nonce);
 
-  void SetFlag (uint32_t flag);
 
 
 
 protected:
-  uint32_t m_flag;     //!< Header destination address
   uint32_t m_nonce;
 };
 
