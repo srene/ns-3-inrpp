@@ -87,22 +87,6 @@ public:
   virtual ~InrppInterface();
 
 
-  /**
-   * \brief High queue occupancy threshold callback
-   *
-   * \param IpV4 Interface
-   * \returns
-   */
-//   void HighTh(Ptr<Ipv4Interface> iface, uint32_t packets);
-   void HighTh(uint32_t packets,Ptr<NetDevice> dev);
-
-  /**
-   * \brief Low queue occupancy threshold callback
-   *
-   * \param IpV4 Interface
-   * \returns
-   */
-  void LowTh(uint32_t packets,Ptr<NetDevice> dev);
 
   Ptr<InrppRoute> GetDetour(void);
 

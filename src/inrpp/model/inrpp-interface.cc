@@ -103,29 +103,7 @@ InrppInterface::~InrppInterface ()
   NS_LOG_FUNCTION (this);
 }
 
-void
-InrppInterface::HighTh( uint32_t packets,Ptr<NetDevice> dev)
-{
-	NS_LOG_FUNCTION (this<<GetState());
-	//Update state when the link buffer is full
-	if(GetState()!=DETOUR&&GetState()!=BACKPRESSURE)
-	{
-		SetState(DETOUR);
-		SendPacket();
-	}
-	m_disable=false;
-}
 
-void
-InrppInterface::LowTh(uint32_t packets,Ptr<NetDevice> dev)
-{
-	NS_LOG_FUNCTION(this<<packets<<dev<<m_currentBW2<<m_bps.GetBitRate()<<m_cache->GetSize()<<m_cache->GetThreshold());
-	//Update state when the link buffer is empty
-	if((GetState()==DETOUR||GetState()==BACKPRESSURE)&&m_cache->GetSize()<m_cache->GetThreshold()){
-		SetState(DISABLE_BACK);
-	}
-	m_disable = true;
-}
 
 
 InrppState
