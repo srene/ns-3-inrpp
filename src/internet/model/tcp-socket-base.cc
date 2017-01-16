@@ -1681,17 +1681,7 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
    */
 
 
-  if(this->GetObject<TcpInrpp>())
-  {
-	  NS_LOG_LOGIC("Inrpp traffic");
-	  InrppTag2 tag;
-	  tag.SetAddress(m_endPoint->GetLocalAddress ());
-	  p->AddPacketTag(tag);
 
-  } else {
-	  NS_LOG_LOGIC("No Inrpp traffic");
-
-  }
 
   if (IsManualIpTos ())
     {
@@ -1734,6 +1724,18 @@ TcpSocketBase::SendEmptyPacket (uint8_t flags)
     {
       ++s;
     }
+
+  if(this->GetObject<TcpInrpp>()&&m_endPoint!=0)
+  {
+	  NS_LOG_LOGIC("Inrpp traffic");
+	  InrppTag2 tag;
+	  tag.SetAddress(m_endPoint->GetLocalAddress ());
+	  p->AddPacketTag(tag);
+
+  } else {
+	  NS_LOG_LOGIC("No Inrpp traffic");
+
+  }
 
   header.SetFlags (flags);
   header.SetSequenceNumber (s);
