@@ -284,7 +284,6 @@ main (int argc, char *argv[])
     std::list<TopologyReader::Link> links = topo_reader.GetLinks();
     uint32_t l=1;
 
-        uint32_t l=1;
 	for (std::list<TopologyReader::Link>::iterator it = links.begin(); it != links.end(); it++) {
 		Ptr<Node> fromNode = it->GetFromNode();
 		Ptr<Node> toNode = it->GetToNode();
