@@ -82,12 +82,20 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 
 static void
+<<<<<<< HEAD
 //BwChange (DataRate dr, double oldCwnd, double newCwnd)
 BwChange (Ptr<NetDevice> netDev, double oldCwnd, double newCwnd)
 {
 	std::map<Ptr<NetDevice>,DataRate>::iterator it = rate.find(netDev);
 	if(it!=rate.end())
 	  *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << netDev<<"\t"<<newCwnd/(it->second).GetBitRate()<< std::endl;
+=======
+BwChange (DataRate dr, double oldCwnd, double newCwnd)
+{
+  //*stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
+	//NS_LOG_INFO ("Link utilization "<<Simulator::Now ().GetSeconds () << "\t" << newCwnd << "\t" << dr.GetBitRate() <<"\t"<<newCwnd/dr.GetBitRate());
+	  *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd/dr.GetBitRate() << std::endl;
+>>>>>>> 088b301b09dc5c3e6e1ceacd08c182e06e5d1b04
 
 }
 
@@ -276,6 +284,7 @@ main (int argc, char *argv[])
     std::list<TopologyReader::Link> links = topo_reader.GetLinks();
     uint32_t l=1;
 
+        uint32_t l=1;
 	for (std::list<TopologyReader::Link>::iterator it = links.begin(); it != links.end(); it++) {
 		Ptr<Node> fromNode = it->GetFromNode();
 		Ptr<Node> toNode = it->GetToNode();
@@ -308,6 +317,7 @@ main (int argc, char *argv[])
 		// We've got the "hardware" in place.  Now we need to add IP addresses.
 		//
 		NS_LOG_INFO ("Assign IP Addresses: "<<l);
+<<<<<<< HEAD
 		rate.insert(std::make_pair(devices.Get(0),bitrate));
 		rate.insert(std::make_pair(devices.Get(1),bitrate));
 		*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
@@ -317,6 +327,13 @@ main (int argc, char *argv[])
 		//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
 		devices.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(0)));
 		devices.Get(1)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(1)));
+=======
+
+		//std::ostringstream devosstr;
+		//devosstr << folder << "/p2pdevice_0.tr";
+		//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
+		devices.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, bitrate.GetBitRate()));
+>>>>>>> 088b301b09dc5c3e6e1ceacd08c182e06e5d1b04
 
 		std::stringstream netAddr;
 		netAddr << "10." << net << "." << (num) << ".0";
@@ -508,6 +525,12 @@ main (int argc, char *argv[])
 	osstr3 << folder << "/flows.tr";
 	flowstream = asciiTraceHelper.CreateFileStream (osstr3.str());
 
+<<<<<<< HEAD
+=======
+	std::ostringstream osstr13;
+	osstr13 << folder << "/util.tr";
+	utilstream = asciiTraceHelper.CreateFileStream (osstr13.str());
+>>>>>>> 088b301b09dc5c3e6e1ceacd08c182e06e5d1b04
 
 	NS_LOG_INFO ("Run Simulation.");
 	Simulator::Stop (Seconds (stop));
