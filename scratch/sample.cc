@@ -123,7 +123,7 @@ main (int argc, char *argv[])
 	packetSize = 1500;
 	//t = Simulator::Now();
 	std::string topo_file_name = "3257.pop.cch";
-	std::string protocol = "t";
+	std::string protocol = "i";
 	//std::string topo_file_name = "4755.pop.cch";
 	//i=0;
 	//tracing = true;
@@ -172,7 +172,7 @@ main (int argc, char *argv[])
 	cmd.Parse (argc, argv);
 
 	std::ostringstream st;
-	st << protocol << "rockettest_fl" <<n;
+	st << protocol << "rockettest2_fl" <<n;
 	folder = st.str();
 
     if (mean_n_pkts < 30)
