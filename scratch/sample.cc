@@ -66,11 +66,12 @@ std::map<Ptr<PacketSink> ,uint32_t> flows;
 uint32_t n;
 std::vector<Ptr<PacketSink> > sink;*/
 std::map<uint16_t,Time> data;
+std::map<Ptr<NetDevice>,DataRate> rate;
 std::string folder;
 uint32_t packetSize;
 
 uint32_t active_flows;
-Ptr<OutputStreamWrapper> flowstream;
+Ptr<OutputStreamWrapper> flowstream,utilstream;
 
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
@@ -79,15 +80,18 @@ BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwn
 
 }
 
-/*
+
 static void
-BwChange (Ptr<OutputStreamWrapper> stream, double oldCwnd, double newCwnd)
+//BwChange (DataRate dr, double oldCwnd, double newCwnd)
+BwChange (Ptr<NetDevice> netDev, double oldCwnd, double newCwnd)
 {
-  *stream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << newCwnd << std::endl;
+	std::map<Ptr<NetDevice>,DataRate>::iterator it = rate.find(netDev);
+	if(it!=rate.end())
+	  *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << netDev<<"\t"<<newCwnd/(it->second).GetBitRate()<< std::endl;
 
 }
 
-
+/*
 void LogCache(Ptr<InrppL3Protocol> inrpp)
 {
 	AsciiTraceHelper asciiTraceHelper;
@@ -223,7 +227,6 @@ main (int argc, char *argv[])
 	const NodeContainer& GatewayRouters = topo_reader.GetGatewayRouters();
 	const NodeContainer& CustomerRouters = topo_reader.GetCustomerRouters();
 
-
 	if(protocol=="i")
 	{
 		Config::SetDefault ("ns3::InrppL3Protocol::NumSlot", UintegerValue ((CustomerRouters.GetN()*n)+9000));
@@ -238,7 +241,6 @@ main (int argc, char *argv[])
 	// Explicitly create the point-to-point link required by the topology (shown above).
 	//
 
-
     Ipv4NixVectorHelper nixRouting;
 	Ipv4StaticRoutingHelper staticRouting;
 
@@ -246,9 +248,7 @@ main (int argc, char *argv[])
 	list.Add (staticRouting, 0);
 	list.Add (nixRouting, 10);
 
-
 	PointToPointHelper pointToPoint;
-
 
     InternetStackHelper internet;
 	InrppStackHelper inrpp;
@@ -263,12 +263,18 @@ main (int argc, char *argv[])
 	int num = 0;
 	int net = 0;
 
+	AsciiTraceHelper asciiTraceHelper;
+
+	std::ostringstream osstr13;
+	osstr13 << folder << "/util.tr";
+	utilstream = asciiTraceHelper.CreateFileStream (osstr13.str());
+
 	NS_LOG_INFO ("Create channels.");
 	//pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
 	//pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
-	AsciiTraceHelper asciiTraceHelper;
 	//Iterate through all the TopologyReader::Link objects and form the "real" links
-        std::list<TopologyReader::Link> links = topo_reader.GetLinks();
+    std::list<TopologyReader::Link> links = topo_reader.GetLinks();
+    uint32_t l=1;
 
 	for (std::list<TopologyReader::Link>::iterator it = links.begin(); it != links.end(); it++) {
 		Ptr<Node> fromNode = it->GetFromNode();
@@ -301,7 +307,17 @@ main (int argc, char *argv[])
 		//
 		// We've got the "hardware" in place.  Now we need to add IP addresses.
 		//
-		//NS_LOG_INFO ("Assign IP Addresses.");
+		NS_LOG_INFO ("Assign IP Addresses: "<<l);
+		rate.insert(std::make_pair(devices.Get(0),bitrate));
+		rate.insert(std::make_pair(devices.Get(1),bitrate));
+		*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
+		*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<0 << std::endl;
+		//std::ostringstream devosstr;
+		//devosstr << folder << "/p2pdevice_0.tr";
+		//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
+		devices.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(0)));
+		devices.Get(1)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(1)));
+
 		std::stringstream netAddr;
 		netAddr << "10." << net << "." << (num) << ".0";
 		Ipv4AddressHelper ipv4;
@@ -314,6 +330,7 @@ main (int argc, char *argv[])
 			num=0;
 			net++;
 		}
+		l++;
 	}
 
 	num = 0;
@@ -365,8 +382,8 @@ main (int argc, char *argv[])
 		m_rv_npkts->SetAttribute("Shape", DoubleValue(1.2));
 		m_rv_npkts->SetAttribute("Stream", IntegerValue(-1));
 
-	   for(uint32_t i=0;i<n;i++)
-                {
+	    for(uint32_t i=0;i<n;i++)
+        {
 			NetDeviceContainer sourceLink;
 			NetDeviceContainer destLink;
 			pointToPoint.SetDeviceAttribute ("DataRate", StringValue (c2g_bottleneck));
@@ -490,6 +507,7 @@ main (int argc, char *argv[])
 	std::ostringstream osstr3;
 	osstr3 << folder << "/flows.tr";
 	flowstream = asciiTraceHelper.CreateFileStream (osstr3.str());
+
 
 	NS_LOG_INFO ("Run Simulation.");
 	Simulator::Stop (Seconds (stop));
