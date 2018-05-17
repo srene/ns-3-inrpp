@@ -131,14 +131,14 @@ main (int argc, char *argv[])
 	//uint32_t 		maxBytes = 10000000;
 	bool pcap_tracing=false;
 	bool pcap_tracing2=false;
-	uint32_t 		stop = 1000;
+	uint32_t 		stop = 25;
 	uint32_t n = 1;
 	//double 		time = 0.01;
-	std::string b2b_bottleneck="1Gbps";
-	std::string b2g_bottleneck = "1Gbps";
-	std::string c2g_bottleneck = "100Mbps";
+	std::string b2b_bottleneck="10Mbps";
+	std::string b2g_bottleneck = "9.99Mbps";
+	std::string c2g_bottleneck = "5Mbps";
 
-	uint32_t 	  bneck = 1000000000;
+	uint32_t 	  bneck = 10000000;
 	uint32_t 	  mean_n_pkts = (0.015*bneck)/(8*packetSize);
 
 	uint32_t      maxPackets = (bneck * 0.005)/(8);
@@ -289,7 +289,6 @@ main (int argc, char *argv[])
 		Ptr<Node> toNode = it->GetToNode();
 	//	NS_LOG_LOGIC("Delay " << it->GetAttribute("Delay"));
 	    DataRate bitrate(it->GetAttribute("DataRate"));
-	    NS_LOG_LOGIC("Data rate " << bitrate.GetBitRate());
 
 		pointToPoint.SetDeviceAttribute ("DataRate", StringValue (it->GetAttribute("DataRate")));
 		pointToPoint.SetChannelAttribute ("Delay", StringValue (it->GetAttribute("Delay")));
@@ -317,15 +316,19 @@ main (int argc, char *argv[])
 		//
 		NS_LOG_INFO ("Assign IP Addresses: "<<l);
 
-		rate.insert(std::make_pair(devices.Get(0),bitrate));
-		rate.insert(std::make_pair(devices.Get(1),bitrate));
-		*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
-		*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<0 << std::endl;
-		//std::ostringstream devosstr;
-		//devosstr << folder << "/p2pdevice_0.tr";
-		//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
-		devices.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(0)));
-		devices.Get(1)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(1)));
+		if(bitrate==DataRate("10000000"))
+		{
+		    NS_LOG_LOGIC("Data rate " << bitrate.GetBitRate());
+			rate.insert(std::make_pair(devices.Get(0),bitrate));
+			rate.insert(std::make_pair(devices.Get(1),bitrate));
+			*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
+			*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<0 << std::endl;
+			//std::ostringstream devosstr;
+			//devosstr << folder << "/p2pdevice_0.tr";
+			//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
+			devices.Get(0)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(0)));
+			devices.Get(1)->GetObject<PointToPointNetDevice>()->TraceConnectWithoutContext ("EstimatedBW", MakeBoundCallback (&BwChange, devices.Get(1)));
+		}
 /*=======
 
 		//std::ostringstream devosstr;
@@ -379,13 +382,13 @@ main (int argc, char *argv[])
     //for(uint32_t pair = 0; pair < num_customers; pair++)
 	{
 
-		Ptr<Node> fromNode = CustomerRouters.Get(pair);
-		Ptr<Node> toNode = CustomerRouters.Get((pair+(num_customers/2)));
 		//Ptr<Node> fromNode = CustomerRouters.Get(pair);
-		//uint32_t dest = x->GetInteger();
-		//while(dest==pair)dest = x->GetInteger();
+		//Ptr<Node> toNode = CustomerRouters.Get((pair+(num_customers/2)));
+	    Ptr<Node> fromNode = CustomerRouters.Get(pair);
+		uint32_t dest = x->GetInteger();
+		while(dest==pair)dest = x->GetInteger();
 		NS_LOG_LOGIC("From node " << pair << " to node " << pair+1);
-		//Ptr<Node> toNode = CustomerRouters.Get(dest);
+		Ptr<Node> toNode = CustomerRouters.Get(dest);
 	    double time = 1.0;
 	    double lambda = ((dr.GetBitRate() * load) / ((mean_n_pkts) * 1500 * 8.0));
 		m_rv_flow_intval= CreateObject<ExponentialRandomVariable> ();

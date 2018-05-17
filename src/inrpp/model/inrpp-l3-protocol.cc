@@ -437,7 +437,9 @@ InrppL3Protocol::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, uint16_t 
 		 std::cout << "TCP Header error " << this << " " <<  device << " " << p  << " " << p->GetSize() << " " <<
 				 protocol <<  " " << from << " " << to << " " << packetType << std::endl;
 
-		 return;
+		// return;
+		  	Forward(packet,ipHeader,device,interface);
+
 	 }
 
   	}
