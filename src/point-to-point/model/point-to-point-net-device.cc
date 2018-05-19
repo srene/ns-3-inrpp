@@ -185,6 +185,7 @@ PointToPointNetDevice::PointToPointNetDevice ()
 	m_lastSampleBW(0),
 	m_lastBW(0),
 	data(0),
+	data2(0),
 	m_linkUtil(0)
 
 
@@ -202,6 +203,12 @@ DataRate
 PointToPointNetDevice::GetDataRate()
 {
 	return m_bps;
+}
+
+double
+PointToPointNetDevice::GetData()
+{
+	return data2;
 }
 void
 PointToPointNetDevice::AddHeader (Ptr<Packet> p, uint16_t protocolNumber)
@@ -254,6 +261,8 @@ PointToPointNetDevice::TransmitStart (Ptr<Packet> p)
   NS_LOG_LOGIC ("UID is " << p->GetUid () << ")");
 
   data+= p->GetSize() * 8;
+
+  data2+=p->GetSize()/1000000;
    NS_LOG_LOGIC(this << " Packet size " << p->GetSize());
    if(Simulator::Now().GetSeconds()-t1.GetSeconds()>0.01){
  	  NS_LOG_LOGIC("Data " << data << " "<< p->GetSize()*8 << " " << m_linkUtil << " " << m_currentBW << " " << m_lastSampleBW << " " << m_lastBW << " " << m_bps.GetBitRate());
