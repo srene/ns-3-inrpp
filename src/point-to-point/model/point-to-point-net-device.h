@@ -152,6 +152,7 @@ public:
   void Receive (Ptr<Packet> p);
 
   DataRate GetDataRate();
+  double GetData();
   // The remaining methods are documented in ns3::NetDevice*
 
   virtual void SetIfIndex (const uint32_t index);
@@ -486,6 +487,7 @@ private:
   double                 m_lastBW;                 //!< Last bandwidth sample after being filtered
   Time t1;
   uint32_t data;
+  double data2;
   TracedValue<double>	 m_linkUtil;
 
 };
