@@ -87,7 +87,7 @@ static void
 BwChange (Ptr<NetDevice> netDev, double oldCwnd, double newCwnd)
 {
 	std::map<Ptr<NetDevice>,DataRate>::iterator it = rate.find(netDev);
-	if(it!=rate.end())
+	if(it!=rate.end()&&(Simulator::Now()==Seconds(0)||Simulator::Now()>Seconds(1.0)))
 	  *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << netDev<<"\t"<<(it->second).GetBitRate()<<"\t"<<"\t"<<newCwnd/(it->second).GetBitRate()<< std::endl;
 /*=======
 BwChange (DataRate dr, double oldCwnd, double newCwnd)
@@ -136,9 +136,9 @@ main (int argc, char *argv[])
 	//double 		time = 0.01;
 	std::string b2b_bottleneck="10Mbps";
 	std::string b2g_bottleneck = "9.99Mbps";
-	std::string c2g_bottleneck = "1Mbps";
+	std::string c2g_bottleneck = "9.98Mbps";
 
-	uint32_t 	  bneck = 1000000;
+	uint32_t 	  bneck = 10000000;
 	uint32_t 	  mean_n_pkts = (0.015*bneck)/(8*packetSize);
 
 	uint32_t      maxPackets = (bneck * 0.005)/(8);
@@ -172,7 +172,7 @@ main (int argc, char *argv[])
 	cmd.Parse (argc, argv);
 
 	std::ostringstream st;
-	st << protocol << "rockettest2_fl" <<n;
+	st << protocol << "rockettest3_fl" <<n;
 	folder = st.str();
 
     if (mean_n_pkts < 30)
@@ -321,8 +321,12 @@ main (int argc, char *argv[])
 		    NS_LOG_LOGIC("Data rate " << bitrate.GetBitRate());
 			rate.insert(std::make_pair(devices.Get(0),bitrate));
 			rate.insert(std::make_pair(devices.Get(1),bitrate));
-			*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
-			*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<0 << std::endl;
+			//*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<0 << std::endl;
+			//*utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<0 << std::endl;
+                        *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
+                        *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
+
+
 			//std::ostringstream devosstr;
 			//devosstr << folder << "/p2pdevice_0.tr";
 			//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
