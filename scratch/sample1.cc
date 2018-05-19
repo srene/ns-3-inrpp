@@ -339,7 +339,10 @@ main (int argc, char *argv[])
                         *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
                         *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
 
+
                         Simulator::Schedule (Seconds (1.0), &DataChange, devices.Get(0)->GetObject<PointToPointNetDevice>());
+                        Simulator::Schedule (Seconds (1.0), &DataChange, devices.Get(1)->GetObject<PointToPointNetDevice>());
+
 			//std::ostringstream devosstr;
 			//devosstr << folder << "/p2pdevice_0.tr";
 			//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
