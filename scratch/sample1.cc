@@ -69,9 +69,10 @@ std::map<uint16_t,Time> data;
 std::map<Ptr<NetDevice>,DataRate> rate;
 std::string folder;
 uint32_t packetSize;
+double refresh;
 
 uint32_t active_flows;
-Ptr<OutputStreamWrapper> flowstream,utilstream;
+Ptr<OutputStreamWrapper> flowstream,utilstream,datastream;
 
 static void
 BufferChange (Ptr<OutputStreamWrapper> stream, uint32_t oldCwnd, uint32_t newCwnd)
@@ -99,6 +100,13 @@ BwChange (DataRate dr, double oldCwnd, double newCwnd)
 
 }
 
+static void
+DataChange (Ptr<PointToPointNetDevice> netDev)
+{
+	*datastream->GetStream() << Simulator::Now().GetSeconds() << "\t" << netDev<<"\t"<<netDev->GetData()<< std::endl;
+	Simulator::Schedule (Seconds (refresh), &DataChange, netDev);
+}
+
 /*
 void LogCache(Ptr<InrppL3Protocol> inrpp)
 {
@@ -121,6 +129,7 @@ main (int argc, char *argv[])
 {
 
 	packetSize = 1500;
+	refresh = 1.0;
 	//t = Simulator::Now();
 	std::string topo_file_name = "3257.pop.cch";
 	std::string protocol = "i";
@@ -277,6 +286,10 @@ main (int argc, char *argv[])
 	osstr13 << folder << "/util.tr";
 	utilstream = asciiTraceHelper.CreateFileStream (osstr13.str());
 
+	std::ostringstream osstr14;
+	osstr14 << folder << "/data.tr";
+	datastream = asciiTraceHelper.CreateFileStream (osstr14.str());
+
 	NS_LOG_INFO ("Create channels.");
 	//pointToPoint.SetDeviceAttribute ("DataRate", StringValue (bottleneck));
 	//pointToPoint.SetChannelAttribute ("Delay", StringValue ("1ms"));
@@ -326,7 +339,7 @@ main (int argc, char *argv[])
                         *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(0)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
                         *utilstream->GetStream () << Simulator::Now ().GetSeconds () << "\t" << devices.Get(1)<<"\t"<<bitrate.GetBitRate()<<"\t"<<0 << std::endl;
 
-
+                        Simulator::Schedule (Seconds (1.0), &DataChange, devices.Get(0)->GetObject<PointToPointNetDevice>());
 			//std::ostringstream devosstr;
 			//devosstr << folder << "/p2pdevice_0.tr";
 			//Ptr<OutputStreamWrapper> streamtrdev = asciiTraceHelper.CreateFileStream (devosstr.str());
